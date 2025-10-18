@@ -75,7 +75,7 @@ export function ChatPanel({ fullWidth, halfWidth }: ChatPanelProps) {
         </div>
 
         {/* Input Area */}
-        <div className="p-4 border-t border-panel-border">
+        <div className="p-4 border-t">
           <div className="flex gap-2">
             <Input
               value={message}
@@ -84,7 +84,7 @@ export function ChatPanel({ fullWidth, halfWidth }: ChatPanelProps) {
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
               className="flex-1"
             />
-            <Button onClick={handleSend} size="sm">
+            <Button onClick={handleSend} size="icon">
               <Send className="h-4 w-4" />
             </Button>
           </div>

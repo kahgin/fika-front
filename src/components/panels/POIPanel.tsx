@@ -12,7 +12,8 @@ import {
 } from "lucide-react";
 import { Panel } from "@/components/panel";
 import { Button } from "@/components/ui/button";
-import type { POI } from "./SearchPanel";
+import { ImageGrid } from "@/components/ui/image-grid";
+import type { POI } from "@/services/api";
 
 interface POIPanelProps {
   poi: POI;
@@ -41,6 +42,18 @@ export function POIPanel({
     return `https://www.google.com/maps/embed/v1/search?key=YOUR_API_KEY&q=${query}`;
   };
 
+  // Collect all available images from the POI
+  const getAvailableImages = (): string[] => {
+    const images: string[] = [];
+
+    // Add main image if available
+    if (poi.image) {
+      images.push(poi.image);
+    }
+
+    return images;
+  };
+
   useEffect(() => {
     const handleScroll = () => {
       if (!contentRef.current || !headerRef.current) return;
@@ -56,9 +69,7 @@ export function POIPanel({
         (acc, id) => {
           const el = document.getElementById(id);
           if (!el) return acc;
-          const dist = Math.abs(
-            el.offsetTop - (y + stickyOffset)
-          );
+          const dist = Math.abs(el.offsetTop - (y + stickyOffset));
           if (!acc || dist < acc.dist) return { id, dist };
           return acc;
         },
@@ -90,17 +101,15 @@ export function POIPanel({
     }
   };
 
+  const availableImages = getAvailableImages();
+
   return (
     <Panel halfWidth={!isFullWidth} fullWidth={isFullWidth}>
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="sticky top-0 z-10 pl-3 pr-6 py-2 flex justify-between items-center">
           <div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onClose}
-            >
+            <Button variant="ghost" size="icon" onClick={onClose}>
               <X />
             </Button>
             {onToggleFullWidth && (
@@ -109,11 +118,7 @@ export function POIPanel({
                 size="icon"
                 onClick={onToggleFullWidth}
               >
-                {isFullWidth ? (
-                  <Minimize2 />
-                ) : (
-                  <Maximize2 />
-                )}
+                {isFullWidth ? <Minimize2 /> : <Maximize2 />}
               </Button>
             )}
           </div>
@@ -139,24 +144,31 @@ export function POIPanel({
             <div ref={headerRef} className="mb-6 space-y-1">
               <h2>{poi.name}</h2>
               <div className="flex items-center gap-3 text-sm">
+                {/* separate them with a dot */}
                 <div className="flex items-center gap-1">
-                  <Star className="size-3.5 fill-current" />
-                  <span>{poi.rating}</span>
-                  <span className="text-muted-foreground/90">({poi.reviewCount.toLocaleString()})</span>
-                  <span className="text-muted-foreground/90">{poi.location}</span>
+                  <div className="flex items-center gap-1">
+                    <Star className="size-3.5 fill-current" />
+                    <span>{poi.rating}</span>
+                  </div>
+                  <span className="text-muted-foreground/90">•</span>
+                  <span className="items-center text-muted-foreground/90">
+                    {poi.reviewCount > 1000
+                      ? `${(poi.reviewCount / 1000).toFixed(1)}k`
+                      : poi.reviewCount}
+                  </span>
+                  <span className="text-muted-foreground/90">•</span>
+                  <span className="items-center text-muted-foreground/90">{poi.location}</span>
                 </div>
               </div>
-              <div className="flex items-center gap-3 text-sm">
-                  <span className="text-muted-foreground/90">{poi.category}</span>
-              </div>
+              <p className="text-sm text-muted-foreground/90">{poi.category}</p>
             </div>
 
-            {/* Hero Image */}
-            <div>
-              <img
-                src={poi.image}
-                alt={poi.name}
-                className="w-full h-48 object-cover rounded-2xl"
+            {/* Hero Image Grid */}
+            <div className="mb-6">
+              <ImageGrid
+                images={availableImages}
+                title={poi.name}
+                maxImages={5}
               />
             </div>
 
@@ -262,9 +274,7 @@ export function POIPanel({
               </section>
 
               <section id="location" className="scroll-mt-24">
-                <h3 className="text-lg font-medium mb-3">
-                  Location
-                </h3>
+                <h3 className="text-lg font-medium mb-3">Location</h3>
 
                 <div className="relative rounded-lg overflow-hidden border border-gray-200 mb-4">
                   {/* Map iframe */}
@@ -291,7 +301,6 @@ export function POIPanel({
                     </Button>
                   )}
                 </div>
-
               </section>
             </div>
           </div>
