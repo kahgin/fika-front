@@ -1,5 +1,5 @@
-
-const API_BASE_URL = 'http://localhost:8000/api/v1';
+const API_BASE_URL = 'http://localhost:8000/api';
+const DEFAULT_LIMIT = 12;
 
 export interface POI {
   id: string;
@@ -8,7 +8,7 @@ export interface POI {
   rating: number;
   reviewCount: number;
   location: string;
-  image: string;
+  images: string[];
   description?: string;
   coordinates?: {
     lat: number;
@@ -22,30 +22,41 @@ export interface POI {
   isOpenNow?: boolean;
 }
 
+interface ApiResponse<T> {
+  status: string;
+  source?: string;
+  count?: number;
+  data: T;
+}
+
 // Fetch all POIs
 export async function fetchPOIs(): Promise<POI[]> {
   try {
-    const response = await fetch(`${API_BASE_URL}/pois`);
+    const response = await fetch(`${API_BASE_URL}/pois?limit=${DEFAULT_LIMIT}`);
     if (!response.ok) throw new Error('Failed to fetch POIs');
-    const data = await response.json();
+    const data: ApiResponse<POI[]> = await response.json();
     return data.data || [];
   } catch (error) {
     console.error('Error fetching POIs:', error);
-    // Return mock data if backend is not running
     return [];
   }
 }
 
 // Search POIs
 export async function searchPOIs(query: string): Promise<POI[]> {
+  if (!query.trim()) {
+    return fetchPOIs();
+  }
+
   try {
-    const response = await fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}`);
+    const response = await fetch(
+      `${API_BASE_URL}/search?q=${encodeURIComponent(query)}&limit=${DEFAULT_LIMIT}`
+    );
     if (!response.ok) throw new Error('Failed to search POIs');
-    const data = await response.json();
+    const data: ApiResponse<POI[]> = await response.json();
     return data.data || [];
   } catch (error) {
     console.error('Error searching POIs:', error);
-    // Filter mock data if backend is not running
     return [];
   }
 }
@@ -53,13 +64,27 @@ export async function searchPOIs(query: string): Promise<POI[]> {
 // Get POIs by category
 export async function fetchPOIsByCategory(category: string): Promise<POI[]> {
   try {
-    const response = await fetch(`${API_BASE_URL}/pois?category=${encodeURIComponent(category)}`);
+    const response = await fetch(
+      `${API_BASE_URL}/pois?category=${encodeURIComponent(category)}&limit=${DEFAULT_LIMIT}`
+    );
     if (!response.ok) throw new Error('Failed to fetch POIs by category');
-    const data = await response.json();
+    const data: ApiResponse<POI[]> = await response.json();
     return data.data || [];
   } catch (error) {
     console.error('Error fetching POIs by category:', error);
-    // Return mock data if backend is not running
     return [];
+  }
+}
+
+// Get POI by ID (for detailed view)
+export async function fetchPOIById(poiId: string): Promise<POI | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/pois/${poiId}`);
+    if (!response.ok) throw new Error('Failed to fetch POI details');
+    const data: ApiResponse<POI> = await response.json();
+    return data.data || null;
+  } catch (error) {
+    console.error(`Error fetching POI ${poiId}:`, error);
+    return null;
   }
 }

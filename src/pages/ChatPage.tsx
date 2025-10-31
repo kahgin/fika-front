@@ -21,16 +21,16 @@ export default function ChatPage() {
           </Button>
         </div>
       </div>
-      <div className="h-screen flex">
+      <div className="flex">
         {/* ChatPanel */}
-        <div className={isItineraryFullWidth ? "hidden" : "flex-1 min-w-0 basis-1/2 border-r bg-white dark:bg-background"}>
+        <div className={isItineraryFullWidth ? "hidden" : "border-r flex-1 min-w-0 basis-1/2"}>
           <ChatPanel />
         </div>
 
         {/* ItineraryPanel */}
-        <div className={isItineraryFullWidth ? "flex-1 min-w-0" : "flex-1 min-w-0 basis-1/2 bg-white dark:bg-background"}>
+        <div className={isItineraryFullWidth ? "flex-1 min-w-0" : "flex-1 min-w-0 basis-1/2"}>
           <div className="relative h-full">
-            <ItineraryPanel className="h-full" />
+            <ItineraryPanel />
           </div>
         </div>
       </div>

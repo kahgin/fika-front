@@ -131,10 +131,10 @@ export default function ItineraryPanel({ className = "" }: ItineraryPanelProps) 
           <ToggleGroupItem value="destination" className="text-xs" onClick={() => setOpen(true)}>
             {tripData.destination}
           </ToggleGroupItem>
-          <ToggleGroupItem value="dates" className="text-xs">
+          <ToggleGroupItem value="dates" className="text-xs" onClick={() => setOpen(true)}>
             {tripData.dates}
           </ToggleGroupItem>
-          <ToggleGroupItem value="budget" className="text-xs">
+          <ToggleGroupItem value="budget" className="text-xs" onClick={() => setOpen(true)}>
             {tripData.budget}
           </ToggleGroupItem>
         </ToggleGroup>
