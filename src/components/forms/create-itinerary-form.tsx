@@ -14,7 +14,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { CalendarIcon, Plus, Minus } from "lucide-react"
+import { CalendarIcon, Plus, Minus, ChevronLeft } from "lucide-react"
 
 interface CreateItineraryFormProps {
   open: boolean
@@ -158,27 +158,59 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
     preferences: { budget: form.getValues("budget"), pacing: form.getValues("pacing"), interests: form.getValues("interests") },
   })
 
-  const onSubmit = () => {
-    console.log("API Payload:", generateAPIPayload())
-    handleOpenChange(false)
+  const onSubmit = async () => {
+    const payload = generateAPIPayload()
+    try {
+      const resp = await (await import('@/services/api')).createItinerary(payload as any)
+      if (resp && resp.chat_id) {
+        // Store last chat id and navigate
+        localStorage.setItem('fika:lastChatId', resp.chat_id)
+        localStorage.setItem(`fika:chat:${resp.chat_id}`, JSON.stringify(resp))
+        window.location.href = '/chat'
+      }
+    } catch (e) {
+      console.error('Failed to create itinerary', e)
+    } finally {
+      handleOpenChange(false)
+    }
   }
 
+  const budgetLabels = useMemo(() => ({
+    any: "Any budget",
+    tight: "On a budget",
+    sensible: "Sensibly priced",
+    upscale: "Upscale",
+    luxury: "Luxury",
+  }), [])
+
   const StepOne = () => {
-    const d = form.watch()
+    const startDate = form.watch("startDate")
+    const endDate = form.watch("endDate")
+    const flexibleDays = form.watch("flexibleDays")
+    const flexibleMonth = form.watch("flexibleMonth")
+    const adults = form.watch("adults")
+    const children = form.watch("children")
+    const pets = form.watch("pets")
+    const budget = form.watch("budget")
+    const pacing = form.watch("pacing")
+
+    const budgetKey: "any" | "tight" | "sensible" | "upscale" | "luxury" =
+      budget === "tight" || budget === "sensible" || budget === "upscale" || budget === "luxury" ? budget : "any"
+
     const dateDisplay = useMemo(() => {
-      if (dateMode === "specific" && d.startDate && d.endDate) return `${format(d.startDate, "LLL dd, y")} - ${format(d.endDate, "LLL dd, y")}`
-      if (dateMode === "flexible" && d.flexibleDays) {
-        const label = months.find((m) => m.value === d.flexibleMonth)?.label
-        return `${d.flexibleDays} days${label ? ` in ${label}` : ""}`
+      if (dateMode === "specific" && startDate && endDate) return `${format(startDate, "LLL dd, y")} - ${format(endDate, "LLL dd, y")}`
+      if (dateMode === "flexible" && flexibleDays) {
+        const label = months.find((m) => m.value === flexibleMonth)?.label
+        return `${flexibleDays} days${label ? ` in ${label}` : ""}`
       }
       return "Select dates"
-    }, [dateMode, d.startDate, d.endDate, d.flexibleDays, d.flexibleMonth])
+    }, [dateMode, startDate, endDate, flexibleDays, flexibleMonth])
 
     const whoDisplay = useMemo(() => {
-      const total = (d.adults || 0) + (d.children || 0)
+      const total = (adults || 0) + (children || 0)
       const base = `${total} ${total === 1 ? "traveler" : "travelers"}`
-      return d.pets ? `${base}, pets` : base
-    }, [d.adults, d.children, d.pets])
+      return pets ? `${base}, pets` : base
+    }, [adults, children, pets])
 
     return (
       <div className="space-y-4">
@@ -189,13 +221,29 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
             <FormMessage />
           </FormItem>
         )} />
-        <FormItem><FormLabel>When</FormLabel><Input readOnly value={dateDisplay} onClick={() => setShowDateDialog(true)} className="cursor-pointer" /></FormItem>
-        <FormItem><FormLabel>Who</FormLabel><Input readOnly value={whoDisplay} onClick={() => setShowWhoDialog(true)} className="cursor-pointer" /></FormItem>
-        <FormItem><FormLabel>Budget</FormLabel>
-          <Input readOnly value={{ any: "Any budget", tight: "On a budget", sensible: "Sensibly priced", upscale: "Upscale", luxury: "Luxury" }[d.budget || "any"]} onClick={() => setShowBudgetDialog(true)} className="cursor-pointer" />
+        <FormItem>
+          <FormLabel>When</FormLabel>
+          <div role="button" tabIndex={0} onClick={() => setShowDateDialog(true)} className="cursor-pointer border rounded-md h-10 flex items-center px-3 text-sm">
+            {dateDisplay}
+          </div>
         </FormItem>
-        <FormItem><FormLabel>Travel Pacing</FormLabel>
-          <Input readOnly value={pacingOptions.find((p) => p.value === d.pacing)?.label || "Select pacing"} onClick={() => setShowPacingDialog(true)} className="cursor-pointer" />
+        <FormItem>
+          <FormLabel>Who</FormLabel>
+          <div role="button" tabIndex={0} onClick={() => setShowWhoDialog(true)} className="cursor-pointer border rounded-md h-10 flex items-center px-3 text-sm">
+            {whoDisplay}
+          </div>
+        </FormItem>
+        <FormItem>
+          <FormLabel>Budget</FormLabel>
+          <div role="button" tabIndex={0} onClick={() => setShowBudgetDialog(true)} className="cursor-pointer border rounded-md h-10 flex items-center px-3 text-sm">
+            {budgetLabels[budgetKey]}
+          </div>
+        </FormItem>
+        <FormItem>
+          <FormLabel>Travel Pacing</FormLabel>
+          <div role="button" tabIndex={0} onClick={() => setShowPacingDialog(true)} className="cursor-pointer border rounded-md h-10 flex items-center px-3 text-sm">
+            {pacingOptions.find((p) => p.value === pacing)?.label || "Select pacing"}
+          </div>
         </FormItem>
       </div>
     )
@@ -216,23 +264,23 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="overflow-auto">
+          {currentStep > 1 && (
+            <Button type="button" variant="ghost" size="icon" onClick={handlePrevious} aria-label="Previous step">
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+          )}
           <DialogHeader><DialogTitle>Create Trip</DialogTitle></DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               {currentStep === 1 && <StepOne />}
               {currentStep === 2 && <StepTwo />}
-              <div className="flex gap-3 pt-4 w-full">
-                {currentStep > 1 && (
-                  <Button type="button" variant="outline" onClick={handlePrevious}>
-                    Previous
-                  </Button>
-                )}
+              <div className="pt-4 w-full">
                 {currentStep < 2 ? (
                   <Button type="button" onClick={handleNext} disabled={!canProceed()} className="w-full">
                     Next
                   </Button>
                 ) : (
-                  <Button type="submit" className="flex-1">Create Itinerary</Button>
+                  <Button type="submit" className="w-full">Create Itinerary</Button>
                 )}
               </div>
             </form>

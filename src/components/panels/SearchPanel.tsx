@@ -1,8 +1,18 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationEllipsis,
+} from "@/components/ui/pagination";
 import { Search, Star, CirclePlus, Loader2, AlertCircle, X } from "lucide-react";
 import { fetchPOIs, searchPOIs, fetchPOIsByCategory, type POI } from "@/services/api";
+import AddToItineraryDialog from "@/components/ui/add-to-itinerary-dialog";
 
 interface SearchPanelProps {
   onPOISelect: (poi: POI) => void;
@@ -11,6 +21,7 @@ interface SearchPanelProps {
 
 const TABS = ["all", "attractions", "restaurants", "hotels"] as const;
 type Tab = typeof TABS[number];
+const ITEMS_PER_PAGE = 12;
 
 const imageLoadQueue = new Map<string, Promise<void>>();
 let loadingDelay = 100;
@@ -46,12 +57,18 @@ export function SearchPanel({
   const [searchQuery, setSearchQuery] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
   const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalResults, setTotalResults] = useState(0);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [selectedPOI, setSelectedPOI] = useState<POI | null>(null);
+
+  const totalPages = Math.ceil(totalResults / ITEMS_PER_PAGE);
 
   useEffect(() => {
     if (!hasSearched) {
       loadPOIs();
     }
-  }, [activeTab, hasSearched]);
+  }, [activeTab, hasSearched, currentPage]);
 
   useEffect(() => {
     loadingDelay = 100;
@@ -69,20 +86,22 @@ export function SearchPanel({
     setError(null);
     setLoadedImages(new Set());
     try {
-      let data: POI[];
+      let result;
       if (activeTab === "all") {
-        data = await fetchPOIs();
+        result = await fetchPOIs(currentPage, ITEMS_PER_PAGE);
       } else {
-        data = await fetchPOIsByCategory(activeTab);
+        result = await fetchPOIsByCategory(activeTab, currentPage, ITEMS_PER_PAGE);
       }
-      setPOIs(data);
-      if (data.length === 0) {
+      setPOIs(result.pois);
+      setTotalResults(result.total);
+      if (result.pois.length === 0) {
         setError("No places found in this category");
       }
     } catch (err) {
       setError("Failed to load places");
       console.error(err);
       setPOIs([]);
+      setTotalResults(0);
     } finally {
       setLoading(false);
     }
@@ -93,6 +112,7 @@ export function SearchPanel({
 
     if (!searchQuery.trim()) {
       setHasSearched(false);
+      setCurrentPage(1);
       setActiveTab("all");
       setError(null);
       return;
@@ -101,17 +121,20 @@ export function SearchPanel({
     setLoading(true);
     setError(null);
     setHasSearched(true);
+    setCurrentPage(1);
     setLoadedImages(new Set());
     try {
-      const data = await searchPOIs(searchQuery);
-      setPOIs(data);
-      if (data.length === 0) {
+      const result = await searchPOIs(searchQuery, 1, ITEMS_PER_PAGE);
+      setPOIs(result.pois);
+      setTotalResults(result.total);
+      if (result.pois.length === 0) {
         setError("No places found matching your search");
       }
     } catch (err) {
       setError("Search failed");
       console.error(err);
       setPOIs([]);
+      setTotalResults(0);
     } finally {
       setLoading(false);
     }
@@ -120,6 +143,7 @@ export function SearchPanel({
   const handleClearSearch = () => {
     setSearchQuery("");
     setHasSearched(false);
+    setCurrentPage(1);
     setActiveTab("all");
     setError(null);
     setLoadedImages(new Set());
@@ -128,8 +152,57 @@ export function SearchPanel({
   const handleTabChange = (tab: Tab) => {
     if (!hasSearched) {
       setActiveTab(tab);
+      setCurrentPage(1);
     }
   };
+
+  const handlePageChange = async (page: number) => {
+    if (page < 1 || page > totalPages) return;
+    
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // If searching, fetch search results for new page
+    if (hasSearched && searchQuery.trim()) {
+      setLoading(true);
+      setError(null);
+      setLoadedImages(new Set());
+      try {
+        const result = await searchPOIs(searchQuery, page, ITEMS_PER_PAGE);
+        setPOIs(result.pois);
+        setTotalResults(result.total);
+      } catch (err) {
+        setError("Failed to load page");
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  const getPageNumbers = () => {
+    const pages: (number | 'ellipsis')[] = [];
+    const showEllipsis = totalPages > 7;
+
+    if (!showEllipsis) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        pages.push(1, 2, 3, 4, 'ellipsis', totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1, 'ellipsis', totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+      } else {
+        pages.push(1, 'ellipsis', currentPage - 1, currentPage, currentPage + 1, 'ellipsis', totalPages);
+      }
+    }
+
+    return pages;
+  };
+
+  const startResult = totalResults > 0 ? (currentPage - 1) * ITEMS_PER_PAGE + 1 : 0;
+  const endResult = Math.min(currentPage * ITEMS_PER_PAGE, totalResults);
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden border-r">
@@ -170,6 +243,16 @@ export function SearchPanel({
           ))}
         </div>
       </div>
+
+      {/* Results Count */}
+      {!loading && totalResults > 0 && (
+        <div className="flex-shrink-0 px-6 py-3 border-b bg-muted/30">
+          <p className="text-sm text-muted-foreground">
+            Showing <span className="font-medium text-foreground">{startResult}–{endResult}</span> of{" "}
+            <span className="font-medium text-foreground">{totalResults}</span> results
+          </p>
+        </div>
+      )}
 
       {/* POI Grid */}
       <div className="flex-1 overflow-y-auto p-6">
@@ -219,7 +302,8 @@ export function SearchPanel({
                     <Button
                       onClick={(e) => {
                         e.stopPropagation();
-                        // Handle add to itinerary
+                        setSelectedPOI(poi);
+                        setAddDialogOpen(true);
                       }}
                       className="rounded-full p-2"
                       variant="ghost"
@@ -246,6 +330,60 @@ export function SearchPanel({
           </div>
         )}
       </div>
+
+      {/* Pagination */}
+      {!loading && totalPages > 1 && (
+        <div className="flex-shrink-0 border-t p-4">
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                />
+              </PaginationItem>
+              
+              {getPageNumbers().map((page, idx) => (
+                <PaginationItem key={idx}>
+                  {page === 'ellipsis' ? (
+                    <PaginationEllipsis />
+                  ) : (
+                    <PaginationLink
+                      onClick={() => handlePageChange(page)}
+                      isActive={currentPage === page}
+                      className="cursor-pointer"
+                    >
+                      {page}
+                    </PaginationLink>
+                  )}
+                </PaginationItem>
+              ))}
+
+              <PaginationItem>
+                <PaginationNext
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
+    <AddToItineraryDialog
+      open={addDialogOpen}
+      onOpenChange={setAddDialogOpen}
+      poi={selectedPOI || undefined}
+      onAdd={async (itineraryId, poi) => {
+        const { addPOIToItinerary, getItinerary } = await import("@/services/api");
+        await addPOIToItinerary(itineraryId, { poi_id: poi.id });
+        // Optionally refresh cached itinerary if it matches
+        const lastId = localStorage.getItem('fika:lastChatId');
+        if (lastId === itineraryId) {
+          const latest = await getItinerary(itineraryId);
+          if (latest) localStorage.setItem(`fika:chat:${itineraryId}`, JSON.stringify(latest));
+        }
+      }}
+    />
     </div>
   );
 }

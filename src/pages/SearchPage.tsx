@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { SearchPanel } from "@/components/panels/SearchPanel";
-import { POIPanel } from "@/components/panels/POIPanel";
+import POIPanel from "@/components/panels/POIPanel";
 import type { POI } from "@/services/api";
 
 export default function SearchPage() {

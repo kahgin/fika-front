@@ -1,25 +1,29 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ImageGrid } from "@/components/ui/image-grid";
-import { parseOpenHours } from "@/lib/utils.ts";
+import { parseOpenHours } from "@/lib/utils";
 import type { POI } from "@/services/api";
 import { Star, Plus, X, ArrowLeftToLine, ArrowRightToLine, ExternalLink, MapPin, Phone, Clock } from "lucide-react";
+import AddToItineraryDialog from "@/components/ui/add-to-itinerary-dialog";
 
 interface POIPanelProps {
   poi: POI;
   size?: "full" | "half";
   onClose: () => void;
   onToggleFullWidth?: () => void;
+  showAddToTrip?: boolean;
 }
 
-export function POIPanel({
+export default function POIPanel({
   poi,
   size = "half",
   onClose,
   onToggleFullWidth,
+  showAddToTrip = true,
 }: POIPanelProps) {
   const [showNameDrawer, setShowNameDrawer] = useState(false);
   const [activeSection, setActiveSection] = useState("overview");
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
   const headerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const overviewRef = useRef<HTMLDivElement>(null);
@@ -90,9 +94,11 @@ export function POIPanel({
             </Button>
           )}
         </div>
-        <Button variant="outline" size="sm" className="shadow-none rounded-full">
-          <Plus /> Add to trip
-        </Button>
+        {showAddToTrip && (
+          <Button variant="outline" size="sm" className="shadow-none rounded-full" onClick={() => setAddDialogOpen(true)}>
+            <Plus /> Add to trip
+          </Button>
+        )}
       </div>
 
       {/* Scrollable Content */}
@@ -278,6 +284,20 @@ export function POIPanel({
           </div>
         </div>
       </div>
+     <AddToItineraryDialog
+      open={addDialogOpen}
+      onOpenChange={setAddDialogOpen}
+      poi={poi}
+      onAdd={async (itineraryId, poi) => {
+        const { addPOIToItinerary, getItinerary } = await import("@/services/api");
+        await addPOIToItinerary(itineraryId, { poi_id: poi.id });
+        const lastId = localStorage.getItem('fika:lastChatId');
+        if (lastId === itineraryId) {
+          const latest = await getItinerary(itineraryId);
+          if (latest) localStorage.setItem(`fika:chat:${itineraryId}`, JSON.stringify(latest));
+        }
+      }}
+    />
     </div>
   );
 }

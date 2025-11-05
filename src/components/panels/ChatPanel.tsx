@@ -3,7 +3,7 @@ import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-export function ChatPanel() {
+export default function ChatPanel() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
 

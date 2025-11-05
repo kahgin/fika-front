@@ -6,6 +6,25 @@ import { ChevronDown, ChevronRight, MoreHorizontal, Clock, Plus } from "lucide-r
 
 interface ItineraryPanelProps {
   className?: string
+  data?: {
+    meta?: any
+    maut?: {
+      selected_themes: string[]
+      items: Array<{
+        id: string
+        name: string
+        roles: string[]
+        categories?: string[]
+        rating?: number
+        reviews?: number
+        price_level?: number | null
+      }>
+    }
+  } | null
+  loading?: boolean
+  onOpenDetails?: (poi: { id: string; name: string }) => void
+  onToggleWidth?: () => void
+  fullWidth?: boolean
 }
 
 interface ItineraryItem {
@@ -24,84 +43,55 @@ interface ItineraryDay {
   date: string
   dayName: string
   items: ItineraryItem[]
-  isExpanded: boolean
 }
 
-export default function ItineraryPanel({ className = "" }: ItineraryPanelProps) {
+export default function ItineraryPanel({ className = "", data, loading = false, onOpenDetails, onToggleWidth, fullWidth }: ItineraryPanelProps) {
+  const [menuOpen, setMenuOpen] = useState(false)
   const [open, setOpen] = useState(false)
 
+  // collapsed by default; user can expand
   const [expandedDays, setExpandedDays] = useState<{ [key: string]: boolean }>({
     "day1": false,
-    "day2": true,
-    "day3": false
   })
 
+  type BudgetKey = 'any' | 'tight' | 'sensible' | 'upscale' | 'luxury'
+  const budgetMap: Record<BudgetKey, number> = { any: 1, tight: 1, sensible: 2, upscale: 3, luxury: 4 }
+  const budgetKey = ((data?.meta?.preferences?.budget as string) ?? 'any') as BudgetKey
+
   const tripData = {
-    title: "Singapore's Trip",
-    destination: "Singapore",
-    dates: "5 days",
-    travelers: "2 travelers",
-    budget: "$"
+    title: data?.meta?.destination ? `${data.meta.destination} Trip` : "Trip",
+    destination: data?.meta?.destination || "Singapore",
+    dates: typeof data?.meta?.dates === 'object' && data?.meta?.dates?.type === 'specific'
+      ? `${data?.meta?.dates?.startDate || ''} - ${data?.meta?.dates?.endDate || ''}`
+      : (data?.meta?.dates?.days ? `${data?.meta?.dates?.days} days` : "5 days"),
+    travelers: data?.meta?.travelers ? `${(data.meta.travelers.adults||0)+(data.meta.travelers.children||0)} travelers` : "2 travelers",
+    budget: "$".repeat(budgetMap[budgetKey] || 1)
   }
 
-  const ideasItems: ItineraryItem[] = [
-    {
-      id: "idea1",
-      name: "Singapore Botanic Gardens",
-      category: "Attraction",
-      image: "/api/placeholder/300/200",
-      hasTime: false
-    }
-  ]
+  // derive ideas from data (support both meta.ideas and top-level ideas), fallback to empty
+  const ideasItems: ItineraryItem[] = (
+    ((data as any)?.meta?.ideas ?? (data as any)?.ideas ?? []) as Array<any>
+  ).map((i) => ({
+    id: String(i.id ?? i.place_id ?? i.slug ?? Math.random().toString(36).slice(2)),
+    name: String(i.name ?? i.title ?? 'Untitled'),
+    hasTime: false,
+    image: (i.image || (Array.isArray(i.images) ? i.images[0] : undefined)) as string | undefined,
+    category: i.category as string | undefined,
+  }))
+
+  const derivedItems: ItineraryItem[] = (data?.maut?.items || []).slice(0, 8).map((i) => ({
+    id: i.id,
+    name: i.name,
+    hasTime: false,
+  }))
 
   const itineraryDays: ItineraryDay[] = [
     {
       id: "day1",
-      date: "Mon 1/1",
+      date: "",
       dayName: "Day 1",
-      isExpanded: expandedDays["day1"],
-      items: []
+      items: derivedItems
     },
-    {
-      id: "day2",
-      date: "Tue 1/2",
-      dayName: "Day 2",
-      isExpanded: expandedDays["day2"],
-      items: [
-        {
-          id: "dest1",
-          name: "Civic District",
-          time: "9:00 AM - 11:00 AM",
-          distance: "0.13 km",
-          image: "/api/placeholder/300/200",
-          hasTime: true
-        },
-        {
-          id: "dest2",
-          name: "National Gallery Singapore",
-          time: "2:00 PM - 5:00 PM",
-          distance: "",
-          image: "/api/placeholder/300/200",
-          hasTime: true
-        }
-      ]
-    },
-    {
-      id: "day3",
-      date: "Wed 1/3",
-      dayName: "Day 3",
-      isExpanded: expandedDays["day3"],
-      items: [
-        {
-          id: "dest3",
-          name: "Marina Bay Sands",
-          time: "11:00 AM - 2:00 PM",
-          distance: "0.5 km",
-          image: "/api/placeholder/300/200",
-          hasTime: true
-        }
-      ]
-    }
   ]
 
   const toggleDay = (dayId: string) => {
@@ -117,9 +107,18 @@ export default function ItineraryPanel({ className = "" }: ItineraryPanelProps) 
     <div className={`h-full overflow-auto ${className}`}>
       {/* Header */}
       <div className="flex items-center justify-end gap-2">
-        <Button variant="outline" size="icon">
-          <MoreHorizontal className="h-4 w-4" />
-        </Button>
+        <div className="relative">
+          <Button variant="outline" size="icon" onClick={() => setMenuOpen((m) => !m)} aria-haspopup="menu" aria-expanded={menuOpen}>
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+          {menuOpen && (
+            <div className="absolute right-0 mt-2 w-48 border bg-white rounded-md shadow-sm z-10">
+              <button className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50" onClick={() => { onToggleWidth && onToggleWidth(); setMenuOpen(false); }}>
+                {fullWidth ? 'Split view' : 'Expand to full width'}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
       <div className="border-b border-gray-200 p-6">
         <div className="mb-4">
@@ -152,36 +151,35 @@ export default function ItineraryPanel({ className = "" }: ItineraryPanelProps) 
 
       {/* Content */}
       <div className="p-6 space-y-8">
-        {/* Ideas Section - Only show if there are ideas */}
-        {hasIdeas && (
+        {/* Ideas Section */}
+        {ideasItems.length > 0 && (
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <ChevronDown className="size-5" />
-                <h2 className="text-lg font-semibold">Ideas</h2>
-                <span className="text-sm text-gray-500">{ideasItems.length} item</span>
-              </div>
-              <Button variant="ghost" size="sm" className="text-xs items-center">
-                All <ChevronDown className="size-4" />
-              </Button>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold">Ideas</h2>
             </div>
-
-            <div className="grid gap-4">
+            <div className="space-y-4">
               {ideasItems.map((item) => (
-                <div key={item.id} className="flex items-center gap-4 p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+                <div key={item.id} className="flex items-start gap-4">
                   <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="w-full h-full object-cover"
-                    />
+                    {item.image ? (
+                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-gray-200" />
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h6 className="font-medium">{item.name}</h6>
+                    <h6 className="font-medium mb-1">{item.name}</h6>
+                    {item.category && (
+                      <div className="text-xs text-gray-500 mt-1">{item.category}</div>
+                    )}
                   </div>
-                  <Button size="sm" className="btn-primary">
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs rounded-full shadow-none"
+                    onClick={() => onOpenDetails && onOpenDetails({ id: item.id, name: item.name })}
+                  >
+                    Details
                   </Button>
                 </div>
               ))}
@@ -192,9 +190,7 @@ export default function ItineraryPanel({ className = "" }: ItineraryPanelProps) 
         {/* Itinerary Section */}
         <div>
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold">
-              Itinerary <span className="text-sm font-normal text-gray-500">{tripData.dates}</span>
-            </h2>
+            <h2 className="text-lg font-semibold">Itinerary</h2>
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-500">Distances</span>
               <div className="w-8 h-4 bg-gray-200 rounded-full relative">
@@ -204,15 +200,15 @@ export default function ItineraryPanel({ className = "" }: ItineraryPanelProps) 
           </div>
 
           <div className="space-y-4">
-            {itineraryDays.map((day) => (
+            {itineraryDays.filter(d => d.items.length > 0).map((day) => (
               <div key={day.id} className="border border-gray-200 rounded-xl overflow-hidden">
                 {/* Day Header */}
                 <button
                   onClick={() => toggleDay(day.id)}
-                  className={`w-full flex items-center justify-between p-4 transition-colors ${day.isExpanded ? "border-b" : ""}`}
+                  className={`w-full flex items-center justify-between p-4 transition-colors ${expandedDays[day.id] ? "border-b" : ""}`}
                 >
                   <div className="flex items-center gap-3">
-                    {day.isExpanded ? (
+                    {expandedDays[day.id] ? (
                       <ChevronDown className="size-5 text-muted-foreground/90" />
                     ) : (
                       <ChevronRight className="size-5 text-muted-foreground/90" />
@@ -228,7 +224,7 @@ export default function ItineraryPanel({ className = "" }: ItineraryPanelProps) 
                 </button>
 
                 {/* Day Content */}
-                {day.isExpanded && (
+                {expandedDays[day.id] && (
                   <div className="p-4 space-y-4 bg-white">
                     {day.items.length === 0 ? (
                       <div className="text-center py-8 text-gray-500">
@@ -242,11 +238,15 @@ export default function ItineraryPanel({ className = "" }: ItineraryPanelProps) 
                       day.items.map((item) => (
                         <div key={item.id} className="flex items-start gap-4">
                           <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
-                            <img
-                              src={item.image}
-                              alt={item.name}
-                              className="w-full h-full object-cover"
-                            />
+                            {item.image ? (
+                              <img
+                                src={item.image}
+                                alt={item.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-gray-200" />
+                            )}
                           </div>
                           <div className="flex-1 min-w-0">
                             <h6 className="font-medium mb-1">{item.name}</h6>
@@ -262,7 +262,7 @@ export default function ItineraryPanel({ className = "" }: ItineraryPanelProps) 
                               </div>
                             )}
                           </div>
-                          <Button variant="outline" size="sm" className="text-xs rounded-full shadow-none">Details</Button>
+                          <Button variant="outline" size="sm" className="text-xs rounded-full shadow-none" onClick={() => onOpenDetails && onOpenDetails({ id: item.id, name: item.name })}>Details</Button>
                         </div>
                       ))
                     )}
