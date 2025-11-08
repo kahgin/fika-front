@@ -38,7 +38,7 @@ export default function SettingsPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="border-b px-6 py-4">
+      <div className="border-b px-6 h-12 flex items-center">
         <h6>Settings</h6>
       </div>
 

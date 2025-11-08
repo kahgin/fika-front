@@ -5,6 +5,7 @@ const DEFAULT_LIMIT = 24;
 export interface CreateItineraryPayload {
   destination: string;
   dates: any;
+  num_days?: number;
   travelers: { adults: number; children: number; pets: number };
   preferences: { budget: string; pacing: string; interests: string[] };
 }
@@ -12,7 +13,7 @@ export interface CreateItineraryPayload {
 export interface CreatedItinerary {
   chat_id: string;
   status: string;
-  meta: CreateItineraryPayload & { [k: string]: any };
+  meta: (CreateItineraryPayload & { [k: string]: any });
   maut: any;
 }
 
@@ -91,7 +92,7 @@ export async function deleteItinerary(chatId: string): Promise<boolean> {
   }
 }
 
-export async function listItineraries(): Promise<ItineraryListItem[] | null> {
+export async function listItineraries(): Promise<CreatedItinerary[] | null> {
   try {
     const resp = await fetch(`${API_BASE_URL}/itineraries`);
     if (!resp.ok) throw new Error('Failed to list itineraries');

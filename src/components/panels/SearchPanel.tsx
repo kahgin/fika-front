@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import AddToItineraryDialog from "@/components/ui/add-to-itinerary-dialog";
 import {
   Pagination,
   PaginationContent,
@@ -12,7 +13,6 @@ import {
 } from "@/components/ui/pagination";
 import { Search, Star, CirclePlus, Loader2, AlertCircle, X } from "lucide-react";
 import { fetchPOIs, searchPOIs, fetchPOIsByCategory, type POI } from "@/services/api";
-import AddToItineraryDialog from "@/components/ui/add-to-itinerary-dialog";
 
 interface SearchPanelProps {
   onPOISelect: (poi: POI) => void;
@@ -162,7 +162,6 @@ export function SearchPanel({
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
-    // If searching, fetch search results for new page
     if (hasSearched && searchQuery.trim()) {
       setLoading(true);
       setError(null);
@@ -263,8 +262,8 @@ export function SearchPanel({
           </div>
         ) : error && pois.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-3">
-            <AlertCircle className="size-6 text-yellow-600" />
-            <p className="text-sm text-yellow-700">{error}</p>
+            <AlertCircle className="size-6 text-gray-500" />
+            <p className="text-sm text-gray-600">{error}</p>
             {hasSearched && (
               <Button variant="outline" size="sm" onClick={handleClearSearch}>
                 Try Different Search
@@ -337,10 +336,7 @@ export function SearchPanel({
           <Pagination>
             <PaginationContent>
               <PaginationItem>
-                <PaginationPrevious
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                />
+                <PaginationPrevious onClick={() => handlePageChange(currentPage - 1)} />
               </PaginationItem>
               
               {getPageNumbers().map((page, idx) => (
@@ -351,7 +347,6 @@ export function SearchPanel({
                     <PaginationLink
                       onClick={() => handlePageChange(page)}
                       isActive={currentPage === page}
-                      className="cursor-pointer"
                     >
                       {page}
                     </PaginationLink>
@@ -360,10 +355,7 @@ export function SearchPanel({
               ))}
 
               <PaginationItem>
-                <PaginationNext
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                />
+                <PaginationNext onClick={() => handlePageChange(currentPage + 1)} />
               </PaginationItem>
             </PaginationContent>
           </Pagination>
@@ -376,11 +368,15 @@ export function SearchPanel({
       onAdd={async (itineraryId, poi) => {
         const { addPOIToItinerary, getItinerary } = await import("@/services/api");
         await addPOIToItinerary(itineraryId, { poi_id: poi.id });
-        // Optionally refresh cached itinerary if it matches
+        // Refresh cached itinerary if it matches
         const lastId = localStorage.getItem('fika:lastChatId');
         if (lastId === itineraryId) {
           const latest = await getItinerary(itineraryId);
-          if (latest) localStorage.setItem(`fika:chat:${itineraryId}`, JSON.stringify(latest));
+          if (latest) {
+            localStorage.setItem(`fika:chat:${itineraryId}`, JSON.stringify(latest));
+            // Dispatch custom event to notify other components
+            window.dispatchEvent(new CustomEvent('itinerary-updated', { detail: { itineraryId, data: latest } }));
+          }
         }
       }}
     />

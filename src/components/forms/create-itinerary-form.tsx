@@ -1,10 +1,10 @@
 "use client"
 
-import React, { useMemo, useState } from "react"
-import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { zodResolver } from "@hookform/resolvers/zod"
 import { format } from "date-fns"
+import { useForm } from "react-hook-form"
+import React, { useMemo, useState } from "react"
+import { zodResolver } from "@hookform/resolvers/zod"
 import type { DateRange } from "react-day-picker"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -35,7 +35,8 @@ const formSchema = z.object({
   interests: z.array(z.string()),
 }).refine((data: any) => {
   const hasSpecific = !!data.startDate && !!data.endDate
-  const hasFlexible = !!data.flexibleDays && !!data.flexibleMonth
+  const days = parseInt(data.flexibleDays || "0")
+  const hasFlexible = Number.isFinite(days) && days >= 1 && !!data.flexibleMonth
   return hasSpecific || hasFlexible
 }, { message: "Please select travel dates", path: ["startDate"] })
 
@@ -48,6 +49,7 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
   const [showWhoDialog, setShowWhoDialog] = useState(false)
   const [showBudgetDialog, setShowBudgetDialog] = useState(false)
   const [showPacingDialog, setShowPacingDialog] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
@@ -83,9 +85,14 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
   ]
 
   const interestOptions = [
-    "Food & Dining", "Culture & History", "Adventure & Sports", "Nature & Wildlife",
-    "Shopping", "Nightlife", "Photography", "Art & Museums", "Beaches",
-    "Mountains", "Architecture", "Local Experiences",
+    { value: "food_and_drink", label: "Food & Culinary" },
+    { value: "cultural_history", label: "Cultural & History" },
+    { value: "religious", label: "Religious Sites" },
+    { value: "nature", label: "Nature & Parks" },
+    { value: "shopping", label: "Shopping" },
+    { value: "family", label: "Family Attractions" },
+    { value: "art_craft", label: "Art & Museums" },
+    { value: "adventure", label: "Adventure" },
   ]
 
   const months = [
@@ -149,17 +156,47 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
     }
   }
 
-  const generateAPIPayload = () => ({
-    destination: form.getValues("destination"),
-    dates: dateMode === "specific"
-      ? { type: "specific", startDate: form.getValues("startDate")?.toISOString().split("T")[0], endDate: form.getValues("endDate")?.toISOString().split("T")[0] }
-      : { type: "flexible", days: parseInt(form.getValues("flexibleDays") || "0"), preferredMonth: form.getValues("flexibleMonth") || "" },
-    travelers: { adults: form.getValues("adults"), children: form.getValues("children"), pets: form.getValues("pets") },
-    preferences: { budget: form.getValues("budget"), pacing: form.getValues("pacing"), interests: form.getValues("interests") },
-  })
+  const generateAPIPayload = () => {
+    const destination = form.getValues("destination")
+
+    const toUtcDateOnly = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+
+    if (dateMode === "specific") {
+      const s = form.getValues("startDate")
+      const e = form.getValues("endDate")
+      const startISO = s ? s.toISOString().split("T")[0] : undefined
+      const endISO = e ? e.toISOString().split("T")[0] : undefined
+      let num_days = 0
+      if (s && e) {
+        const sD = toUtcDateOnly(s)
+        const eD = toUtcDateOnly(e)
+        const diffMs = eD.getTime() - sD.getTime()
+        num_days = Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
+      }
+      return {
+        destination,
+        dates: { type: "specific", startDate: startISO, endDate: endISO },
+        num_days,
+        travelers: { adults: form.getValues("adults"), children: form.getValues("children"), pets: form.getValues("pets") },
+        preferences: { budget: form.getValues("budget"), pacing: form.getValues("pacing"), interests: form.getValues("interests") },
+      }
+    }
+
+    const days = parseInt(form.getValues("flexibleDays") || "0")
+    const preferredMonth = form.getValues("flexibleMonth") || ""
+    return {
+      destination,
+      dates: { type: "flexible", days, preferredMonth },
+      num_days: days,
+      travelers: { adults: form.getValues("adults"), children: form.getValues("children"), pets: form.getValues("pets") },
+      preferences: { budget: form.getValues("budget"), pacing: form.getValues("pacing"), interests: form.getValues("interests") },
+    }
+  }
 
   const onSubmit = async () => {
     const payload = generateAPIPayload()
+    setIsSubmitting(true)
+    
     try {
       const resp = await (await import('@/services/api')).createItinerary(payload as any)
       if (resp && resp.chat_id) {
@@ -167,10 +204,13 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
         localStorage.setItem('fika:lastChatId', resp.chat_id)
         localStorage.setItem(`fika:chat:${resp.chat_id}`, JSON.stringify(resp))
         window.location.href = '/chat'
+      } else {
+        console.error('Invalid response from server')
+        setIsSubmitting(false)
       }
     } catch (e) {
       console.error('Failed to create itinerary', e)
-    } finally {
+      setIsSubmitting(false)
       handleOpenChange(false)
     }
   }
@@ -254,7 +294,7 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
       <Label>Interests</Label>
       <div className="grid grid-cols-2 gap-3 mt-2">
         {interestOptions.map((i) => (
-          <Button key={i} type="button" variant={watchInterests.includes(i) ? "default" : "outline"} onClick={() => toggleInterest(i)}>{i}</Button>
+          <Button key={i.value} type="button" variant={watchInterests.includes(i.value) ? "default" : "outline"} onClick={() => toggleInterest(i.value)}>{i.label}</Button>
         ))}
       </div>
     </div>
@@ -264,7 +304,15 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="overflow-auto">
-          {currentStep > 1 && (
+          {isSubmitting && (
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+              <div className="flex flex-col items-center gap-4">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                <p className="text-sm text-muted-foreground">Creating your itinerary...</p>
+              </div>
+            </div>
+          )}
+          {currentStep > 1 && !isSubmitting && (
             <Button type="button" variant="ghost" size="icon" onClick={handlePrevious} aria-label="Previous step">
               <ChevronLeft className="h-5 w-5" />
             </Button>
@@ -280,7 +328,9 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
                     Next
                   </Button>
                 ) : (
-                  <Button type="submit" className="w-full">Create Itinerary</Button>
+                  <Button type="submit" disabled={isSubmitting} className="w-full">
+                    {isSubmitting ? "Creating..." : "Create Itinerary"}
+                  </Button>
                 )}
               </div>
             </form>
@@ -298,8 +348,8 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
               <TabsTrigger value="flexible" >Flexible</TabsTrigger>
             </TabsList>
             <TabsContent value="specific" className="space-y-4 my-4 w-full">
-              <Calendar mode="range" selected={dateRange} onSelect={setDateRange} min={1} max={10} numberOfMonths={2} disabled={(d) => d < new Date()} className="p-0" />
-              <p className="text-muted-foreground text-center text-xs">The trip must be between 1 and 10 days</p>
+              <Calendar mode="range" selected={dateRange} onSelect={setDateRange} min={0} max={6} numberOfMonths={2} disabled={(d) => d < new Date()} className="p-0" />
+              <p className="text-muted-foreground text-center text-xs">The trip must be between 1 and 7 days</p>
             </TabsContent>
             <TabsContent value="flexible" className="space-y-4 my-4 w-full">
               <Label>How many days?</Label>
@@ -312,10 +362,10 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
               <div className="grid grid-cols-4 gap-2 mt-4">
                 {months.map((m) => (
                   <Button 
-                  key={m.value} 
+                  key={m.value}
                   variant={form.getValues("flexibleMonth") === m.value ? "default" : "outline"} 
                   onClick={() => handleInputChange("flexibleMonth", m.value)}
-                  className="shadow-none flex flex-col h-12"
+                  className="shadow-none flex flex-col h-20"
                   >
                     <CalendarIcon className="size-6" />
                     {m.label}

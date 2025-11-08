@@ -1,8 +1,8 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { ButtonGroup } from "@/components/ui/button-group"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { ChevronDown, ChevronRight, MoreHorizontal, Clock, Plus } from "lucide-react"
+import { ChevronDown, ChevronRight, ArrowLeftToLine, ArrowRightToLine, Clock, Plus } from "lucide-react"
 
 interface ItineraryPanelProps {
   className?: string
@@ -45,14 +45,25 @@ interface ItineraryDay {
   items: ItineraryItem[]
 }
 
-export default function ItineraryPanel({ className = "", data, loading = false, onOpenDetails, onToggleWidth, fullWidth }: ItineraryPanelProps) {
-  const [menuOpen, setMenuOpen] = useState(false)
+export default function ItineraryPanel({ className = "", data, onOpenDetails, onToggleWidth, fullWidth }: ItineraryPanelProps) {
   const [open, setOpen] = useState(false)
 
-  // collapsed by default; user can expand
-  const [expandedDays, setExpandedDays] = useState<{ [key: string]: boolean }>({
-    "day1": false,
+  // Persist expanded days state in localStorage
+  const [expandedDays, setExpandedDays] = useState<{ [key: string]: boolean }>(() => {
+    try {
+      const saved = localStorage.getItem('fika:itinerary:expandedDays');
+      return saved ? JSON.parse(saved) : { "day1": false };
+    } catch {
+      return { "day1": false };
+    }
   })
+
+  // Save expanded days state whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('fika:itinerary:expandedDays', JSON.stringify(expandedDays));
+    } catch {}
+  }, [expandedDays])
 
   type BudgetKey = 'any' | 'tight' | 'sensible' | 'upscale' | 'luxury'
   const budgetMap: Record<BudgetKey, number> = { any: 1, tight: 1, sensible: 2, upscale: 3, luxury: 4 }
@@ -101,24 +112,15 @@ export default function ItineraryPanel({ className = "", data, loading = false, 
     }))
   }
 
-  const hasIdeas = ideasItems.length > 0
-
   return (
     <div className={`h-full overflow-auto ${className}`}>
       {/* Header */}
-      <div className="flex items-center justify-end gap-2">
-        <div className="relative">
-          <Button variant="outline" size="icon" onClick={() => setMenuOpen((m) => !m)} aria-haspopup="menu" aria-expanded={menuOpen}>
-            <MoreHorizontal className="h-4 w-4" />
+      <div className="flex items-center gap-2 px-3 py-2 border-b">
+        {onToggleWidth && (
+          <Button variant="ghost" size="icon" onClick={onToggleWidth}>
+            {fullWidth ? <ArrowRightToLine className="h-4 w-4" /> : <ArrowLeftToLine className="h-4 w-4" />}
           </Button>
-          {menuOpen && (
-            <div className="absolute right-0 mt-2 w-48 border bg-white rounded-md shadow-sm z-10">
-              <button className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50" onClick={() => { onToggleWidth && onToggleWidth(); setMenuOpen(false); }}>
-                {fullWidth ? 'Split view' : 'Expand to full width'}
-              </button>
-            </div>
-          )}
-        </div>
+        )}
       </div>
       <div className="border-b border-gray-200 p-6">
         <div className="mb-4">
@@ -126,17 +128,17 @@ export default function ItineraryPanel({ className = "", data, loading = false, 
         </div>
 
         {/* Trip Details */}
-        <ToggleGroup variant="outline" type="single">
-          <ToggleGroupItem value="destination" className="text-xs" onClick={() => setOpen(true)}>
+        <ButtonGroup className="hidden sm:flex">
+          <Button value="destination" variant="outline" className="shadow-none rounded-full" onClick={() => setOpen(true)}>
             {tripData.destination}
-          </ToggleGroupItem>
-          <ToggleGroupItem value="dates" className="text-xs" onClick={() => setOpen(true)}>
+          </Button>
+          <Button value="dates" variant="outline" className="shadow-none rounded-full" onClick={() => setOpen(true)}>
             {tripData.dates}
-          </ToggleGroupItem>
-          <ToggleGroupItem value="budget" className="text-xs" onClick={() => setOpen(true)}>
+          </Button>
+          <Button value="budget" variant="outline" className="shadow-none rounded-full" onClick={() => setOpen(true)}>
             {tripData.budget}
-          </ToggleGroupItem>
-        </ToggleGroup>
+          </Button>
+        </ButtonGroup>
 
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogContent>
@@ -218,9 +220,7 @@ export default function ItineraryPanel({ className = "", data, loading = false, 
                       <p className="text-sm text-muted-foreground/90">{day.date}</p>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon">
-                    <MoreHorizontal className="size-5 text-muted-foreground/90" />
-                  </Button>
+                  <div className="w-10" />
                 </button>
 
                 {/* Day Content */}

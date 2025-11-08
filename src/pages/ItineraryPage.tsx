@@ -1,21 +1,35 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { deleteItinerary, getItinerary, type CreatedItinerary } from "@/services/api";
+import { deleteItinerary, listItineraries, type CreatedItinerary } from "@/services/api";
 
 export default function ItineraryPage() {
   const [chats, setChats] = useState<CreatedItinerary[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // load all cached chats from localStorage
-    const keys = Object.keys(localStorage).filter(k => k.startsWith('fika:chat:'));
-    const items: CreatedItinerary[] = [];
-    for (const k of keys) {
+    const loadItineraries = async () => {
       try {
-        const raw = localStorage.getItem(k);
-        if (raw) items.push(JSON.parse(raw));
-      } catch {}
-    }
-    setChats(items);
+        setLoading(true);
+        const items = await listItineraries();
+        if (items && Array.isArray(items)) {
+          setChats(items);
+          // Sync to localStorage for offline access
+          items.forEach(item => {
+            try {
+              localStorage.setItem(`fika:chat:${item.chat_id}`, JSON.stringify(item));
+            } catch {}
+          });
+        } else {
+          setChats([]);
+        }
+      } catch (e) {
+        console.error('Failed to load itineraries', e);
+        setChats([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadItineraries();
   }, []);
 
   const handleOpen = (chatId: string) => {
@@ -34,7 +48,9 @@ export default function ItineraryPage() {
   return (
     <div className="p-6 space-y-4">
       <h2 className="text-lg font-semibold">Itineraries</h2>
-      {chats.length === 0 ? (
+      {loading ? (
+        <div className="text-sm text-muted-foreground">Loading itineraries...</div>
+      ) : chats.length === 0 ? (
         <p className="text-sm text-muted-foreground">No itineraries yet. Create one from the form.</p>
       ) : (
         <div className="space-y-2">

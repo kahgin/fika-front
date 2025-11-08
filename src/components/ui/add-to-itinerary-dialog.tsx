@@ -56,15 +56,26 @@ async function fetchItinerariesFromStorageOrAPI(): Promise<ItinerarySummary[]> {
 export function AddToItineraryDialog({ open, onOpenChange, poi, onAdd }: AddToItineraryDialogProps) {
   const [loading, setLoading] = useState(false);
   const [itins, setItins] = useState<ItinerarySummary[]>([]);
+  const [adding, setAdding] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setError(null);
+      setSuccess(false);
+      return;
+    }
     let mounted = true;
     (async () => {
       setLoading(true);
+      setError(null);
+      setSuccess(false);
       try {
         const result = await fetchItinerariesFromStorageOrAPI();
         if (mounted) setItins(result);
+      } catch (e) {
+        if (mounted) setError("Failed to load itineraries");
       } finally {
         if (mounted) setLoading(false);
       }
@@ -73,11 +84,21 @@ export function AddToItineraryDialog({ open, onOpenChange, poi, onAdd }: AddToIt
   }, [open]);
 
   const handleAdd = async (id: string) => {
-    if (!poi) return;
+    if (!poi || adding) return;
+    setAdding(true);
+    setError(null);
+    setSuccess(false);
     try {
       if (onAdd) await onAdd(id, poi);
+      setSuccess(true);
+      setTimeout(() => {
+        onOpenChange(false);
+      }, 800);
+    } catch (e) {
+      console.error("Failed to add POI:", e);
+      setError("Failed to add place to itinerary. Please try again.");
     } finally {
-      onOpenChange(false);
+      setAdding(false);
     }
   };
 
@@ -97,17 +118,36 @@ export function AddToItineraryDialog({ open, onOpenChange, poi, onAdd }: AddToIt
             <p className="text-xs text-muted-foreground">Create a trip first, then add places.</p>
           </div>
         ) : (
-          <div className="space-y-2">
-            {itins.map((it) => (
-              <div key={it.id} className="flex items-center justify-between rounded-md border p-3">
-                <div className="min-w-0">
-                  <p className="font-medium truncate">{it.title}</p>
-                  {it.dates && <p className="text-xs text-muted-foreground truncate">{it.dates}</p>}
-                </div>
-                <Button size="sm" className="rounded-full" onClick={() => handleAdd(it.id)}>Add</Button>
+          <>
+            {error && (
+              <div className="rounded-md bg-red-50 border border-red-200 p-3 mb-2">
+                <p className="text-sm text-red-800">{error}</p>
               </div>
-            ))}
-          </div>
+            )}
+            {success && (
+              <div className="rounded-md bg-green-50 border border-green-200 p-3 mb-2">
+                <p className="text-sm text-green-800">✓ Added to itinerary!</p>
+              </div>
+            )}
+            <div className="space-y-2">
+              {itins.map((it) => (
+                <div key={it.id} className="flex items-center justify-between rounded-md border p-3">
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">{it.title}</p>
+                    {it.dates && <p className="text-xs text-muted-foreground truncate">{it.dates}</p>}
+                  </div>
+                  <Button 
+                    size="sm" 
+                    className="rounded-full" 
+                    onClick={() => handleAdd(it.id)}
+                    disabled={adding}
+                  >
+                    {adding ? "Adding..." : "Add"}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </DialogContent>
     </Dialog>

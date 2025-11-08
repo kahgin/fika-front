@@ -146,7 +146,4 @@
   h5 { @apply text-base font-medium; }
   h6 { @apply text-sm font-medium; }
 
-  a {
-    @apply hover:underline underline-offset-4 transition-all;
-  }
 }

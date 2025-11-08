@@ -181,7 +181,7 @@ export default function POIPanel({
                           <span className="font-medium">Address</span>
                           <a 
                             onClick={() => poi.address && navigator.clipboard.writeText(poi.address)}
-                            className="block text-sm cursor-pointer hover:underline"
+                            className="block text-sm cursor-pointer hover:underline underline-offset-4"
                           >
                             {poi.address}
                           </a>
@@ -198,7 +198,7 @@ export default function POIPanel({
                             href={poi.website}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="block text-sm hover:underline"
+                            className="block text-sm hover:underline underline-offset-4"
                           >
                             {new URL(poi.website).hostname}
                           </a>
@@ -211,7 +211,7 @@ export default function POIPanel({
                         <Phone className="size-4 flex-shrink-0 mt-1" />
                         <div className="flex flex-col gap-1">
                           <span className="font-medium">Phone</span>
-                          <a href={`tel:${poi.phone}`} className="block text-sm hover:underline">
+                          <a href={`tel:${poi.phone}`} className="block text-sm hover:underline underline-offset-4">
                             {poi.phone}
                           </a>
                         </div>
