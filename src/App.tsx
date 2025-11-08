@@ -16,11 +16,9 @@ function App() {
         <SidebarLayout user={user}>
           <Routes>
             <Route path="/" element={<Navigate to="/chat" replace />} />
-            {routes
-              .filter((r) => r.id !== "create")
-              .map((r) => (
-                <Route key={r.id} path={r.path} element={r.element} />
-              ))}
+            {routes.map((route) => (
+              <Route key={route.id} path={route.path} element={route.element} />
+            ))}
           </Routes>
         </SidebarLayout>
       </SidebarProvider>

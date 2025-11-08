@@ -79,7 +79,7 @@ export default function ItineraryPanel({ className = "", data, onOpenDetails, on
     budget: "$".repeat(budgetMap[budgetKey] || 1)
   }
 
-  // derive ideas from data (support both meta.ideas and top-level ideas), fallback to empty
+  // derive ideas from data, fallback to empty
   const ideasItems: ItineraryItem[] = (
     ((data as any)?.meta?.ideas ?? (data as any)?.ideas ?? []) as Array<any>
   ).map((i) => ({

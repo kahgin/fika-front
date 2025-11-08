@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ImageGrid } from "@/components/ui/image-grid";
+import { AddPOIToItineraryForm } from "@/components/forms/add-poi-to-itinerary-form";
 import { parseOpenHours } from "@/lib/utils";
 import type { POI } from "@/services/api";
 import { Star, Plus, X, ArrowLeftToLine, ArrowRightToLine, ExternalLink, MapPin, Phone, Clock } from "lucide-react";
-import AddToItineraryDialog from "@/components/ui/add-to-itinerary-dialog";
 
 interface POIPanelProps {
   poi: POI;
@@ -132,7 +132,9 @@ export default function POIPanel({
               <span className="text-muted-foreground/90">∙</span>
               <span className="text-muted-foreground/90">{poi.location}</span>
             </div>
-            <p className="text-sm text-muted-foreground">{poi.category}</p>
+            <p className="text-sm text-muted-foreground">
+              {poi.category.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+            </p>
           </div>
 
           {/* Hero Image Grid */}
@@ -284,20 +286,11 @@ export default function POIPanel({
           </div>
         </div>
       </div>
-     <AddToItineraryDialog
-      open={addDialogOpen}
-      onOpenChange={setAddDialogOpen}
-      poi={poi}
-      onAdd={async (itineraryId, poi) => {
-        const { addPOIToItinerary, getItinerary } = await import("@/services/api");
-        await addPOIToItinerary(itineraryId, { poi_id: poi.id });
-        const lastId = localStorage.getItem('fika:lastChatId');
-        if (lastId === itineraryId) {
-          const latest = await getItinerary(itineraryId);
-          if (latest) localStorage.setItem(`fika:chat:${itineraryId}`, JSON.stringify(latest));
-        }
-      }}
-    />
+     <AddPOIToItineraryForm
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        poi={poi}
+      />
     </div>
   );
 }

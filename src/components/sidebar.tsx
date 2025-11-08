@@ -1,7 +1,7 @@
 import { useState } from "react"
-import { routes } from "@/configs"
-import type { ViewType } from "@/configs/routes"
 import { useNavigate, useLocation } from "react-router-dom"
+import { navigationRoutes } from "@/configs"
+import type { NavigationViewType } from "@/configs/routes"
 import Logo from "@/components/logo"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import CreateItineraryForm from "@/components/forms/create-itinerary-form"
@@ -42,12 +42,12 @@ export function AppSidebar({ user }: SidebarProps) {
   const [isLogoHovered, setIsLogoHovered] = useState(false)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
 
-  const getCurrentView = (): ViewType => {
+  const getCurrentView = (): NavigationViewType | string => {
     const path = location.pathname.slice(1) || "chat"
-    return path as ViewType
+    return path
   }
 
-  const handleViewChange = (view: ViewType, path: string) => {
+  const handleViewChange = (view: NavigationViewType, path: string) => {
     if (view === "create") {
       setIsCreateOpen(true)
       return
@@ -94,7 +94,7 @@ export function AppSidebar({ user }: SidebarProps) {
       {/* Navigation */}
       <SidebarContent>
         <SidebarMenu className="p-2">
-          {routes.map((item) => (
+          {navigationRoutes.map((item) => (
             <SidebarMenuItem key={item.id}>
               <SidebarMenuButton
                 onClick={() => handleViewChange(item.id, item.path)}

@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import AddToItineraryDialog from "@/components/ui/add-to-itinerary-dialog";
 import {
   Pagination,
   PaginationContent,
@@ -13,6 +12,7 @@ import {
 } from "@/components/ui/pagination";
 import { Search, Star, CirclePlus, Loader2, AlertCircle, X } from "lucide-react";
 import { fetchPOIs, searchPOIs, fetchPOIsByCategory, type POI } from "@/services/api";
+import { AddPOIToItineraryForm } from "@/components/forms/add-poi-to-itinerary-form";
 
 interface SearchPanelProps {
   onPOISelect: (poi: POI) => void;
@@ -62,7 +62,17 @@ export function SearchPanel({
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [selectedPOI, setSelectedPOI] = useState<POI | null>(null);
 
+  // Explicit-submit search only: do not auto-run while typing
+  // (removed auto-search effect on searchQuery changes)
+
   const totalPages = Math.ceil(totalResults / ITEMS_PER_PAGE);
+
+  const formatCategory = (category: string) => {
+    return category
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
 
   useEffect(() => {
     if (!hasSearched) {
@@ -107,24 +117,12 @@ export function SearchPanel({
     }
   };
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!searchQuery.trim()) {
-      setHasSearched(false);
-      setCurrentPage(1);
-      setActiveTab("all");
-      setError(null);
-      return;
-    }
-
+  const performSearch = async (query: string, page: number = 1) => {
     setLoading(true);
     setError(null);
-    setHasSearched(true);
-    setCurrentPage(1);
     setLoadedImages(new Set());
     try {
-      const result = await searchPOIs(searchQuery, 1, ITEMS_PER_PAGE);
+      const result = await searchPOIs(query, page, ITEMS_PER_PAGE);
       setPOIs(result.pois);
       setTotalResults(result.total);
       if (result.pois.length === 0) {
@@ -140,6 +138,22 @@ export function SearchPanel({
     }
   };
 
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!searchQuery.trim()) {
+      setHasSearched(false);
+      setCurrentPage(1);
+      setActiveTab("all");
+      setError(null);
+      return;
+    }
+
+    setHasSearched(true);
+    setCurrentPage(1);
+    await performSearch(searchQuery, 1);
+  };
+
   const handleClearSearch = () => {
     setSearchQuery("");
     setHasSearched(false);
@@ -147,6 +161,8 @@ export function SearchPanel({
     setActiveTab("all");
     setError(null);
     setLoadedImages(new Set());
+    // Immediately reload default list after clearing
+    loadPOIs();
   };
 
   const handleTabChange = (tab: Tab) => {
@@ -162,20 +178,11 @@ export function SearchPanel({
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
+    // Only fetch on page change when explicitly in search mode
     if (hasSearched && searchQuery.trim()) {
-      setLoading(true);
-      setError(null);
-      setLoadedImages(new Set());
-      try {
-        const result = await searchPOIs(searchQuery, page, ITEMS_PER_PAGE);
-        setPOIs(result.pois);
-        setTotalResults(result.total);
-      } catch (err) {
-        setError("Failed to load page");
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
+      await performSearch(searchQuery, page);
+    } else {
+      await loadPOIs();
     }
   };
 
@@ -214,7 +221,9 @@ export function SearchPanel({
               type="text"
               placeholder="Search places..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+              }}
               className="pl-10 rounded-full"
               disabled={loading}
             />
@@ -279,7 +288,7 @@ export function SearchPanel({
             {pois.map((poi) => (
               <div
                 key={poi.id}
-                className="overflow-hidden cursor-pointer transition-transform hover:scale-105 active:scale-95"
+                className="overflow-hidden cursor-pointer"
                 onClick={() => onPOISelect(poi)}
               >
                 <div className="relative rounded-xl overflow-hidden bg-gray-200" style={{ aspectRatio: size === "full" ? "3/2" : "1/1" }}>
@@ -304,11 +313,11 @@ export function SearchPanel({
                         setSelectedPOI(poi);
                         setAddDialogOpen(true);
                       }}
-                      className="rounded-full p-2"
+                      className="rounded-full transition-transform hover:scale-120 hover:bg-transparent dark:hover:bg-transparent"
                       variant="ghost"
                       size="icon"
                     >
-                      <CirclePlus className="size-6" color="white" fill="rgba(0,0,0,0.3)" />
+                      <CirclePlus className="size-7" color="white" fill="rgba(0,0,0,0.3)" />
                     </Button>
                   </div>
                 </div>
@@ -321,7 +330,7 @@ export function SearchPanel({
                       <span className="text-sm">{poi.rating}</span>
                     </div>
                   </div>
-                  <p className="text-sm text-muted-foreground/90 line-clamp-1">{poi.category}</p>
+                  <p className="text-sm text-muted-foreground/90 line-clamp-1">{formatCategory(poi.category)}</p>
                   <p className="text-sm text-muted-foreground/90 line-clamp-1">{poi.location}</p>
                 </div>
               </div>
@@ -361,25 +370,11 @@ export function SearchPanel({
           </Pagination>
         </div>
       )}
-    <AddToItineraryDialog
-      open={addDialogOpen}
-      onOpenChange={setAddDialogOpen}
-      poi={selectedPOI || undefined}
-      onAdd={async (itineraryId, poi) => {
-        const { addPOIToItinerary, getItinerary } = await import("@/services/api");
-        await addPOIToItinerary(itineraryId, { poi_id: poi.id });
-        // Refresh cached itinerary if it matches
-        const lastId = localStorage.getItem('fika:lastChatId');
-        if (lastId === itineraryId) {
-          const latest = await getItinerary(itineraryId);
-          if (latest) {
-            localStorage.setItem(`fika:chat:${itineraryId}`, JSON.stringify(latest));
-            // Dispatch custom event to notify other components
-            window.dispatchEvent(new CustomEvent('itinerary-updated', { detail: { itineraryId, data: latest } }));
-          }
-        }
-      }}
-    />
+    <AddPOIToItineraryForm
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        poi={selectedPOI}
+      />
     </div>
   );
 }

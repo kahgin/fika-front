@@ -78,7 +78,7 @@ function getCurrentStatus(openHoursData: Record<string, unknown>): { isOpen: boo
       return { isOpen: false, statusText: 'Closed now' };
     }
 
-    // Parse time range (e.g., "11 am-10 pm", "1-10 PM")
+    // Parse time range
     const isOpen = checkIfOpenInRange(timeRangeStr, currentTimeInMinutes);
 
     return {
@@ -97,7 +97,7 @@ function checkIfOpenInRange(timeRange: string, currentTimeInMinutes: number): bo
 
     // Check if it's 24 hours
     if (normalized.includes('24') || normalized.includes('24 hours') || normalized === 'open 24 hours') {
-      return true; // Always open
+      return true;
     }
 
     // Split by dash to get start and end

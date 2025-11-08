@@ -29,7 +29,7 @@ export default function SearchPage() {
     setIsDetailFullWidth(!isDetailFullWidth);
   };
 
-  // Desktop layout (now controls widths directly)
+  // Desktop layout 
   const renderDesktop = () => (
     <div className="hidden lg:flex h-full overflow-hidden">
       {/* Left column: SearchPanel */}
@@ -64,7 +64,7 @@ export default function SearchPage() {
     </div>
   );
 
-  // Mobile & Tablet layout (unchanged behavior)
+  // Mobile & Tablet layout
   const renderMobile = () => (
     <div className="flex lg:hidden h-full w-full relative">
       {/* Backdrop overlay */}
@@ -77,7 +77,7 @@ export default function SearchPage() {
         onClick={handleClosePOI}
       />
 
-      {/* POI Detail Modal */}
+      {/* POI Detail */}
       <div
         className={
           "fixed inset-0 z-50 transition-transform duration-300 ease-in-out h-screen flex flex-col " +
@@ -99,12 +99,14 @@ export default function SearchPage() {
       </div>
 
       {/* Search Panel */}
-      {!selectedPOI && (
+      <div
+        className={selectedPOI ? "hidden" : "w-full h-full"}
+      >
         <SearchPanel
           onPOISelect={handlePOISelect}
           size="full"
         />
-      )}
+      </div>
     </div>
   );
 

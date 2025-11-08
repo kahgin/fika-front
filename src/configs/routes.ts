@@ -1,6 +1,7 @@
 import { MessageCircle, Briefcase, Search, MapPlus } from "lucide-react"
 
-export const appRoutes = [
+// Navigation routes
+export const navigationRoutes = [
   {
     id: "chat",
     path: "/chat",
@@ -25,12 +26,20 @@ export const appRoutes = [
     label: "Create",
     icon: MapPlus,
   },
+] as const
+
+// Utility routes
+export const utilityRoutes = [
   {
     id: "settings",
     path: "/settings",
     label: "Settings",
-    icon: Briefcase,
-  }
+  },
 ] as const
 
-export type ViewType = typeof appRoutes[number]["id"]
+// All app routes combined
+export const appRoutes = [...navigationRoutes, ...utilityRoutes] as const
+
+export type NavigationViewType = typeof navigationRoutes[number]["id"]
+export type UtilityViewType = typeof utilityRoutes[number]["id"]
+export type ViewType = NavigationViewType | UtilityViewType

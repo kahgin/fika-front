@@ -31,7 +31,6 @@ export default function SettingsPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    // send to backend here
     console.log("Saving:", formValues)
     setUserInfo({ ...userInfo, ...formValues })
   }

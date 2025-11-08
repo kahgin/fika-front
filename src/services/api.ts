@@ -1,4 +1,3 @@
-// api.ts
 const API_BASE_URL = 'http://localhost:8000/api';
 const DEFAULT_LIMIT = 24;
 
@@ -181,7 +180,7 @@ export async function fetchPOIsByCategory(category: string, page: number = 1, li
   }
 }
 
-// Get POI by ID (for detailed view)
+// Get POI by ID
 export async function fetchPOIById(poiId: string): Promise<POI | null> {
   try {
     const response = await fetch(`${API_BASE_URL}/pois/${poiId}`);
