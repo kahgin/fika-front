@@ -2,10 +2,13 @@ import { useState } from 'react';
 import { Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { BOTTOM_NAV_HEIGHT } from '@/components/bottom-nav';
 
 export default function ChatPanel() {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
+  const isMobile = useIsMobile();
 
   const handleSend = () => {
     if (!message.trim()) return;
@@ -15,18 +18,19 @@ export default function ChatPanel() {
 
     // Simulate bot response
     setTimeout(() => {
-      setMessages((prev) => [ ...prev, {
-          role: 'assistant',
-          content: `Hi, how can I assist you with your trip planning today? Whether you need recommendations, itinerary suggestions, or help with bookings, I'm here to help!`,
-        },
-      ]);
+      setMessages((prev) => [...prev, {
+        role: 'assistant',
+        content: `Hi, how can I assist you with your trip planning today? Whether you need recommendations, itinerary suggestions, or help with bookings, I'm here to help!`,
+      }]);
     }, 1000);
   };
 
   return (
     <div className="flex h-full flex-col">
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div 
+        className="flex-1 overflow-y-auto p-4"
+        style={isMobile ? { paddingBottom: `${BOTTOM_NAV_HEIGHT}px` } : undefined}
+      >
         {messages.length === 0 ? (
           <div className="flex h-full items-center justify-center">
             <div className="space-y-2 text-center">
@@ -63,8 +67,15 @@ export default function ChatPanel() {
         )}
       </div>
 
-      {/* Input Area */}
-      <div className="border-t p-4">
+      <div 
+        className="border-t p-4 bg-white z-50"
+        style={isMobile ? { 
+          position: 'fixed',
+          bottom: `${BOTTOM_NAV_HEIGHT}px`,
+          left: 0,
+          right: 0
+        } : undefined}
+      >
         <div className="flex gap-2">
           <Input
             value={message}

@@ -252,6 +252,7 @@ function ImageItem({ src, alt, isError, onLoad, onError }: ImageItemProps) {
       )}
 
       <img
+        referrerPolicy="no-referrer"
         src={src}
         alt={alt}
         onLoad={onLoad}

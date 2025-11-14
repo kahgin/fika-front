@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Check, XCircle } from "lucide-react";
-import type { POI } from "@/services/api";
+import { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Check, XCircle } from 'lucide-react';
+import type { POI } from '@/services/api';
 
 interface AddPOIToItineraryFormProps {
   open: boolean;
@@ -19,35 +19,48 @@ type ItinerarySummary = {
 
 async function fetchItinerariesFromStorageOrAPI(): Promise<ItinerarySummary[]> {
   const summaries: ItinerarySummary[] = [];
-  
-  const lastId = localStorage.getItem("fika:lastChatId");
+
+  const lastId = localStorage.getItem('fika:lastChatId');
   if (lastId) {
     try {
       const raw = localStorage.getItem(`fika:chat:${lastId}`);
       if (raw) {
         const data = JSON.parse(raw);
         summaries.push({
-          id: data.chat_id || String(lastId),
-          title: (data?.meta?.destination ? `${data.meta.destination} Trip` : data?.title) || "Trip",
-          dates: typeof data?.meta?.dates === "object" && data?.meta?.dates?.type === "specific"
-            ? `${data?.meta?.dates?.startDate || ""} - ${data?.meta?.dates?.endDate || ""}`
-            : (data?.meta?.dates?.days ? `${data?.meta?.dates?.days} days` : undefined),
+          id: data.itin_id || String(lastId),
+          title:
+            (data?.meta?.destination
+              ? `${data.meta.destination} Trip`
+              : data?.title) || 'Trip',
+          dates:
+            typeof data?.meta?.dates === 'object' &&
+            data?.meta?.dates?.type === 'specific'
+              ? `${data?.meta?.dates?.startDate || ''} - ${data?.meta?.dates?.endDate || ''}`
+              : data?.meta?.dates?.days
+                ? `${data?.meta?.dates?.days} days`
+                : undefined,
         });
       }
     } catch {}
   }
 
   try {
-    const { listItineraries } = await import("@/services/api");
+    const { listItineraries } = await import('@/services/api');
     const res = await listItineraries();
     if (Array.isArray(res)) {
       res.forEach((it: any) => {
-        summaries.push({ 
-          id: String(it.id || it.chat_id), 
-          title: it.meta?.destination ? `${it.meta.destination} Trip` : (it.title || "Trip"),
-          dates: typeof it?.meta?.dates === "object" && it?.meta?.dates?.type === "specific"
-            ? `${it?.meta?.dates?.startDate || ""} - ${it?.meta?.dates?.endDate || ""}`
-            : (it?.meta?.dates?.days ? `${it?.meta?.dates?.days} days` : undefined),
+        summaries.push({
+          id: String(it.id || it.itin_id),
+          title: it.meta?.destination
+            ? `${it.meta.destination} Trip`
+            : it.title || 'Trip',
+          dates:
+            typeof it?.meta?.dates === 'object' &&
+            it?.meta?.dates?.type === 'specific'
+              ? `${it?.meta?.dates?.startDate || ''} - ${it?.meta?.dates?.endDate || ''}`
+              : it?.meta?.dates?.days
+                ? `${it?.meta?.dates?.days} days`
+                : undefined,
         });
       });
     }
@@ -58,13 +71,18 @@ async function fetchItinerariesFromStorageOrAPI(): Promise<ItinerarySummary[]> {
   return Array.from(map.values());
 }
 
-export function AddPOIToItineraryForm({ open, onOpenChange, poi, onSuccess }: AddPOIToItineraryFormProps) {
+export function AddPOIToItineraryForm({
+  open,
+  onOpenChange,
+  poi,
+  onSuccess,
+}: AddPOIToItineraryFormProps) {
   const [itineraries, setItineraries] = useState<ItinerarySummary[]>([]);
   const [loadingItineraries, setLoadingItineraries] = useState(false);
   const [adding, setAdding] = useState(false);
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [errorDialogOpen, setErrorDialogOpen] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState('');
 
   const fetchItineraries = async () => {
     setLoadingItineraries(true);
@@ -77,24 +95,33 @@ export function AddPOIToItineraryForm({ open, onOpenChange, poi, onSuccess }: Ad
     if (!poi || adding) return;
     setAdding(true);
     try {
-      const { addPOIToItinerary, getItinerary } = await import("@/services/api");
+      const { addPOIToItinerary, getItinerary } = await import(
+        '@/services/api'
+      );
       await addPOIToItinerary(itineraryId, { poi_id: poi.id });
-      
+
       const lastId = localStorage.getItem('fika:lastChatId');
       if (lastId === itineraryId) {
         const latest = await getItinerary(itineraryId);
         if (latest) {
-          localStorage.setItem(`fika:chat:${itineraryId}`, JSON.stringify(latest));
-          window.dispatchEvent(new CustomEvent('itinerary-updated', { detail: { itineraryId, data: latest } }));
+          localStorage.setItem(
+            `fika:chat:${itineraryId}`,
+            JSON.stringify(latest)
+          );
+          window.dispatchEvent(
+            new CustomEvent('itinerary-updated', {
+              detail: { itineraryId, data: latest },
+            })
+          );
         }
       }
-      
+
       onOpenChange(false);
       setSuccessDialogOpen(true);
       if (onSuccess) onSuccess();
     } catch (e) {
-      console.error("Failed to add POI:", e);
-      setErrorMessage("Failed to add place to itinerary. Please try again.");
+      console.error('Failed to add POI:', e);
+      setErrorMessage('Failed to add place to itinerary. Please try again.');
       onOpenChange(false);
       setErrorDialogOpen(true);
     } finally {
@@ -117,13 +144,17 @@ export function AddPOIToItineraryForm({ open, onOpenChange, poi, onSuccess }: Ad
             <DialogTitle>Add to itinerary</DialogTitle>
           </DialogHeader>
           {!poi ? (
-            <p className="text-sm text-muted-foreground">No place selected.</p>
+            <p className="text-muted-foreground text-sm">No place selected.</p>
           ) : loadingItineraries ? (
-            <p className="text-sm text-muted-foreground">Loading itineraries…</p>
+            <p className="text-muted-foreground text-sm">
+              Loading itineraries…
+            </p>
           ) : itineraries.length === 0 ? (
             <div className="space-y-3">
               <p className="text-sm">No itineraries found.</p>
-              <p className="text-xs text-muted-foreground">Create a trip first, then add places.</p>
+              <p className="text-muted-foreground text-xs">
+                Create a trip first, then add places.
+              </p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -131,13 +162,17 @@ export function AddPOIToItineraryForm({ open, onOpenChange, poi, onSuccess }: Ad
                 <Button
                   key={it.id}
                   variant="ghost"
-                  className="w-full justify-start h-auto py-3 px-4"
+                  className="h-auto w-full justify-start px-4 py-3"
                   onClick={() => handleAddToItinerary(it.id)}
                   disabled={adding}
                 >
-                  <div className="text-left w-full">
+                  <div className="w-full text-left">
                     <p className="font-medium">{it.title}</p>
-                    {it.dates && <p className="text-xs text-muted-foreground">{it.dates}</p>}
+                    {it.dates && (
+                      <p className="text-muted-foreground text-xs">
+                        {it.dates}
+                      </p>
+                    )}
                   </div>
                 </Button>
               ))}
@@ -148,18 +183,21 @@ export function AddPOIToItineraryForm({ open, onOpenChange, poi, onSuccess }: Ad
 
       {/* Success Dialog */}
       <Dialog open={successDialogOpen} onOpenChange={setSuccessDialogOpen}>
-        <DialogContent className="sm:max-w-md justify-center">
-          <div className="flex flex-col items-center justify-center py-4 space-y-6">
+        <DialogContent className="justify-center sm:max-w-md">
+          <div className="flex flex-col items-center justify-center space-y-6 py-4">
             <div className="rounded-full bg-gray-200 p-3">
               <Check className="size-8" />
             </div>
-            <div className="text-center space-y-2">
-              <h3 className="font-semibold text-lg">Added successfully!</h3>
-              <p className="text-sm text-muted-foreground">
+            <div className="space-y-2 text-center">
+              <h3 className="text-lg font-semibold">Added successfully!</h3>
+              <p className="text-muted-foreground text-sm">
                 {poi?.name} has been added to your itinerary.
               </p>
             </div>
-            <Button onClick={() => setSuccessDialogOpen(false)} className="w-full cursor-pointer">
+            <Button
+              onClick={() => setSuccessDialogOpen(false)}
+              className="w-full cursor-pointer"
+            >
               Done
             </Button>
           </div>
@@ -169,15 +207,19 @@ export function AddPOIToItineraryForm({ open, onOpenChange, poi, onSuccess }: Ad
       {/* Error Dialog */}
       <Dialog open={errorDialogOpen} onOpenChange={setErrorDialogOpen}>
         <DialogContent className="sm:max-w-md">
-          <div className="flex flex-col items-center justify-center py-6 space-y-4">
+          <div className="flex flex-col items-center justify-center space-y-4 py-6">
             <div className="rounded-full bg-red-100 p-3">
               <XCircle className="size-8 text-red-600" />
             </div>
-            <div className="text-center space-y-2">
-              <h3 className="font-semibold text-lg">Failed to add</h3>
-              <p className="text-sm text-muted-foreground">{errorMessage}</p>
+            <div className="space-y-2 text-center">
+              <h3 className="text-lg font-semibold">Failed to add</h3>
+              <p className="text-muted-foreground text-sm">{errorMessage}</p>
             </div>
-            <Button onClick={() => setErrorDialogOpen(false)} variant="outline" className="w-full">
+            <Button
+              onClick={() => setErrorDialogOpen(false)}
+              variant="outline"
+              className="w-full"
+            >
               Close
             </Button>
           </div>

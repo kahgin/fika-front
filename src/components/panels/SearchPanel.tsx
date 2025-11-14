@@ -1,18 +1,12 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-  PaginationEllipsis,
-} from "@/components/ui/pagination";
+import { AddPOIToItineraryForm } from "@/components/forms/add-poi-to-itinerary-form";
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from "@/components/ui/pagination";
 import { Search, Star, CirclePlus, Loader2, AlertCircle, X } from "lucide-react";
 import { fetchPOIs, searchPOIs, fetchPOIsByCategory, type POI } from "@/services/api";
-import { AddPOIToItineraryForm } from "@/components/forms/add-poi-to-itinerary-form";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { BOTTOM_NAV_HEIGHT } from "@/components/bottom-nav";
 
 interface SearchPanelProps {
   onPOISelect: (poi: POI) => void;
@@ -23,30 +17,8 @@ const TABS = ["all", "attractions", "restaurants", "hotels"] as const;
 type Tab = typeof TABS[number];
 const ITEMS_PER_PAGE = 12;
 
-const imageLoadQueue = new Map<string, Promise<void>>();
-let loadingDelay = 100;
 
-function queueImageLoad(url: string): Promise<void> {
-  if (imageLoadQueue.has(url)) {
-    return imageLoadQueue.get(url)!;
-  }
-
-  const promise = new Promise<void>((resolve) => {
-    setTimeout(() => {
-      const img = new Image();
-      img.onload = () => resolve();
-      img.onerror = () => resolve();
-      img.src = url;
-    }, loadingDelay);
-    
-    loadingDelay += 100;
-  });
-
-  imageLoadQueue.set(url, promise);
-  return promise;
-}
-
-export function SearchPanel({ 
+export default function SearchPanel({
   onPOISelect,
   size = "half",
 }: SearchPanelProps) {
@@ -56,14 +28,11 @@ export function SearchPanel({
   const [activeTab, setActiveTab] = useState<Tab>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
-  const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [selectedPOI, setSelectedPOI] = useState<POI | null>(null);
-
-  // Explicit-submit search only: do not auto-run while typing
-  // (removed auto-search effect on searchQuery changes)
+  const isMobile = useIsMobile();
 
   const totalPages = Math.ceil(totalResults / ITEMS_PER_PAGE);
 
@@ -80,21 +49,9 @@ export function SearchPanel({
     }
   }, [activeTab, hasSearched, currentPage]);
 
-  useEffect(() => {
-    loadingDelay = 100;
-    pois.forEach((poi) => {
-      if (poi.images?.[0]) {
-        queueImageLoad(poi.images[0]).then(() => {
-          setLoadedImages((prev) => new Set([...prev, poi.images[0]]));
-        });
-      }
-    });
-  }, [pois]);
-
   const loadPOIs = async () => {
     setLoading(true);
     setError(null);
-    setLoadedImages(new Set());
     try {
       let result;
       if (activeTab === "all") {
@@ -120,7 +77,6 @@ export function SearchPanel({
   const performSearch = async (query: string, page: number = 1) => {
     setLoading(true);
     setError(null);
-    setLoadedImages(new Set());
     try {
       const result = await searchPOIs(query, page, ITEMS_PER_PAGE);
       setPOIs(result.pois);
@@ -160,8 +116,6 @@ export function SearchPanel({
     setCurrentPage(1);
     setActiveTab("all");
     setError(null);
-    setLoadedImages(new Set());
-    // Immediately reload default list after clearing
     loadPOIs();
   };
 
@@ -174,11 +128,9 @@ export function SearchPanel({
 
   const handlePageChange = async (page: number) => {
     if (page < 1 || page > totalPages) return;
-    
+
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-
-    // Only fetch on page change when explicitly in search mode
     if (hasSearched && searchQuery.trim()) {
       await performSearch(searchQuery, page);
     } else {
@@ -211,27 +163,24 @@ export function SearchPanel({
   const endResult = Math.min(currentPage * ITEMS_PER_PAGE, totalResults);
 
   return (
-    <div className="flex flex-col h-full w-full overflow-hidden border-r">
+    <div className="flex flex-col h-full w-full overflow-hidden">
       {/* Header */}
       <div className="flex-shrink-0 border-b p-6">
         <form onSubmit={handleSearch} className="mb-4">
           <div className="relative">
-            <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Search places..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-              }}
-              className="pl-10 rounded-full"
-              disabled={loading}
-            />
-            {hasSearched && (
-              <Button variant="ghost" size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full" onClick={handleClearSearch}>
-                <X className="size-4 text-muted-foreground" />
-              </Button>
-            )}
+            <InputGroup>
+              <InputGroupInput type="text" placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} disabled={loading} />
+              <InputGroupAddon>
+                <Search />
+              </InputGroupAddon>
+              {hasSearched && (
+                <InputGroupAddon align="inline-end">
+                  <InputGroupButton size="icon-sm" onClick={handleClearSearch}>
+                    <X />
+                  </InputGroupButton>
+                </InputGroupAddon>
+              )}
+            </InputGroup>
           </div>
         </form>
 
@@ -263,7 +212,10 @@ export function SearchPanel({
       )}
 
       {/* POI Grid */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div 
+        className="flex-1 overflow-y-auto p-6"
+        style={isMobile ? { paddingBottom: `${BOTTOM_NAV_HEIGHT + 16}px` } : undefined}
+      >
         {loading ? (
           <div className="flex flex-col items-center justify-center h-full gap-3">
             <Loader2 className="size-6 animate-spin text-muted-foreground" />
@@ -294,12 +246,10 @@ export function SearchPanel({
                 <div className="relative rounded-xl overflow-hidden bg-gray-200" style={{ aspectRatio: size === "full" ? "3/2" : "1/1" }}>
                   {poi.images && poi.images[0] ? (
                     <img
+                      referrerPolicy="no-referrer"
                       src={poi.images[0]}
                       alt={poi.name}
                       className="w-full h-full object-cover"
-                      style={{
-                        opacity: loadedImages.has(poi.images[0]) ? 1 : 0.5,
-                      }}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gray-300">
@@ -341,13 +291,21 @@ export function SearchPanel({
 
       {/* Pagination */}
       {!loading && totalPages > 1 && (
-        <div className="flex-shrink-0 border-t p-4">
+        <div 
+          className="flex-shrink-0 border-t p-4 bg-white z-50"
+          style={isMobile ? { 
+            position: 'fixed',
+            bottom: `${BOTTOM_NAV_HEIGHT}px`,
+            left: 0,
+            right: 0
+          } : undefined}
+        >
           <Pagination>
             <PaginationContent>
               <PaginationItem>
                 <PaginationPrevious onClick={() => handlePageChange(currentPage - 1)} />
               </PaginationItem>
-              
+
               {getPageNumbers().map((page, idx) => (
                 <PaginationItem key={idx}>
                   {page === 'ellipsis' ? (
@@ -370,7 +328,7 @@ export function SearchPanel({
           </Pagination>
         </div>
       )}
-    <AddPOIToItineraryForm
+      <AddPOIToItineraryForm
         open={addDialogOpen}
         onOpenChange={setAddDialogOpen}
         poi={selectedPOI}

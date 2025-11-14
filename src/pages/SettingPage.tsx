@@ -1,72 +1,82 @@
-import { useState } from "react"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { useState, useEffect } from 'react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useAuth } from '@/contexts/AuthContext';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { BOTTOM_NAV_HEIGHT } from '@/components/bottom-nav';
 
 export default function SettingsPage() {
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-    const [showPasswordModal, setShowPasswordModal] = useState(false)
-
-  const [userInfo, setUserInfo] = useState({
-    name: "John Doe",
-    email: "john.doe@example.com",
-    username: "johndoe123",
-  })
+  const { user, setUser } = useAuth();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const isMobile = useIsMobile();
 
   const [formValues, setFormValues] = useState({
-    name: userInfo.name,
-    email: userInfo.email,
-  })
+    name: user?.name || '',
+    email: user?.email || '',
+  });
+
+  useEffect(() => {
+    if (user) {
+      setFormValues({
+        name: user.name,
+        email: user.email,
+      });
+    }
+  }, [user]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormValues((prev) => ({ ...prev, [name]: value }))
-  }
+    const { name, value } = e.target;
+    setFormValues((prev) => ({ ...prev, [name]: value }));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    console.log("Saving:", formValues)
-    setUserInfo({ ...userInfo, ...formValues })
-  }
+    e.preventDefault();
+    // send to backend here
+    console.log('Saving:', formValues);
+    if (user) {
+      setUser({ ...user, ...formValues });
+    }
+  };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="border-b px-6 h-12 flex items-center">
+    <div className="flex h-full flex-col">
+      <div className="flex h-12 items-center border-b px-6">
         <h6>Settings</h6>
       </div>
 
-      <div className="flex-1 overflow-auto">
-        <div className="p-6 space-y-6">
+      <div
+        className="flex-1 overflow-auto"
+        style={
+          isMobile ? { paddingBottom: `${BOTTOM_NAV_HEIGHT}px` } : undefined
+        }
+      >
+        <div className="space-y-6 p-6">
           {/* User Info Section */}
           <form
             onSubmit={handleSubmit}
-            className="rounded-xl border p-6 space-y-6"
+            className="space-y-6 rounded-xl border p-6"
           >
             <h4>User Information</h4>
 
             {/* Profile Picture */}
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                <span className="text-white text-xl font-semibold">
-                  {userInfo.name
-                    .split(" ")
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600">
+                <span className="text-xl font-semibold text-white">
+                  {(user?.name || 'G')
+                    .split(' ')
                     .map((n) => n[0])
-                    .join("")}
+                    .join('')}
                 </span>
               </div>
               <div>
-                <h6>@{userInfo.username}</h6>
+                <h6>@{user?.username || 'guest'}</h6>
                 <a
                   href="#"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-muted-foreground hover:text-primary hover:no-underline"
+                  className="text-muted-foreground hover:text-primary text-sm hover:no-underline"
                 >
                   Change profile photo
                 </a>
@@ -75,7 +85,7 @@ export default function SettingsPage() {
 
             {/* Name Field */}
             <div>
-              <label className="block text-sm font-medium mb-2">
+              <label className="mb-2 block text-sm font-medium">
                 Full Name
               </label>
               <Input
@@ -88,7 +98,7 @@ export default function SettingsPage() {
 
             {/* Email Field */}
             <div>
-              <label className="block text-sm font-medium mb-2">
+              <label className="mb-2 block text-sm font-medium">
                 Email Address
               </label>
               <Input
@@ -101,19 +111,24 @@ export default function SettingsPage() {
 
             {/* Username Field */}
             <div>
-              <label className="block text-sm font-medium mb-2">
-                Username
-              </label>
-              <Input name="username" type="username" value={`@${userInfo.username}`} readOnly />
+              <label className="mb-2 block text-sm font-medium">Username</label>
+              <Input
+                name="username"
+                type="username"
+                value={`@${user?.username || 'guest'}`}
+                readOnly
+              />
             </div>
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-medium mb-2">
-                Password
-              </label>
+              <label className="mb-2 block text-sm font-medium">Password</label>
               <div className="flex items-center gap-2">
-                <Input value={`••••••••••••`} className="select-none" readOnly />
+                <Input
+                  value={`••••••••••••`}
+                  className="select-none"
+                  readOnly
+                />
                 <Button
                   variant="outline"
                   onClick={() => setShowPasswordModal(true)}
@@ -133,7 +148,7 @@ export default function SettingsPage() {
 
           {/* Settings Section */}
           <div className="rounded-lg border">
-            <div className="p-6 ">
+            <div className="p-6">
               <h2 className="text-lg font-semibold">Account Settings</h2>
             </div>
             <div className="p-6">
@@ -141,7 +156,7 @@ export default function SettingsPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium">Delete Account</p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-muted-foreground text-sm">
                       Permanently delete your account and all associated data.
                     </p>
                   </div>
@@ -167,14 +182,18 @@ export default function SettingsPage() {
           <form className="space-y-4">
             <Input type="password" placeholder="Current password" required />
             <Input type="password" placeholder="New password" required />
-            <Input type="password" placeholder="Confirm new password" required />
+            <Input
+              type="password"
+              placeholder="Confirm new password"
+              required
+            />
             <DialogFooter>
               <Button
                 type="submit"
                 onClick={(e) => {
-                  e.preventDefault()
-                  console.log("Password changed")
-                  setShowPasswordModal(false)
+                  e.preventDefault();
+                  console.log('Password changed');
+                  setShowPasswordModal(false);
                 }}
               >
                 Update Password
@@ -204,8 +223,8 @@ export default function SettingsPage() {
             <Button
               className="bg-red-600 hover:bg-red-700"
               onClick={() => {
-                console.log("Account deleted")
-                setShowDeleteConfirm(false)
+                console.log('Account deleted');
+                setShowDeleteConfirm(false);
               }}
             >
               Delete Account
@@ -214,5 +233,5 @@ export default function SettingsPage() {
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }

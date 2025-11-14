@@ -1,19 +1,12 @@
-import { useState, useEffect } from "react";
-import { SearchPanel } from "@/components/panels/SearchPanel";
-import POIPanel from "@/components/panels/POIPanel";
-import type { POI } from "@/services/api";
+import { useState } from 'react';
+import type { POI } from '@/services/api';
+import POIPanel from '@/components/panels/POIPanel';
+import SearchPanel from '@/components/panels/SearchPanel';
+import { DualPanelLayout } from '@/components/ui/dual-panel';
 
 export default function SearchPage() {
   const [selectedPOI, setSelectedPOI] = useState<POI | null>(null);
   const [isDetailFullWidth, setIsDetailFullWidth] = useState(false);
-  const [_, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
 
   const handlePOISelect = (poi: POI) => {
     setSelectedPOI(poi);
@@ -25,87 +18,63 @@ export default function SearchPage() {
     setIsDetailFullWidth(false);
   };
 
-  const handleToggleFullWidth = () => {
-    setIsDetailFullWidth(!isDetailFullWidth);
-  };
+  const handleToggleFullWidth = () => setIsDetailFullWidth(!isDetailFullWidth);
 
-  // Desktop layout 
   const renderDesktop = () => (
-    <div className="hidden lg:flex h-full overflow-hidden">
-      {/* Left column: SearchPanel */}
-      <div
-        className={[
-          "transition-[width,opacity] duration-300 ease-in-out min-w-0",
-          !selectedPOI ? "w-full" : isDetailFullWidth ? "w-0 opacity-0 pointer-events-none" : "w-1/2",
-        ].join(" ")}
-      >
+    <DualPanelLayout
+      left={
         <SearchPanel
           onPOISelect={handlePOISelect}
-          size={selectedPOI && !isDetailFullWidth ? "half" : "full"}
+          size={selectedPOI && !isDetailFullWidth ? 'half' : 'full'}
         />
-      </div>
-
-      {/* Right column: POIPanel */}
-      {selectedPOI && (
-        <div
-          className={[
-            "transition-[width] duration-300 ease-in-out min-w-0",
-            isDetailFullWidth ? "w-full" : "w-1/2",
-          ].join(" ")}
-        >
+      }
+      right={
+        selectedPOI ? (
           <POIPanel
             poi={selectedPOI}
-            size={isDetailFullWidth ? "full" : "half"}
+            size={isDetailFullWidth ? 'full' : 'half'}
             onClose={handleClosePOI}
             onToggleFullWidth={handleToggleFullWidth}
           />
-        </div>
-      )}
-    </div>
+        ) : null
+      }
+      rightVisible={Boolean(selectedPOI)}
+      fullWidth={selectedPOI ? (isDetailFullWidth ? 'right' : null) : 'left'}
+      className="overflow-hidden"
+    />
   );
 
-  // Mobile & Tablet layout
   const renderMobile = () => (
-    <div className="flex lg:hidden h-full w-full relative">
-      {/* Backdrop overlay */}
+    <div className="relative flex h-full w-full lg:hidden">
       <div
         className={
-          "fixed inset-0 z-40 transition-opacity duration-300 " +
-          (selectedPOI ? "bg-black/40 opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none")
+          'fixed inset-0 z-40 transition-opacity duration-300 ' +
+          (selectedPOI
+            ? 'pointer-events-auto bg-black/40 opacity-100'
+            : 'pointer-events-none opacity-0')
         }
         aria-hidden="true"
         onClick={handleClosePOI}
       />
 
-      {/* POI Detail */}
       <div
         className={
-          "fixed inset-0 z-50 transition-transform duration-300 ease-in-out h-screen flex flex-col " +
-          (selectedPOI ? "pointer-events-auto" : "pointer-events-none")
+          'fixed inset-0 z-50 flex h-screen flex-col transition-transform duration-300 ease-in-out ' +
+          (selectedPOI ? 'pointer-events-auto' : 'pointer-events-none')
         }
         style={{
-          transform: selectedPOI ? "translateY(0%)" : "translateY(100%)",
+          transform: selectedPOI ? 'translateY(0%)' : 'translateY(100%)',
         }}
       >
-        <div className="bg-white shadow-2xl border-t border-gray-200 overflow-hidden flex-1 flex flex-col h-full">
+        <div className="flex h-full flex-1 flex-col overflow-hidden border-t border-gray-200 bg-white shadow-2xl">
           {selectedPOI && (
-            <POIPanel
-              poi={selectedPOI}
-              size="full"
-              onClose={handleClosePOI}
-            />
+            <POIPanel poi={selectedPOI} size="full" onClose={handleClosePOI} />
           )}
         </div>
       </div>
 
-      {/* Search Panel */}
-      <div
-        className={selectedPOI ? "hidden" : "w-full h-full"}
-      >
-        <SearchPanel
-          onPOISelect={handlePOISelect}
-          size="full"
-        />
+      <div className={selectedPOI ? 'hidden' : 'h-full w-full'}>
+        <SearchPanel onPOISelect={handlePOISelect} size="full" />
       </div>
     </div>
   );

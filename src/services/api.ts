@@ -2,6 +2,7 @@ const API_BASE_URL = 'http://localhost:8000/api';
 const DEFAULT_LIMIT = 24;
 
 export interface CreateItineraryPayload {
+  title?: string;
   destination: string;
   dates: any;
   num_days?: number;
@@ -10,21 +11,15 @@ export interface CreateItineraryPayload {
 }
 
 export interface CreatedItinerary {
-  chat_id: string;
+  itin_id: string;
   status: string;
   meta: (CreateItineraryPayload & { [k: string]: any });
-  maut: any;
+  plan: any;
 }
 
 export interface AddPOIPayload {
   poi_id: string;
   day?: number;
-}
-
-export interface ItineraryListItem {
-  id: string;
-  title: string;
-  dates?: string;
 }
 
 export interface POI {
@@ -55,6 +50,17 @@ interface ApiResponse<T> {
   data: T;
 }
 
+interface PaginatedResponse {
+  pois: POI[];
+  total: number;
+}
+
+const addCacheBuster = (url: string): string => `${url}?_=${Date.now()}`;
+
+const noCacheHeaders = {
+  'Cache-Control': 'no-cache'
+};
+
 export async function createItinerary(payload: CreateItineraryPayload): Promise<CreatedItinerary | null> {
   try {
     const resp = await fetch(`${API_BASE_URL}/itinerary/create`, {
@@ -72,7 +78,10 @@ export async function createItinerary(payload: CreateItineraryPayload): Promise<
 
 export async function getItinerary(chatId: string): Promise<CreatedItinerary | null> {
   try {
-    const resp = await fetch(`${API_BASE_URL}/itinerary/${chatId}`);
+    const resp = await fetch(addCacheBuster(`${API_BASE_URL}/itinerary/${chatId}`), {
+      cache: 'no-store',
+      headers: noCacheHeaders
+    });
     if (!resp.ok) throw new Error('Failed to load itinerary');
     return await resp.json();
   } catch (e) {
@@ -83,7 +92,11 @@ export async function getItinerary(chatId: string): Promise<CreatedItinerary | n
 
 export async function deleteItinerary(chatId: string): Promise<boolean> {
   try {
-    const resp = await fetch(`${API_BASE_URL}/itinerary/${chatId}`, { method: 'DELETE' });
+    const resp = await fetch(addCacheBuster(`${API_BASE_URL}/itinerary/${chatId}`), {
+      method: 'DELETE',
+      cache: 'no-store',
+      headers: noCacheHeaders
+    });
     return resp.ok;
   } catch (e) {
     console.error('deleteItinerary error', e);
@@ -93,7 +106,10 @@ export async function deleteItinerary(chatId: string): Promise<boolean> {
 
 export async function listItineraries(): Promise<CreatedItinerary[] | null> {
   try {
-    const resp = await fetch(`${API_BASE_URL}/itineraries`);
+    const resp = await fetch(addCacheBuster(`${API_BASE_URL}/itineraries`), {
+      cache: 'no-store',
+      headers: noCacheHeaders
+    });
     if (!resp.ok) throw new Error('Failed to list itineraries');
     return await resp.json();
   } catch (e) {
@@ -116,12 +132,6 @@ export async function addPOIToItinerary(chatId: string, payload: AddPOIPayload):
   }
 }
 
-interface PaginatedResponse {
-  pois: POI[];
-  total: number;
-}
-
-// Fetch all POIs
 export async function fetchPOIs(page: number = 1, limit: number = DEFAULT_LIMIT): Promise<PaginatedResponse> {
   try {
     const offset = (page - 1) * limit;
@@ -138,7 +148,6 @@ export async function fetchPOIs(page: number = 1, limit: number = DEFAULT_LIMIT)
   }
 }
 
-// Search POIs
 export async function searchPOIs(query: string, page: number = 1, limit: number = DEFAULT_LIMIT): Promise<PaginatedResponse> {
   if (!query.trim()) {
     return fetchPOIs(page, limit);
@@ -161,7 +170,6 @@ export async function searchPOIs(query: string, page: number = 1, limit: number 
   }
 }
 
-// Get POIs by category
 export async function fetchPOIsByCategory(category: string, page: number = 1, limit: number = DEFAULT_LIMIT): Promise<PaginatedResponse> {
   try {
     const offset = (page - 1) * limit;
@@ -180,7 +188,6 @@ export async function fetchPOIsByCategory(category: string, page: number = 1, li
   }
 }
 
-// Get POI by ID
 export async function fetchPOIById(poiId: string): Promise<POI | null> {
   try {
     const response = await fetch(`${API_BASE_URL}/pois/${poiId}`);
@@ -190,5 +197,69 @@ export async function fetchPOIById(poiId: string): Promise<POI | null> {
   } catch (error) {
     console.error(`Error fetching POI ${poiId}:`, error);
     return null;
+  }
+}
+
+export interface Location {
+  id: string;
+  name: string;
+  label: string;
+  kind: string;
+  country_iso2: string;
+  parent_id: string | null;
+  admin_level: number;
+}
+
+export async function searchLocations(query: string): Promise<Location[]> {
+  if (!query || query.length < 3) {
+    return [];
+  }
+
+  try {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+    console.log('Supabase URL:', supabaseUrl);
+    console.log('Supabase Key exists:', !!supabaseKey);
+    console.log('All env vars:', import.meta.env);
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('Supabase credentials not configured');
+      console.error('URL:', supabaseUrl, 'Key:', supabaseKey ? 'exists' : 'missing');
+      return [];
+    }
+
+    console.log('Searching for:', query);
+
+    const response = await fetch(
+      `${supabaseUrl}/rest/v1/rpc/rpc_search_locations`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+        },
+        body: JSON.stringify({
+          p_query: query,
+          p_limit: 10
+        }),
+      }
+    );
+
+    console.log('Response status:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('API Error:', errorText);
+      throw new Error(`Failed to search locations: ${response.status} ${errorText}`);
+    }
+
+    const data: Location[] = await response.json();
+    console.log('Search results:', data);
+    return data || [];
+  } catch (error) {
+    console.error('Error searching locations:', error);
+    return [];
   }
 }

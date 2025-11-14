@@ -1,63 +1,63 @@
-import { useState, useEffect, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { ImageGrid } from "@/components/ui/image-grid";
-import { AddPOIToItineraryForm } from "@/components/forms/add-poi-to-itinerary-form";
-import { parseOpenHours } from "@/lib/utils";
-import type { POI } from "@/services/api";
-import { Star, Plus, X, ArrowLeftToLine, ArrowRightToLine, ExternalLink, MapPin, Phone, Clock } from "lucide-react";
+import { useState, useEffect, useRef } from 'react';
+import type { POI } from '@/services/api';
+import { parseOpenHours } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { ImageGrid } from '@/components/ui/image-grid';
+import { AddPOIToItineraryForm } from '@/components/forms/add-poi-to-itinerary-form';
+import { Star, Plus, X, ArrowLeftToLine, ArrowRightToLine, ExternalLink, MapPin, Phone, Clock } from 'lucide-react';
 
 interface POIPanelProps {
   poi: POI;
-  size?: "full" | "half";
+  size?: 'full' | 'half';
   onClose: () => void;
   onToggleFullWidth?: () => void;
   showAddToTrip?: boolean;
+  showToggleFullWidth?: boolean;
 }
 
 export default function POIPanel({
   poi,
-  size = "half",
+  size = 'half',
   onClose,
   onToggleFullWidth,
   showAddToTrip = true,
+  showToggleFullWidth = true,
 }: POIPanelProps) {
   const [showNameDrawer, setShowNameDrawer] = useState(false);
-  const [activeSection, setActiveSection] = useState("overview");
+  const [activeSection, setActiveSection] = useState('overview');
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const headerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const overviewRef = useRef<HTMLDivElement>(null);
   const locationRef = useRef<HTMLDivElement>(null);
 
-  const generateGoogleMapsEmbedUrl = (poi: POI) => {
-    if (poi.coordinates) {
-      return `https://www.google.com/maps/embed/v1/place?key=YOUR_API_KEY&q=${poi.coordinates.lat},${poi.coordinates.lng}&zoom=15`;
+  const transformGoogleMapsUrl = (mapsUrl: string): string => {
+    try {
+      const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+      const nameMatch = mapsUrl.match(/\/place\/([^\/]+)\//);
+      const placeName = nameMatch ? nameMatch[1].replace(/\+/g, ' ') : '';
+      const transformedPlaceName = decodeURIComponent(placeName);
+      return `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${encodeURIComponent(transformedPlaceName)}`;
+    } catch {
+      return '';
     }
-    const query = encodeURIComponent(`${poi.name} ${poi.location}`);
-    return `https://www.google.com/maps/embed/v1/search?key=YOUR_API_KEY&q=${query}`;
-  };
-
-  const getAvailableImages = (): string[] => {
-    if (poi.images) {
-      return poi.images;
-    }
-    return [];
   };
 
   const parsedHours = poi.hours ? parseOpenHours(poi.hours) : null;
 
   useEffect(() => {
     const handleScroll = () => {
-      if (!contentRef.current || !overviewRef.current || !locationRef.current) return;
+      if (!contentRef.current || !overviewRef.current || !locationRef.current)
+        return;
 
       const contentRect = contentRef.current.getBoundingClientRect();
       const locationRect = locationRef.current.getBoundingClientRect();
       const locationVisible = locationRect.top - contentRect.top;
 
       if (locationVisible <= 120) {
-        setActiveSection("location");
+        setActiveSection('location');
       } else {
-        setActiveSection("overview");
+        setActiveSection('overview');
       }
 
       const headerHeight = headerRef.current?.offsetHeight ?? 0;
@@ -65,59 +65,59 @@ export default function POIPanel({
     };
 
     const el = contentRef.current;
-    el?.addEventListener("scroll", handleScroll);
-    return () => el?.removeEventListener("scroll", handleScroll);
+    el?.addEventListener('scroll', handleScroll);
+    return () => el?.removeEventListener('scroll', handleScroll);
   }, []);
 
   const scrollToSection = (sectionId: string) => {
-    const element = sectionId === "overview" ? overviewRef.current : locationRef.current;
+    const element =
+      sectionId === 'overview' ? overviewRef.current : locationRef.current;
     if (element && contentRef.current) {
       const offset = element.offsetTop - 160;
-      contentRef.current.scrollTo({ top: offset, behavior: "smooth" });
+      contentRef.current.scrollTo({ top: offset, behavior: 'smooth' });
       setActiveSection(sectionId);
     }
   };
 
-  const availableImages = getAvailableImages();
-
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="sticky top-0 z-10 pl-3 pr-6 py-2 flex justify-between items-center border-b">
+      <div className="sticky top-0 z-10 flex items-center justify-between border-b py-2 pr-6 pl-3">
         <div className="flex gap-1">
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X />
           </Button>
-          {onToggleFullWidth && (
+          {showToggleFullWidth && onToggleFullWidth && (
             <Button variant="ghost" size="icon" onClick={onToggleFullWidth}>
-              {size === "full" ? <ArrowRightToLine /> : <ArrowLeftToLine />}
+              {size === 'full' ? <ArrowRightToLine /> : <ArrowLeftToLine />}
             </Button>
           )}
         </div>
         {showAddToTrip && (
-          <Button variant="outline" size="sm" className="shadow-none rounded-full" onClick={() => setAddDialogOpen(true)}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-full shadow-none"
+            onClick={() => setAddDialogOpen(true)}
+          >
             <Plus /> Add to trip
           </Button>
         )}
       </div>
 
-      {/* Scrollable Content */}
       <div ref={contentRef} className="flex-1 overflow-y-auto">
-        {/* Name Drawer */}
         <div
-          className={`sticky top-0 z-10 px-6 h-12 place-content-center bg-white border-b transition-all duration-200 ${
-            showNameDrawer ? "opacity-100" : "opacity-0 pointer-events-none"
+          className={`sticky top-0 z-10 h-12 place-content-center border-b bg-white px-6 transition-all duration-200 ${
+            showNameDrawer ? 'opacity-100' : 'pointer-events-none opacity-0'
           }`}
         >
-          <h3 className="font-medium truncate text-sm">{poi.name}</h3>
+          <h3 className="truncate text-sm font-medium">{poi.name}</h3>
         </div>
 
-        {/* Main Content */}
-        <div className="px-6 pb-6 space-y-6">
-          {/* POI Header */}
+        <div className="space-y-6 px-6 pb-6">
           <div ref={headerRef} className="space-y-2">
             <h2 className="text-2xl font-bold">{poi.name}</h2>
-            <div className="flex items-center gap-1 text-sm flex-wrap">
+            <div className="flex flex-wrap items-center gap-1 text-sm">
               <div className="flex items-center gap-1">
                 <Star className="size-3.5 fill-current" />
                 <span>{poi.rating}</span>
@@ -126,81 +126,83 @@ export default function POIPanel({
               <span className="text-muted-foreground/90">
                 {poi.reviewCount > 1000
                   ? `${(poi.reviewCount / 1000).toFixed(1)}k`
-                  : poi.reviewCount}{" "}
+                  : poi.reviewCount}{' '}
                 reviews
               </span>
               <span className="text-muted-foreground/90">∙</span>
               <span className="text-muted-foreground/90">{poi.location}</span>
             </div>
-            <p className="text-sm text-muted-foreground">
-              {poi.category.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+            <p className="text-muted-foreground text-sm">
+              {poi.category
+                .split('_')
+                .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ')}
             </p>
           </div>
 
-          {/* Hero Image Grid */}
-          <ImageGrid images={availableImages} title={poi.name} maxImages={5} />
-
-          {/* Navigation Tabs */}
-          <div className="border-b flex gap-6 -mx-6 px-6 sticky top-12 bg-white z-10">
+          <ImageGrid images={poi.images || []} title={poi.name} maxImages={5} />
+          <div className="sticky top-12 z-10 -mx-6 flex gap-6 border-b bg-white px-6">
             <button
-              onClick={() => scrollToSection("overview")}
-              className={`py-3 border-b-2 text-sm font-medium transition-colors whitespace-nowrap ${
-                activeSection === "overview"
-                  ? "border-gray-900 text-gray-900"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+              onClick={() => scrollToSection('overview')}
+              className={`border-b-2 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
+                activeSection === 'overview'
+                  ? 'border-gray-900 text-gray-900'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
               Overview
             </button>
             <button
-              onClick={() => scrollToSection("location")}
-              className={`py-3 border-b-2 text-sm font-medium transition-colors whitespace-nowrap ${
-                activeSection === "location"
-                  ? "border-gray-900 text-gray-900"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+              onClick={() => scrollToSection('location')}
+              className={`border-b-2 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
+                activeSection === 'location'
+                  ? 'border-gray-900 text-gray-900'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
               Location
             </button>
           </div>
 
-          {/* Sections */}
           <div className="space-y-12">
             <section ref={overviewRef}>
               {poi.description && (
-                <p className="text-sm leading-relaxed pb-6 border-b mb-6">
+                <p className="mb-6 border-b pb-6 text-sm leading-relaxed">
                   {poi.description}
                 </p>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 {(poi.address || poi.website || poi.phone) && (
                   <div className="space-y-6">
                     {poi.address && (
                       <div className="flex gap-2">
-                        <MapPin className="size-4 flex-shrink-0 mt-1" />
+                        <MapPin className="mt-1 size-4 flex-shrink-0" />
                         <div className="flex flex-col gap-1">
                           <span className="font-medium">Address</span>
-                          <a 
-                            onClick={() => poi.address && navigator.clipboard.writeText(poi.address)}
-                            className="block text-sm cursor-pointer hover:underline underline-offset-4"
+                          <a
+                            onClick={() =>
+                              poi.address &&
+                              navigator.clipboard.writeText(poi.address)
+                            }
+                            className="block cursor-pointer text-sm underline-offset-4 hover:underline"
                           >
                             {poi.address}
                           </a>
                         </div>
                       </div>
                     )}
-                    
+
                     {poi.website && (
                       <div className="flex gap-2">
-                        <ExternalLink className="size-4 flex-shrink-0 mt-1" />
+                        <ExternalLink className="mt-1 size-4 flex-shrink-0" />
                         <div className="flex flex-col gap-1">
                           <span className="font-medium">Website</span>
                           <a
                             href={poi.website}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="block text-sm hover:underline underline-offset-4"
+                            className="block text-sm underline-offset-4 hover:underline"
                           >
                             {new URL(poi.website).hostname}
                           </a>
@@ -210,10 +212,13 @@ export default function POIPanel({
 
                     {poi.phone && (
                       <div className="flex gap-2">
-                        <Phone className="size-4 flex-shrink-0 mt-1" />
+                        <Phone className="mt-1 size-4 flex-shrink-0" />
                         <div className="flex flex-col gap-1">
                           <span className="font-medium">Phone</span>
-                          <a href={`tel:${poi.phone}`} className="block text-sm hover:underline underline-offset-4">
+                          <a
+                            href={`tel:${poi.phone}`}
+                            className="block text-sm underline-offset-4 hover:underline"
+                          >
                             {poi.phone}
                           </a>
                         </div>
@@ -222,18 +227,17 @@ export default function POIPanel({
                   </div>
                 )}
 
-                {/* Hours Section */}
                 {parsedHours && (
                   <div className="flex gap-2">
-                    <Clock className="size-4 flex-shrink-0 mt-1" />
+                    <Clock className="mt-1 size-4 flex-shrink-0" />
                     <div className="flex flex-col gap-1">
                       <span className="font-medium">Hours of operation</span>
                       <div className="space-y-1.5">
                         <p
-                          className={`text-sm font-semibold mb-2 ${
-                            parsedHours.status === "open"
-                              ? "text-green-600"
-                              : "text-red-600"
+                          className={`mb-2 text-sm font-semibold ${
+                            parsedHours.status === 'open'
+                              ? 'text-green-600'
+                              : 'text-red-600'
                           }`}
                         >
                           {parsedHours.currentStatus}
@@ -241,7 +245,10 @@ export default function POIPanel({
 
                         <div className="space-y-1 text-sm">
                           {parsedHours.openHours.map((dayHour) => (
-                            <div key={dayHour.day} className="flex justify-between gap-4">
+                            <div
+                              key={dayHour.day}
+                              className="flex justify-between gap-4"
+                            >
                               <span>{dayHour.day.slice(0, 3)}</span>
                               <span className="text-right">{dayHour.time}</span>
                             </div>
@@ -255,30 +262,31 @@ export default function POIPanel({
             </section>
 
             <section ref={locationRef}>
-              <h3 className="text-lg font-semibold mb-4">Location</h3>
+              <h3 className="mb-4 text-lg font-semibold">Location</h3>
 
-              <div className="relative rounded-lg overflow-hidden border border-gray-200">
+              <div className="relative overflow-hidden rounded-lg border border-gray-200">
                 <iframe
                   width="100%"
-                  height="240"
-                  style={{ border: 0 }}
-                  src={generateGoogleMapsEmbedUrl(poi)}
-                  allowFullScreen
+                  height="360"
+                  src={transformGoogleMapsUrl(poi.googleMapsUrl as string)}
                   loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
                   title={`Map of ${poi.name}`}
                 />
 
                 {poi.googleMapsUrl && (
                   <Button
                     variant="ghost"
-                    className="absolute top-4 left-4 inline-flex items-center gap-1.5 text-sm rounded-full bg-white/90 hover:bg-white"
+                    className="absolute top-4 right-4 inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-white/90 text-sm shadow-md hover:bg-white"
                     onClick={() =>
-                      window.open(poi.googleMapsUrl, "_blank", "noopener,noreferrer")
+                      window.open(
+                        poi.googleMapsUrl,
+                        '_blank',
+                        'noopener,noreferrer'
+                      )
                     }
                   >
                     Get directions
-                    <ExternalLink className="size-3.5" />
+                    <ExternalLink className="size-4" />
                   </Button>
                 )}
               </div>
@@ -286,7 +294,7 @@ export default function POIPanel({
           </div>
         </div>
       </div>
-     <AddPOIToItineraryForm
+      <AddPOIToItineraryForm
         open={addDialogOpen}
         onOpenChange={setAddDialogOpen}
         poi={poi}

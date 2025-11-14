@@ -32,7 +32,7 @@ interface SidebarProps {
     name: string
     email: string
     avatar: string
-  }
+  } | null
 }
 
 export function AppSidebar({ user }: SidebarProps) {
@@ -41,6 +41,13 @@ export function AppSidebar({ user }: SidebarProps) {
   const { state, isMobile } = useSidebar()
   const [isLogoHovered, setIsLogoHovered] = useState(false)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
+
+  // Default placeholder user
+  const displayUser = user || {
+    name: "Guest",
+    email: "guest@example.com",
+    avatar: "",
+  }
 
   const getCurrentView = (): NavigationViewType | string => {
     const path = location.pathname.slice(1) || "chat"
@@ -121,14 +128,14 @@ export function AppSidebar({ user }: SidebarProps) {
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton size="lg">
                   <Avatar className="rounded-lg">
-                    <AvatarImage src={user.avatar} alt={user.name} />
+                    <AvatarImage src={displayUser.avatar} alt={displayUser.name} />
                     <AvatarFallback className="rounded-lg">
-                      {user.name.charAt(0).toUpperCase()}
+                      {displayUser.name.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-medium">{user.name}</span>
-                    <span className="truncate text-xs">{user.email}</span>
+                    <span className="truncate font-medium">{displayUser.name}</span>
+                    <span className="truncate text-xs">{displayUser.email}</span>
                   </div>
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
@@ -141,14 +148,14 @@ export function AppSidebar({ user }: SidebarProps) {
                 <DropdownMenuLabel className="p-0 font-normal">
                   <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                     <Avatar>
-                      <AvatarImage src={user.avatar} alt={user.name} />
+                      <AvatarImage src={displayUser.avatar} alt={displayUser.name} />
                       <AvatarFallback>
-                        {user.name.charAt(0).toUpperCase()}
+                        {displayUser.name.charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div className="grid flex-1 text-left text-sm leading-tight">
-                      <span className="truncate font-medium">{user.name}</span>
-                      <span className="truncate text-xs">{user.email}</span>
+                      <span className="truncate font-medium">{displayUser.name}</span>
+                      <span className="truncate text-xs">{displayUser.email}</span>
                     </div>
                   </div>
                 </DropdownMenuLabel>

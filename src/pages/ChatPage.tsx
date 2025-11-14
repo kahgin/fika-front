@@ -1,25 +1,20 @@
-import { useEffect, useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Luggage, MapPin } from "lucide-react";
-import { getItinerary, fetchPOIById, type CreatedItinerary, type POI } from "@/services/api";
-import POIPanel from "@/components/panels/POIPanel";
-import ChatPanel from "@/components/panels/ChatPanel";
-import ItineraryPanel from "@/components/panels/ItineraryPanel";
+import { useEffect, useState } from 'react';
+import POIPanel from '@/components/panels/POIPanel';
+import ChatPanel from '@/components/panels/ChatPanel';
+import ItinMapPanel from '@/components/panels/ItinMapPanel';
+import ItineraryPanel from '@/components/panels/ItineraryPanel';
+import { DualPanelLayout } from '@/components/ui/dual-panel';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { MapPin, MessageCircle, Map } from 'lucide-react';
+import { getItinerary, fetchPOIById, type CreatedItinerary, type POI } from '@/services/api';
 
-function MapPanel({}: { items: Array<{ id: string; name: string }> }) {
-  return (
-    <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
-      {/* TODO: plot markers when coordinates are available */}
-      Map view unavailable: missing coordinates.
-    </div>
-  );
-}
+type PanelType = 'chat' | 'itinerary' | 'map';
 
 export default function ChatPage() {
   const [itinerary, setItinerary] = useState<CreatedItinerary | null>(null);
-  const [rightPanelMode, setRightPanelMode] = useState<'itinerary' | 'poi' | 'map'>('itinerary');
+  const [leftPanel, setLeftPanel] = useState<PanelType>('chat');
+  const [rightPanel, setRightPanel] = useState<PanelType>('itinerary');
   const [selectedPoi, setSelectedPoi] = useState<POI | null>(null);
-  const [fullWidth, setFullWidth] = useState<boolean>(false);
   const [loadingPoi, setLoadingPoi] = useState(false);
 
   useEffect(() => {
@@ -29,7 +24,6 @@ export default function ChatPage() {
       return;
     }
 
-    // Always validate with backend; update cache only on success
     getItinerary(lastId)
       .then((data) => {
         if (data) {
@@ -49,7 +43,6 @@ export default function ChatPage() {
         localStorage.removeItem('fika:lastChatId');
       });
 
-    // Listen for itinerary updates from other components
     const handleItineraryUpdate = (event: CustomEvent) => {
       const { itineraryId, data } = event.detail;
       if (itineraryId === lastId) {
@@ -57,165 +50,300 @@ export default function ChatPage() {
       }
     };
 
-    window.addEventListener('itinerary-updated', handleItineraryUpdate as EventListener);
-    return () => {
-      window.removeEventListener('itinerary-updated', handleItineraryUpdate as EventListener);
-    };
+    window.addEventListener(
+      'itinerary-updated',
+      handleItineraryUpdate as EventListener
+    );
+    return () =>
+      window.removeEventListener(
+        'itinerary-updated',
+        handleItineraryUpdate as EventListener
+      );
   }, []);
-
-  const toggleMap = () => {
-    if (!itinerary) return;
-    setRightPanelMode((m) => (m === 'map' ? 'itinerary' : 'map'));
-  };
 
   const handleOpenPOI = async (poi: { id: string; name: string }) => {
     setLoadingPoi(true);
-    setRightPanelMode('poi');
-    
     try {
-      // First check if POI details exist in itinerary data
-      const found = itinerary?.maut?.items?.find((i: any) => i.id === poi.id);
-      if (found && found.description) {
-        const adapted: POI = {
-          id: found.id,
-          name: found.name,
-          rating: found.rating || 0,
-          reviewCount: found.reviews || 0,
-          location: found.location || "",
-          category: found.category || "",
-          images: found.images || [],
-          description: found.description,
-          address: found.address,
-          website: found.website,
-          phone: found.phone,
-          hours: found.hours,
-          coordinates: found.coordinates,
-          googleMapsUrl: found.googleMapsUrl,
-        } as POI;
-        setSelectedPoi(adapted);
-        return;
-      }
-      
-      // Fetch full details from backend
       const details = await fetchPOIById(poi.id);
-      if (details) {
-        setSelectedPoi(details);
-      } else {
-        // Fallback with minimal data
-        setSelectedPoi({ 
-          id: poi.id, 
-          name: poi.name, 
-          rating: 0, 
-          reviewCount: 0, 
-          location: "", 
-          category: "", 
-          images: [] 
-        } as POI);
-      }
+      setSelectedPoi(
+        details ||
+          ({
+            id: poi.id,
+            name: poi.name,
+            rating: 0,
+            reviewCount: 0,
+            location: '',
+            category: '',
+            images: [],
+          } as POI)
+      );
     } catch (error) {
-      console.error('Error fetching POI details:', error);
-      setSelectedPoi({ 
-        id: poi.id, 
-        name: poi.name, 
-        rating: 0, 
-        reviewCount: 0, 
-        location: "", 
-        category: "", 
-        images: [] 
+      console.error('Error loading POI details:', error);
+      setSelectedPoi({
+        id: poi.id,
+        name: poi.name,
+        rating: 0,
+        reviewCount: 0,
+        location: '',
+        category: '',
+        images: [],
       } as POI);
     } finally {
       setLoadingPoi(false);
     }
   };
 
-  const handleClosePOI = () => {
-    setRightPanelMode('itinerary');
-    setSelectedPoi(null);
+  const handleTabChange = (side: 'left' | 'right', panel: PanelType) => {
+    if (side === 'left') {
+      if (panel === rightPanel) return;
+      setLeftPanel(panel);
+    } else {
+      if (panel === leftPanel) return;
+      setRightPanel(panel);
+    }
   };
 
-  const handleToggleWidth = () => {
-    setFullWidth(!fullWidth);
+  const renderPanel = (panel: PanelType) => {
+    if (panel === 'chat') {
+      return <ChatPanel />;
+    }
+
+    if (panel === 'map') {
+      const items = (itinerary?.plan?.items || []).map((i: any) => ({
+        id: i.id,
+        name: i.name,
+      }));
+      return <ItinMapPanel items={items} />;
+    }
+
+    if (panel === 'itinerary' && itinerary) {
+      return (
+        <ItineraryPanel
+          className="h-full"
+          data={itinerary}
+          onOpenDetails={handleOpenPOI}
+        />
+      );
+    }
+
+    return null;
   };
 
-  const rightContent = useMemo(() => {
-    if (!itinerary) return null;
-    if (rightPanelMode === 'poi') {
-      if (loadingPoi) {
-        return (
-          <div className="h-full flex items-center justify-center">
-            <div className="text-center space-y-3">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-              <p className="text-sm text-muted-foreground">Loading POI details...</p>
-            </div>
+  const renderDesktop = () => {
+    const leftContent = renderPanel(leftPanel);
+    const rightContent = selectedPoi ? (
+      loadingPoi ? (
+        <div className="flex h-full items-center justify-center">
+          <div className="space-y-3 text-center">
+            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-gray-900"></div>
+            <p className="text-muted-foreground text-sm">
+              Loading POI details...
+            </p>
           </div>
-        );
-      }
-      if (selectedPoi) {
-        return (
-          <POIPanel
-            poi={selectedPoi}
-            size={fullWidth ? 'full' : 'half'}
-            onClose={handleClosePOI}
-            onToggleFullWidth={handleToggleWidth}
-            showAddToTrip={false}
-          />
-        );
-      }
-    }
-    if (rightPanelMode === 'map') {
-      const items = (itinerary.maut?.items || []).map((i: any) => ({ id: i.id, name: i.name }));
-      return <MapPanel items={items} />;
-    }
-    return (
-      <ItineraryPanel
-        className="h-full"
-        data={itinerary}
-        onOpenDetails={handleOpenPOI}
-        onToggleWidth={handleToggleWidth}
-        fullWidth={fullWidth}
-      />
+        </div>
+      ) : (
+        <POIPanel
+          poi={selectedPoi}
+          size="half"
+          onClose={() => setSelectedPoi(null)}
+          showToggleFullWidth={false}
+          showAddToTrip={false}
+        />
+      )
+    ) : (
+      renderPanel(rightPanel)
     );
-  }, [itinerary, rightPanelMode, selectedPoi, fullWidth, loadingPoi]);
+
+    return (
+      <div className="hidden h-full flex-col lg:flex">
+        <div className="z-10 flex h-12 flex-shrink-0 items-center border-b bg-white px-4">
+          <div className="flex h-full w-1/2 items-center justify-between border-r pr-4">
+            <h6 className="flex-1">{itinerary?.meta?.title}</h6>
+            <Tabs
+              value={leftPanel}
+              onValueChange={(value) =>
+                handleTabChange('left', value as PanelType)
+              }
+              hidden={!itinerary}
+            >
+              <TabsList className="h-8">
+                <TabsTrigger
+                  value="chat"
+                  className="px-2"
+                  hidden={rightPanel === 'chat'}
+                >
+                  <MessageCircle className="h-4 w-4" />
+                </TabsTrigger>
+                <TabsTrigger
+                  value="itinerary"
+                  hidden={!itinerary || rightPanel === 'itinerary'}
+                  className="px-2"
+                >
+                  <Map className="h-4 w-4" />
+                </TabsTrigger>
+                <TabsTrigger
+                  value="map"
+                  hidden={!itinerary || rightPanel === 'map'}
+                  className="px-2"
+                >
+                  <MapPin className="h-4 w-4" />
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+          <div
+            className="flex h-full w-1/2 items-center justify-end"
+            hidden={!itinerary}
+          >
+            <Tabs
+              value={rightPanel}
+              onValueChange={(value) =>
+                handleTabChange('right', value as PanelType)
+              }
+              hidden={!!selectedPoi}
+            >
+              <TabsList className="h-8">
+                <TabsTrigger
+                  value="chat"
+                  className="px-2"
+                  hidden={leftPanel === 'chat'}
+                >
+                  <MessageCircle className="h-4 w-4" />
+                </TabsTrigger>
+                <TabsTrigger
+                  value="itinerary"
+                  hidden={!itinerary || leftPanel === 'itinerary'}
+                  className="px-2"
+                >
+                  <Map className="h-4 w-4" />
+                </TabsTrigger>
+                <TabsTrigger
+                  value="map"
+                  hidden={!itinerary || leftPanel === 'map'}
+                  className="px-2"
+                >
+                  <MapPin className="h-4 w-4" />
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+        </div>
+        <div className="min-h-0 flex-1">
+          <DualPanelLayout
+            left={leftContent}
+            right={itinerary || selectedPoi ? rightContent : null}
+            rightVisible={Boolean(itinerary || selectedPoi)}
+            fullWidth={null}
+          />
+        </div>
+      </div>
+    );
+  };
+
+  const renderMobile = () => {
+    const [mobileTab, setMobileTab] = useState<PanelType>('chat');
+
+    const handleMobileTabChange = (tab: PanelType) => {
+      setMobileTab(tab);
+      setSelectedPoi(null);
+    };
+
+    let content: React.ReactNode = null;
+    if (mobileTab === 'chat') {
+      content = <ChatPanel />;
+    } else if (mobileTab === 'itinerary' && itinerary) {
+      content = (
+        <ItineraryPanel
+          className="h-full"
+          data={itinerary}
+          onOpenDetails={handleOpenPOI}
+        />
+      );
+    } else if (mobileTab === 'map' && itinerary) {
+      const items = (itinerary.plan?.items || []).map((i: any) => ({
+        id: i.id,
+        name: i.name,
+      }));
+      content = <ItinMapPanel items={items} />;
+    }
+
+    return (
+      <div className="relative flex h-full w-full flex-col lg:hidden">
+        <div className="z-20 flex h-12 flex-shrink-0 items-center justify-end border-b bg-white px-4">
+          <h6 className="flex-1">{itinerary?.meta?.title}</h6>
+          <Tabs
+            value={mobileTab}
+            onValueChange={(value) => handleMobileTabChange(value as PanelType)}
+          >
+            <TabsList className="h-8">
+              <TabsTrigger value="chat" className="px-2">
+                <MessageCircle className="h-4 w-4" />
+              </TabsTrigger>
+              <TabsTrigger
+                value="itinerary"
+                disabled={!itinerary}
+                className="px-2"
+              >
+                <Map className="h-4 w-4" />
+              </TabsTrigger>
+              <TabsTrigger value="map" disabled={!itinerary} className="px-2">
+                <MapPin className="h-4 w-4" />
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
+        <div
+          className={
+            'fixed inset-0 z-40 transition-opacity duration-300 ' +
+            (selectedPoi
+              ? 'pointer-events-auto bg-black/40 opacity-100'
+              : 'pointer-events-none opacity-0')
+          }
+          aria-hidden="true"
+          onClick={() => setSelectedPoi(null)}
+        />
+
+        <div className="min-h-0 flex-1 overflow-hidden">{content}</div>
+
+        <div
+          className={
+            'fixed inset-0 z-50 flex h-screen flex-col transition-transform duration-300 ease-in-out ' +
+            (selectedPoi ? 'pointer-events-auto' : 'pointer-events-none')
+          }
+          style={{
+            transform: selectedPoi ? 'translateY(0%)' : 'translateY(100%)',
+          }}
+        >
+          <div className="flex h-full flex-1 flex-col overflow-hidden border-t border-gray-200 bg-white shadow-2xl">
+            {loadingPoi ? (
+              <div className="flex h-full items-center justify-center">
+                <div className="space-y-3 text-center">
+                  <div className="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-gray-900"></div>
+                  <p className="text-muted-foreground text-sm">
+                    Loading POI details...
+                  </p>
+                </div>
+              </div>
+            ) : (
+              selectedPoi && (
+                <POIPanel
+                  poi={selectedPoi}
+                  size="full"
+                  onClose={() => setSelectedPoi(null)}
+                />
+              )
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <>
-      {/* Panel Header */}
-      <div className="px-6 h-12 flex items-center justify-between border-b">
-        <div className="flex items-center justify-between w-full">
-          <h6 className="font-semibold">Chat</h6>
-          <Button variant="outline" size="sm" onClick={toggleMap} disabled={!itinerary} title={rightPanelMode === 'map' ? 'Show itinerary' : 'Show map'}>
-            {rightPanelMode === 'map' ? <Luggage /> : <MapPin/>}
-            <span>{rightPanelMode === 'map' ? 'Itinerary' : 'Map'}</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Content with independent scrollbars */}
-      <div className="flex h-[calc(100vh-48px)]">
-        {/* ChatPanel */}
-        <div
-          className={[
-            "transition-[width,opacity] duration-300 ease-in-out min-w-0 overflow-y-auto",
-            !itinerary ? "flex-1" : fullWidth ? "w-0 opacity-0 pointer-events-none" : "border-r flex-1 basis-1/2",
-          ].join(" ")}
-        >
-          <ChatPanel />
-        </div>
-
-        {/* Right panel: hidden entirely when no itinerary */}
-        {itinerary && (
-          <div
-            className={[
-              "transition-[width] duration-300 ease-in-out min-w-0 overflow-y-auto",
-              fullWidth ? "flex-1" : "flex-1 basis-1/2",
-            ].join(" ")}
-          >
-            <div className="relative h-full">
-              {rightContent}
-            </div>
-          </div>
-        )}
-      </div>
-    </>
+    <div className="h-screen">
+      {renderDesktop()}
+      {renderMobile()}
+    </div>
   );
 }

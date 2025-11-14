@@ -1,9 +1,7 @@
-"use client"
-
 import { z } from "zod"
 import { format } from "date-fns"
 import { useForm } from "react-hook-form"
-import React, { useMemo, useState } from "react"
+import React, { useMemo, useState, useCallback, useEffect, useRef } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import type { DateRange } from "react-day-picker"
 import { Button } from "@/components/ui/button"
@@ -13,15 +11,29 @@ import { Calendar } from "@/components/ui/calendar"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { CalendarIcon, Plus, Minus, ChevronLeft } from "lucide-react"
+import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field"
+import { CalendarIcon, Plus, Minus, ChevronLeft, AlertCircle, Check } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command"
+import { searchLocations, type Location } from "@/services/api"
+import { cn } from "@/lib/utils"
 
 interface CreateItineraryFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
+const toUtcDateOnly = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+
+const calculateDaysBetween = (startDate: Date, endDate: Date): number => {
+  const sD = toUtcDateOnly(startDate)
+  const eD = toUtcDateOnly(endDate)
+  const diffMs = eD.getTime() - sD.getTime()
+  return Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1)
+}
+
 const formSchema = z.object({
+  title: z.string().optional(),
   destination: z.string().min(1, "Destination is required"),
   startDate: z.date().optional(),
   endDate: z.date().optional(),
@@ -36,7 +48,7 @@ const formSchema = z.object({
 }).refine((data: any) => {
   const hasSpecific = !!data.startDate && !!data.endDate
   const days = parseInt(data.flexibleDays || "0")
-  const hasFlexible = Number.isFinite(days) && days >= 1 && !!data.flexibleMonth
+  const hasFlexible = Number.isFinite(days) && days >= 1
   return hasSpecific || hasFlexible
 }, { message: "Please select travel dates", path: ["startDate"] })
 
@@ -50,6 +62,13 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
   const [showBudgetDialog, setShowBudgetDialog] = useState(false)
   const [showPacingDialog, setShowPacingDialog] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [locationOpen, setLocationOpen] = useState(false)
+  const [locationSearch, setLocationSearch] = useState("")
+  const [locations, setLocations] = useState<Location[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [selectedLocation, setSelectedLocation] = useState<Location | null>(null)
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
@@ -62,6 +81,7 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      title: "",
       destination: "",
       startDate: undefined,
       endDate: undefined,
@@ -85,13 +105,13 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
   ]
 
   const interestOptions = [
-    { value: "food_and_drink", label: "Food & Culinary" },
+    { value: "food_culinary", label: "Food & Culinary" },
     { value: "cultural_history", label: "Cultural & History" },
-    { value: "religious", label: "Religious Sites" },
+    { value: "religious_sites", label: "Religious Sites" },
     { value: "nature", label: "Nature & Parks" },
     { value: "shopping", label: "Shopping" },
     { value: "family", label: "Family Attractions" },
-    { value: "art_craft", label: "Art & Museums" },
+    { value: "art_museums", label: "Art & Museums" },
     { value: "adventure", label: "Adventure" },
   ]
 
@@ -109,17 +129,17 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
   }
 
   const watchInterests = form.watch("interests") || []
-  const toggleInterest = (interest: string) => {
+  const toggleInterest = useCallback((interest: string) => {
     const exists = watchInterests.includes(interest)
     const next = exists ? watchInterests.filter((i) => i !== interest) : [...watchInterests, interest]
     form.setValue("interests", next, { shouldDirty: true })
-  }
+  }, [watchInterests, form])
 
   const handleDateDialogSave = () => {
     if (dateMode === "specific") {
       if (dateRange?.from) {
         form.setValue("startDate", dateRange.from)
-        form.setValue("endDate", dateRange?.to)
+        form.setValue("endDate", dateRange?.to || dateRange.from)
       }
       form.setValue("flexibleDays", undefined as any)
       form.setValue("flexibleMonth", undefined as any)
@@ -133,9 +153,9 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
   const canProceed = () => {
     if (currentStep === 1) {
       const v = form.getValues()
-      const hasDestination = !!v.destination
-      const hasDates = dateMode === "specific" ? !!v.startDate && !!v.endDate : !!v.flexibleDays && !!v.flexibleMonth
-      return hasDestination && hasDates && !!v.budget && !!v.pacing
+      const hasValidDestination = !!v.destination && isValidDestination
+      const hasDates = dateMode === "specific" ? !!v.startDate && !!v.endDate : !!v.flexibleDays
+      return hasValidDestination && hasDates && !!v.budget && !!v.pacing
     }
     return true
   }
@@ -156,62 +176,99 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
     }
   }
 
-  const generateAPIPayload = () => {
-    const destination = form.getValues("destination")
+  const generateTitle = (customTitle?: string, dest?: string, mode?: typeof dateMode, start?: Date, end?: Date, flexDays?: string) => {
+    if (customTitle && customTitle.trim()) {
+      return customTitle.trim()
+    }
 
-    const toUtcDateOnly = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+    const destination = dest || "Trip"
 
-    if (dateMode === "specific") {
-      const s = form.getValues("startDate")
-      const e = form.getValues("endDate")
-      const startISO = s ? s.toISOString().split("T")[0] : undefined
-      const endISO = e ? e.toISOString().split("T")[0] : undefined
-      let num_days = 0
-      if (s && e) {
-        const sD = toUtcDateOnly(s)
-        const eD = toUtcDateOnly(e)
-        const diffMs = eD.getTime() - sD.getTime()
-        num_days = Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
+    if (mode === "specific" && start) {
+      const endDate = end || start
+      const numDays = calculateDaysBetween(start, endDate)
+
+      if (numDays === 1) {
+        return `${destination} @ ${format(start, "MMM d")}`
+      } else {
+        const sameMonth = start.getMonth() === endDate.getMonth()
+        if (sameMonth) {
+          return `${destination} @ ${format(start, "MMM d")}–${format(endDate, "d")}`
+        } else {
+          return `${destination} @ ${format(start, "MMM d")}–${format(endDate, "MMM d")}`
+        }
       }
-      return {
-        destination,
-        dates: { type: "specific", startDate: startISO, endDate: endISO },
-        num_days,
-        travelers: { adults: form.getValues("adults"), children: form.getValues("children"), pets: form.getValues("pets") },
-        preferences: { budget: form.getValues("budget"), pacing: form.getValues("pacing"), interests: form.getValues("interests") },
+    } else if (flexDays) {
+      const days = parseInt(flexDays)
+      if (days === 1) {
+        return `${destination} @ 1 day`
+      } else {
+        return `${destination} @ ${days} days`
       }
     }
 
-    const days = parseInt(form.getValues("flexibleDays") || "0")
-    const preferredMonth = form.getValues("flexibleMonth") || ""
+    return destination
+  }
+
+  const generateAPIPayload = () => {
+    const destination = form.watch("destination")
+    const customTitle = form.watch("title")
+    const startDate = form.watch("startDate")
+    const endDate = form.watch("endDate")
+    const flexibleDays = form.watch("flexibleDays")
+    const title = generateTitle(customTitle, destination, dateMode, startDate, endDate, flexibleDays)
+
+    if (dateMode === "specific") {
+      const startISO = startDate ? startDate.toISOString().split("T")[0] : undefined
+      const endISO = endDate ? endDate.toISOString().split("T")[0] : undefined
+      const num_days = startDate && endDate ? calculateDaysBetween(startDate, endDate) : 0
+
+      return {
+        title,
+        destination,
+        dates: { type: "specific", startDate: startISO, endDate: endISO },
+        num_days,
+        travelers: { adults: form.watch("adults"), children: form.watch("children"), pets: form.watch("pets") },
+        preferences: { budget: form.watch("budget"), pacing: form.watch("pacing"), interests: form.watch("interests") },
+      }
+    }
+
+    const days = parseInt(flexibleDays || "0")
+    const preferredMonth = form.watch("flexibleMonth") || ""
     return {
+      title,
       destination,
       dates: { type: "flexible", days, preferredMonth },
       num_days: days,
-      travelers: { adults: form.getValues("adults"), children: form.getValues("children"), pets: form.getValues("pets") },
-      preferences: { budget: form.getValues("budget"), pacing: form.getValues("pacing"), interests: form.getValues("interests") },
+      travelers: { adults: form.watch("adults"), children: form.watch("children"), pets: form.watch("pets") },
+      preferences: { budget: form.watch("budget"), pacing: form.watch("pacing"), interests: form.watch("interests") },
     }
   }
 
   const onSubmit = async () => {
+    setError(null)
+
+    if (dateMode === "specific" && (!form.getValues("startDate") || !form.getValues("endDate"))) {
+      setError("Please select travel dates")
+      return
+    }
+
     const payload = generateAPIPayload()
     setIsSubmitting(true)
-    
+
     try {
       const resp = await (await import('@/services/api')).createItinerary(payload as any)
-      if (resp && resp.chat_id) {
-        // Store last chat id and navigate
-        localStorage.setItem('fika:lastChatId', resp.chat_id)
-        localStorage.setItem(`fika:chat:${resp.chat_id}`, JSON.stringify(resp))
+      if (resp && resp.itin_id) {
+        localStorage.setItem('fika:lastChatId', resp.itin_id)
+        localStorage.setItem(`fika:chat:${resp.itin_id}`, JSON.stringify(resp))
         window.location.href = '/chat'
       } else {
-        console.error('Invalid response from server')
+        setError("Failed to create itinerary. Please try again.")
         setIsSubmitting(false)
       }
     } catch (e) {
       console.error('Failed to create itinerary', e)
+      setError("An error occurred. Please check your connection and try again.")
       setIsSubmitting(false)
-      handleOpenChange(false)
     }
   }
 
@@ -223,82 +280,88 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
     luxury: "Luxury",
   }), [])
 
-  const StepOne = () => {
-    const startDate = form.watch("startDate")
-    const endDate = form.watch("endDate")
-    const flexibleDays = form.watch("flexibleDays")
-    const flexibleMonth = form.watch("flexibleMonth")
-    const adults = form.watch("adults")
-    const children = form.watch("children")
-    const pets = form.watch("pets")
-    const budget = form.watch("budget")
-    const pacing = form.watch("pacing")
+  const title = form.watch("title")
+  const destination = form.watch("destination")
+  const startDate = form.watch("startDate")
+  const endDate = form.watch("endDate")
+  const flexibleDays = form.watch("flexibleDays")
+  const flexibleMonth = form.watch("flexibleMonth")
+  const adults = form.watch("adults")
+  const children = form.watch("children")
+  const pets = form.watch("pets")
+  const budget = form.watch("budget")
+  const pacing = form.watch("pacing")
 
-    const budgetKey: "any" | "tight" | "sensible" | "upscale" | "luxury" =
-      budget === "tight" || budget === "sensible" || budget === "upscale" || budget === "luxury" ? budget : "any"
+  const budgetKey: "any" | "tight" | "sensible" | "upscale" | "luxury" =
+    budget === "tight" || budget === "sensible" || budget === "upscale" || budget === "luxury" ? budget : "any"
 
-    const dateDisplay = useMemo(() => {
-      if (dateMode === "specific" && startDate && endDate) return `${format(startDate, "LLL dd, y")} - ${format(endDate, "LLL dd, y")}`
-      if (dateMode === "flexible" && flexibleDays) {
-        const label = months.find((m) => m.value === flexibleMonth)?.label
-        return `${flexibleDays} days${label ? ` in ${label}` : ""}`
+  const dateDisplay = useMemo(() => {
+    if (dateMode === "specific" && startDate && endDate) {
+      const sameYear = startDate.getFullYear() === endDate.getFullYear()
+      const sameMonth = startDate.getMonth() === endDate.getMonth()
+
+      if (sameYear && sameMonth) {
+        return `${format(startDate, "MMM d")}–${format(endDate, "d")}`
+      } else if (sameYear) {
+        return `${format(startDate, "MMM d")}–${format(endDate, "MMM d")}`
+      } else {
+        return `${format(startDate, "MMM d, yyyy")}–${format(endDate, "MMM d, yyyy")}`
       }
-      return "Select dates"
-    }, [dateMode, startDate, endDate, flexibleDays, flexibleMonth])
+    }
+    if (dateMode === "flexible" && flexibleDays) {
+      const label = months.find((m) => m.value === flexibleMonth)?.label
+      return `${flexibleDays} days${label ? ` in ${label}` : ""}`
+    }
+    return "Select dates"
+  }, [dateMode, startDate, endDate, flexibleDays, flexibleMonth])
 
-    const whoDisplay = useMemo(() => {
-      const total = (adults || 0) + (children || 0)
-      const base = `${total} ${total === 1 ? "traveler" : "travelers"}`
-      return pets ? `${base}, pets` : base
-    }, [adults, children, pets])
+  const whoDisplay = useMemo(() => {
+    const total = (adults || 0) + (children || 0)
+    const base = `${total} ${total === 1 ? "traveler" : "travelers"}`
+    return base
+  }, [adults, children, pets])
 
-    return (
-      <div className="space-y-4">
-        <FormField name="destination" render={({ field }: any) => (
-          <FormItem>
-            <FormLabel>Destination</FormLabel>
-            <FormControl><Input placeholder="Where are you going?" {...field} /></FormControl>
-            <FormMessage />
-          </FormItem>
-        )} />
-        <FormItem>
-          <FormLabel>When</FormLabel>
-          <div role="button" tabIndex={0} onClick={() => setShowDateDialog(true)} className="cursor-pointer border rounded-md h-10 flex items-center px-3 text-sm">
-            {dateDisplay}
-          </div>
-        </FormItem>
-        <FormItem>
-          <FormLabel>Who</FormLabel>
-          <div role="button" tabIndex={0} onClick={() => setShowWhoDialog(true)} className="cursor-pointer border rounded-md h-10 flex items-center px-3 text-sm">
-            {whoDisplay}
-          </div>
-        </FormItem>
-        <FormItem>
-          <FormLabel>Budget</FormLabel>
-          <div role="button" tabIndex={0} onClick={() => setShowBudgetDialog(true)} className="cursor-pointer border rounded-md h-10 flex items-center px-3 text-sm">
-            {budgetLabels[budgetKey]}
-          </div>
-        </FormItem>
-        <FormItem>
-          <FormLabel>Travel Pacing</FormLabel>
-          <div role="button" tabIndex={0} onClick={() => setShowPacingDialog(true)} className="cursor-pointer border rounded-md h-10 flex items-center px-3 text-sm">
-            {pacingOptions.find((p) => p.value === pacing)?.label || "Select pacing"}
-          </div>
-        </FormItem>
-      </div>
-    )
+  const generatedTitle = useMemo(() =>
+    generateTitle(title, destination, dateMode, startDate, endDate, flexibleDays),
+    [title, destination, dateMode, startDate, endDate, flexibleDays]
+  )
+
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current)
+    }
+
+    if (locationSearch.length >= 3) {
+      setIsSearching(true)
+      searchTimeoutRef.current = setTimeout(async () => {
+        const results = await searchLocations(locationSearch)
+        setLocations(results)
+        setIsSearching(false)
+      }, 300)
+    } else {
+      setLocations([])
+      setIsSearching(false)
+    }
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current)
+      }
+    }
+  }, [locationSearch])
+
+  const handleLocationSelect = (location: Location) => {
+    setSelectedLocation(location)
+    form.setValue("destination", location.name, { shouldDirty: true, shouldValidate: true })
+    setLocationSearch(location.label)
+    setLocationOpen(false)
   }
 
-  const StepTwo = () => (
-    <div>
-      <Label>Interests</Label>
-      <div className="grid grid-cols-2 gap-3 mt-2">
-        {interestOptions.map((i) => (
-          <Button key={i.value} type="button" variant={watchInterests.includes(i.value) ? "default" : "outline"} onClick={() => toggleInterest(i.value)}>{i.label}</Button>
-        ))}
-      </div>
-    </div>
-  )
+  const isValidDestination = useMemo(() => {
+    if (!destination) return false
+    if (selectedLocation && selectedLocation.name === destination) return true
+    return false
+  }, [destination, selectedLocation])
 
   return (
     <>
@@ -312,35 +375,158 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
               </div>
             </div>
           )}
-          {currentStep > 1 && !isSubmitting && (
-            <Button type="button" variant="ghost" size="icon" onClick={handlePrevious} aria-label="Previous step">
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-          )}
-          <DialogHeader><DialogTitle>Create Trip</DialogTitle></DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              {currentStep === 1 && <StepOne />}
-              {currentStep === 2 && <StepTwo />}
-              <div className="pt-4 w-full">
-                {currentStep < 2 ? (
+
+          <DialogHeader>
+            <DialogTitle>Create Trip</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            {error && (
+              <div className="flex items-center gap-2 p-3 rounded-md bg-destructive/10 text-destructive">
+                <AlertCircle className="size-4" />
+                <p className="text-sm">{error}</p>
+              </div>
+            )}
+            {currentStep === 1 && (
+              <FieldGroup>
+                <Field>
+                  <FieldLabel>Name</FieldLabel>
+                  <Input
+                    placeholder={generatedTitle || "Enter trip name"}
+                    value={title || ""}
+                    onChange={(e) => form.setValue("title", e.target.value)}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel>Destination</FieldLabel>
+                  <Popover open={locationOpen} onOpenChange={setLocationOpen}>
+                    <PopoverTrigger asChild>
+                      <div className="relative">
+                        <Input
+                          placeholder="Where are you going?"
+                          value={locationSearch}
+                          onChange={(e) => {
+                            setLocationSearch(e.target.value)
+                            setLocationOpen(true)
+                            if (!e.target.value) {
+                              setSelectedLocation(null)
+                              form.setValue("destination", "", { shouldDirty: true, shouldValidate: true })
+                            }
+                          }}
+                          onFocus={() => {
+                            if (locationSearch.length >= 3) {
+                              setLocationOpen(true)
+                            }
+                          }}
+                          className={cn(
+                            selectedLocation && "pr-8"
+                          )}
+                        />
+                        {selectedLocation && (
+                          <Check className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-primary" />
+                        )}
+                      </div>
+                    </PopoverTrigger>
+                    <PopoverContent 
+                      className="w-[var(--radix-popover-trigger-width)] p-0" 
+                      align="start"
+                      onOpenAutoFocus={(e) => e.preventDefault()}
+                    >
+                      <Command shouldFilter={false}>
+                        <CommandList>
+                          {isSearching && (
+                            <div className="py-6 text-center text-sm">
+                              <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                            </div>
+                          )}
+                          {!isSearching && locationSearch.length >= 3 && locations.length === 0 && (
+                            <CommandEmpty>No locations found</CommandEmpty>
+                          )}
+                          {!isSearching && locations.length > 0 && (
+                            <CommandGroup>
+                              {locations.map((location) => (
+                                <CommandItem
+                                  key={location.id}
+                                  value={location.label}
+                                  onSelect={() => handleLocationSelect(location)}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      selectedLocation?.id === location.id ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {location.label}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          )}
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  {!isValidDestination && destination && (
+                    <p className="text-sm text-destructive mt-1">Please select a destination from the list</p>
+                  )}
+                  <FieldError errors={[form.formState.errors.destination]} />
+                </Field>
+                <Field>
+                  <FieldLabel>When</FieldLabel>
+                  <div role="button" tabIndex={0} onClick={() => setShowDateDialog(true)} className="cursor-pointer border rounded-md h-9 flex items-center px-3 text-sm">
+                    {dateDisplay}
+                  </div>
+                </Field>
+                <Field>
+                  <FieldLabel>Who</FieldLabel>
+                  <div role="button" tabIndex={0} onClick={() => setShowWhoDialog(true)} className="cursor-pointer border rounded-md h-9 flex items-center px-3 text-sm">
+                    {whoDisplay}
+                  </div>
+                </Field>
+                <Field>
+                  <FieldLabel>Budget</FieldLabel>
+                  <div role="button" tabIndex={0} onClick={() => setShowBudgetDialog(true)} className="cursor-pointer border rounded-md h-9 flex items-center px-3 text-sm">
+                    {budgetLabels[budgetKey]}
+                  </div>
+                </Field>
+                <Field>
+                  <FieldLabel>Travel Pacing</FieldLabel>
+                  <div role="button" tabIndex={0} onClick={() => setShowPacingDialog(true)} className="cursor-pointer border rounded-md h-9 flex items-center px-3 text-sm">
+                    {pacingOptions.find((p) => p.value === pacing)?.label || "Select pacing"}
+                  </div>
+                </Field>
+                <Field>
                   <Button type="button" onClick={handleNext} disabled={!canProceed()} className="w-full">
                     Next
                   </Button>
-                ) : (
-                  <Button type="submit" disabled={isSubmitting} className="w-full">
+                </Field>
+              </FieldGroup>
+            )}
+            {currentStep === 2 && (
+              <FieldGroup>
+                <Field>
+                  <FieldLabel>Interests</FieldLabel>
+                  <div className="grid grid-cols-2 gap-3 mt-2">
+                    {interestOptions.map((i) => (
+                      <Button key={i.value} type="button" variant={watchInterests.includes(i.value) ? "default" : "outline"} onClick={() => toggleInterest(i.value)}>{i.label}</Button>
+                    ))}
+                  </div>
+                </Field>
+                <Field orientation="responsive">
+                  <Button type="button" variant="outline" onClick={handlePrevious} aria-label="Previous step">
+                    <ChevronLeft className="size-5" />
+                  </Button>
+                  <Button type="submit" disabled={isSubmitting} className="flex flex-1">
                     {isSubmitting ? "Creating..." : "Create Itinerary"}
                   </Button>
-                )}
-              </div>
-            </form>
-          </Form>
+                </Field>
+              </FieldGroup>
+            )}
+          </form>
         </DialogContent>
       </Dialog>
 
       {/* Inline dialogs */}
       <Dialog open={showDateDialog} onOpenChange={setShowDateDialog}>
-        <DialogContent> 
+        <DialogContent>
           <DialogHeader><DialogTitle>When</DialogTitle></DialogHeader>
           <Tabs value={dateMode} onValueChange={(v) => setDateMode(v as any)} className="items-center">
             <TabsList className="grid grid-cols-2">
@@ -348,24 +534,70 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
               <TabsTrigger value="flexible" >Flexible</TabsTrigger>
             </TabsList>
             <TabsContent value="specific" className="space-y-4 my-4 w-full">
-              <Calendar mode="range" selected={dateRange} onSelect={setDateRange} min={0} max={6} numberOfMonths={2} disabled={(d) => d < new Date()} className="p-0" />
-              <p className="text-muted-foreground text-center text-xs">The trip must be between 1 and 7 days</p>
+              <Calendar
+                mode="range"
+                selected={dateRange}
+                onSelect={(range) => {
+                  if (range?.from) {
+                    if (range.to) {
+                      const numDays = calculateDaysBetween(range.from, range.to)
+                      if (numDays >= 1 && numDays <= 10) {
+                        setDateRange(range)
+                      }
+                    } else {
+                      setDateRange(range)
+                    }
+                  } else {
+                    setDateRange(range)
+                  }
+                }}
+                min={0}
+                max={9}
+                numberOfMonths={2}
+                disabled={(d) => d < new Date()}
+                className="p-0"
+              />
+              <p className="text-muted-foreground text-center text-xs">The trip must be between 1 and 10 days</p>
             </TabsContent>
             <TabsContent value="flexible" className="space-y-4 my-4 w-full">
               <Label>How many days?</Label>
               <div className="flex items-center justify-center gap-4 mt-4">
-                <Button type="button" variant="outline" size="icon" onClick={() => handleInputChange("flexibleDays", String(Math.max(1, parseInt(form.getValues("flexibleDays") || "1") - 1)))}><Minus /></Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  disabled={parseInt(form.getValues("flexibleDays") || "1") <= 1}
+                  onClick={() => handleInputChange("flexibleDays", String(Math.max(1, parseInt(form.getValues("flexibleDays") || "1") - 1)))}
+                >
+                  <Minus />
+                </Button>
                 <span className="text-2xl font-semibold w-12 text-center">{form.getValues("flexibleDays")}</span>
-                <Button type="button" variant="outline" size="icon" onClick={() => handleInputChange("flexibleDays", String(Math.min(10, parseInt(form.getValues("flexibleDays") || "1") + 1)))}><Plus /></Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  disabled={parseInt(form.getValues("flexibleDays") || "1") >= 10}
+                  onClick={() => handleInputChange("flexibleDays", String(Math.min(10, parseInt(form.getValues("flexibleDays") || "1") + 1)))}
+                >
+                  <Plus />
+                </Button>
               </div>
               <Label>Travel anytime</Label>
               <div className="grid grid-cols-4 gap-2 mt-4">
                 {months.map((m) => (
-                  <Button 
-                  key={m.value}
-                  variant={form.getValues("flexibleMonth") === m.value ? "default" : "outline"} 
-                  onClick={() => handleInputChange("flexibleMonth", m.value)}
-                  className="shadow-none flex flex-col h-20"
+                  <Button
+                    key={m.value}
+                    type="button"
+                    variant={form.getValues("flexibleMonth") === m.value ? "default" : "outline"}
+                    onClick={() => {
+                      const currentMonth = form.getValues("flexibleMonth")
+                      if (currentMonth === m.value) {
+                        handleInputChange("flexibleMonth", "")
+                      } else {
+                        handleInputChange("flexibleMonth", m.value)
+                      }
+                    }}
+                    className="shadow-none flex flex-col h-20"
                   >
                     <CalendarIcon className="size-6" />
                     {m.label}
@@ -390,9 +622,9 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
                 <p className="text-sm text-muted-foreground">Ages 13 or above</p>
               </div>
               <div className="flex items-center gap-3">
-                <Button 
-                  variant="outline" 
-                  size="icon" 
+                <Button
+                  variant="outline"
+                  size="icon"
                   className="rounded-full"
                   disabled={form.watch("adults") <= 1}
                   onClick={() => form.setValue("adults", Math.max(1, form.watch("adults") - 1))}
@@ -402,9 +634,9 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
                 <span className="w-8 text-center font-medium">
                   {form.watch("adults")}
                 </span>
-                <Button 
-                  variant="outline" 
-                  size="icon" 
+                <Button
+                  variant="outline"
+                  size="icon"
                   className="rounded-full"
                   onClick={() => form.setValue("adults", Math.min(10, form.watch("adults") + 1))}
                 >
@@ -420,9 +652,9 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
                 <p className="text-sm text-muted-foreground">Ages 12 or below</p>
               </div>
               <div className="flex items-center gap-3">
-                <Button 
-                  variant="outline" 
-                  size="icon" 
+                <Button
+                  variant="outline"
+                  size="icon"
                   className="rounded-full"
                   disabled={form.watch("children") <= 0}
                   onClick={() => form.setValue("children", Math.max(0, form.watch("children") - 1))}
@@ -432,9 +664,9 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
                 <span className="w-8 text-center font-medium">
                   {form.watch("children")}
                 </span>
-                <Button 
-                  variant="outline" 
-                  size="icon" 
+                <Button
+                  variant="outline"
+                  size="icon"
                   className="rounded-full"
                   onClick={() => form.setValue("children", Math.min(10, form.watch("children") + 1))}
                 >
@@ -449,9 +681,9 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
                 <p className="font-medium">Pets</p>
               </div>
               <div className="flex items-center gap-3">
-                <Button 
-                  variant="outline" 
-                  size="icon" 
+                <Button
+                  variant="outline"
+                  size="icon"
                   className="rounded-full"
                   disabled={form.watch("pets") <= 0}
                   onClick={() => form.setValue("pets", Math.max(0, form.watch("pets") - 1))}
@@ -461,9 +693,9 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
                 <span className="w-8 text-center font-medium">
                   {form.watch("pets")}
                 </span>
-                <Button 
-                  variant="outline" 
-                  size="icon" 
+                <Button
+                  variant="outline"
+                  size="icon"
                   className="rounded-full"
                   onClick={() => form.setValue("pets", Math.min(5, form.watch("pets") + 1))}
                 >
@@ -506,7 +738,9 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
               <label className="text-sm" htmlFor="luxury"><span className="mr-2">$$$$</span>Luxury</label>
             </div>
           </RadioGroup>
-          <DialogFooter><Button onClick={() => setShowBudgetDialog(false)}>Update</Button></DialogFooter>
+          <DialogFooter>
+            <Button onClick={() => setShowBudgetDialog(false)}>Update</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

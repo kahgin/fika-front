@@ -1,4 +1,4 @@
-import { MessageCircle, Briefcase, Search, MapPlus } from "lucide-react"
+import { MessageCircle, Scroll, Search, SquarePlus } from "lucide-react"
 
 // Navigation routes
 export const navigationRoutes = [
@@ -12,7 +12,7 @@ export const navigationRoutes = [
     id: "itinerary",
     path: "/itinerary",
     label: "Itinerary",
-    icon: Briefcase,
+    icon: Scroll,
   },
   {
     id: "search",
@@ -24,7 +24,7 @@ export const navigationRoutes = [
     id: "create",
     path: "/create",
     label: "Create",
-    icon: MapPlus,
+    icon: SquarePlus,
   },
 ] as const
 
