@@ -1,47 +1,47 @@
-import { useState, useEffect } from "react";
-import { AlertCircle } from "lucide-react";
+import { useState, useEffect } from 'react'
+import { AlertCircle } from 'lucide-react'
 
 interface ImageGridProps {
-  images: string[];
-  title: string;
-  maxImages?: number;
+  images: string[]
+  title: string
+  maxImages?: number
 }
 
 export function ImageGrid({ images, title, maxImages = 5 }: ImageGridProps) {
-  const [displayImages, setDisplayImages] = useState<string[]>([]);
-  const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
-  const [errorStates, setErrorStates] = useState<Set<string>>(new Set());
+  const [displayImages, setDisplayImages] = useState<string[]>([])
+  const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set())
+  const [errorStates, setErrorStates] = useState<Set<string>>(new Set())
 
   useEffect(() => {
-    const limited = images.slice(0, maxImages);
-    setDisplayImages(limited);
-    setLoadedImages(new Set());
-    setErrorStates(new Set());
-  }, [images, maxImages]);
+    const limited = images.slice(0, maxImages)
+    setDisplayImages(limited)
+    setLoadedImages(new Set())
+    setErrorStates(new Set())
+  }, [images, maxImages])
 
   const handleImageLoad = (url: string) => {
-    setLoadedImages((prev) => new Set([...prev, url]));
-  };
+    setLoadedImages((prev) => new Set([...prev, url]))
+  }
 
   const handleImageError = (url: string) => {
-    setErrorStates((prev) => new Set([...prev, url]));
-  };
+    setErrorStates((prev) => new Set([...prev, url]))
+  }
 
   if (displayImages.length === 0) {
     return (
-      <div className="w-full bg-gray-100 rounded-2xl flex items-center justify-center aspect-video">
+      <div className="flex aspect-video w-full items-center justify-center rounded-2xl bg-gray-100">
         <div className="flex items-center gap-2 text-gray-500">
           <AlertCircle className="size-4" />
           <span className="text-sm">No images available</span>
         </div>
       </div>
-    );
+    )
   }
 
   // Single image
   if (displayImages.length === 1) {
     return (
-      <div className="rounded-2xl overflow-hidden w-full aspect-video">
+      <div className="aspect-2/1 w-full overflow-hidden rounded-2xl">
         <ImageItem
           src={displayImages[0]}
           alt={title}
@@ -51,14 +51,14 @@ export function ImageGrid({ images, title, maxImages = 5 }: ImageGridProps) {
           onError={() => handleImageError(displayImages[0])}
         />
       </div>
-    );
+    )
   }
 
   // Two images
   if (displayImages.length === 2) {
     return (
-      <div className="rounded-2xl overflow-hidden w-full" style={{ aspectRatio: "2/1" }}>
-        <div className="grid grid-cols-2 grid-rows-1 gap-2 h-full w-full">
+      <div className="w-full overflow-hidden rounded-2xl">
+        <div className="grid h-full w-full grid-cols-2 grid-rows-1 gap-2">
           <div>
             <ImageItem
               src={displayImages[0]}
@@ -81,14 +81,14 @@ export function ImageGrid({ images, title, maxImages = 5 }: ImageGridProps) {
           </div>
         </div>
       </div>
-    );
+    )
   }
 
   // Three images
   if (displayImages.length === 3) {
     return (
-      <div className="rounded-2xl overflow-hidden w-full" style={{ aspectRatio: "2/1" }}>
-        <div className="grid grid-cols-2 grid-rows-2 gap-2 h-full w-full">
+      <div className="w-full overflow-hidden rounded-2xl">
+        <div className="grid aspect-2/1 h-full w-full grid-cols-2 grid-rows-2 gap-2">
           <div className="row-span-2">
             <ImageItem
               src={displayImages[0]}
@@ -121,14 +121,14 @@ export function ImageGrid({ images, title, maxImages = 5 }: ImageGridProps) {
           </div>
         </div>
       </div>
-    );
+    )
   }
 
   // Four images
   if (displayImages.length === 4) {
     return (
-      <div className="rounded-2xl overflow-hidden w-full" style={{ aspectRatio: "2/1" }}>
-        <div className="grid grid-cols-2 grid-rows-2 gap-2 h-full w-full">
+      <div className="w-full overflow-hidden rounded-2xl">
+        <div className="grid aspect-2/1 w-full grid-cols-2 grid-rows-2 gap-2">
           <div>
             <ImageItem
               src={displayImages[0]}
@@ -171,13 +171,13 @@ export function ImageGrid({ images, title, maxImages = 5 }: ImageGridProps) {
           </div>
         </div>
       </div>
-    );
+    )
   }
 
   // Five images - left large (2x2), right 4 in 2x2 grid
   return (
-    <div className="rounded-2xl overflow-hidden w-full" style={{ aspectRatio: "1024/508" }}>
-      <div className="grid grid-cols-4 gap-2 h-full w-full auto-rows-fr">
+    <div className="w-full overflow-hidden rounded-2xl">
+      <div className="grid h-full w-full auto-rows-fr grid-cols-4 gap-2">
         <div className="col-span-2 row-span-2">
           <ImageItem
             src={displayImages[0]}
@@ -230,35 +230,36 @@ export function ImageGrid({ images, title, maxImages = 5 }: ImageGridProps) {
         </div>
       </div>
     </div>
-  );
+  )
 }
 
 interface ImageItemProps {
-  src: string;
-  alt: string;
-  isLoaded: boolean;
-  isError: boolean;
-  onLoad: () => void;
-  onError: () => void;
+  src: string
+  alt: string
+  isLoaded: boolean
+  isError: boolean
+  onLoad: () => void
+  onError: () => void
 }
 
 function ImageItem({ src, alt, isError, onLoad, onError }: ImageItemProps) {
   return (
-    <div className="relative w-full h-full bg-gray-100 overflow-hidden">
+    <div className="relative h-full w-full overflow-hidden bg-gray-100">
       {isError && (
-        <div className="absolute inset-0 bg-gray-300 flex items-center justify-center">
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-300">
           <AlertCircle className="size-5 text-gray-500" />
         </div>
       )}
 
       <img
         referrerPolicy="no-referrer"
-        src={src}
+        src={`https://picsum.photos/seed/${alt}/900/900`}
         alt={alt}
         onLoad={onLoad}
         onError={onError}
-        className="w-full h-full object-cover"
+        className="h-full w-full object-cover aspect-square"
       />
+      {/* src={`${src}=s1500`} */}
     </div>
-  );
+  )
 }

@@ -1,14 +1,14 @@
-@import "tailwindcss";
-@import "tw-animate-css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
 
 /* Roboto */
-@import "@fontsource/roboto/400.css";
-@import "@fontsource/roboto/500.css";
-@import "@fontsource/roboto/600.css";
-@import "@fontsource/roboto/700.css";
+@import '@fontsource/roboto/400.css';
+@import '@fontsource/roboto/500.css';
+@import '@fontsource/roboto/600.css';
+@import '@fontsource/roboto/700.css';
 
 /* Playfair Display */
-@import "@fontsource/playfair-display/700.css";
+@import '@fontsource/playfair-display/700.css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -89,9 +89,8 @@
 }
 
 @theme inline {
-
-  --font-primary: "Roboto", system-ui, -apple-system, sans-serif;
-  --font-secondary: "Playfair Display", Georgia, serif;
+  --font-primary: 'Roboto', system-ui, -apple-system, sans-serif;
+  --font-secondary: 'Playfair Display', Georgia, serif;
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -138,12 +137,22 @@
   body {
     @apply bg-background text-foreground font-primary;
   }
-
-  h1 { @apply text-4xl font-bold; }
-  h2 { @apply text-2xl font-semibold; }
-  h3 { @apply text-xl font-medium; }
-  h4 { @apply text-lg font-medium; }
-  h5 { @apply text-base font-medium; }
-  h6 { @apply text-sm font-medium; }
-
+  h1 {
+    @apply text-4xl font-bold;
+  }
+  h2 {
+    @apply text-2xl font-semibold;
+  }
+  h3 {
+    @apply text-xl font-medium;
+  }
+  h4 {
+    @apply text-lg font-medium;
+  }
+  h5 {
+    @apply text-base font-medium;
+  }
+  h6 {
+    @apply text-sm font-medium;
+  }
 }

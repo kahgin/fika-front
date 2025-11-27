@@ -1,10 +1,10 @@
-import { useState } from "react"
-import { useNavigate, useLocation } from "react-router-dom"
-import { navigationRoutes } from "@/configs"
-import type { NavigationViewType } from "@/configs/routes"
-import Logo from "@/components/logo"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import CreateItineraryForm from "@/components/forms/create-itinerary-form"
+import { useState } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { navigationRoutes } from '@/configs'
+import type { NavigationViewType } from '@/configs/routes'
+import Logo from '@/components/logo'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import CreateItineraryForm from '@/components/forms/create-itinerary-form'
 import {
   Sidebar,
   SidebarHeader,
@@ -16,7 +16,7 @@ import {
   SidebarMenuButton,
   SidebarTrigger,
   useSidebar,
-} from "@/components/ui/sidebar"
+} from '@/components/ui/sidebar'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,8 +24,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { BadgeCheck, LogOut } from "lucide-react"
+} from '@/components/ui/dropdown-menu'
+import { BadgeCheck, LogOut } from 'lucide-react'
 
 interface SidebarProps {
   user: {
@@ -44,22 +44,22 @@ export function AppSidebar({ user }: SidebarProps) {
 
   // Default placeholder user
   const displayUser = user || {
-    name: "Guest",
-    email: "guest@example.com",
-    avatar: "",
+    name: 'Traveller',
+    email: 'traveller@example.com',
+    avatar: '',
   }
 
   const getCurrentView = (): NavigationViewType | string => {
-    const path = location.pathname.slice(1) || "chat"
+    const path = location.pathname.slice(1) || 'chat'
     return path
   }
 
   const handleViewChange = (view: NavigationViewType, path: string) => {
-    if (view === "create") {
+    if (view === 'create') {
       setIsCreateOpen(true)
       return
     }
-    navigate(view === "chat" ? "/" : path)
+    navigate(view === 'chat' ? '/' : path)
   }
 
   return (
@@ -67,33 +67,25 @@ export function AppSidebar({ user }: SidebarProps) {
       <CreateItineraryForm open={isCreateOpen} onOpenChange={setIsCreateOpen} />
 
       {/* Header */}
-      <SidebarHeader className="h-12 flex items-center">
-        {state === "expanded" && (
+      <SidebarHeader className="flex h-12 items-center">
+        {state === 'expanded' && (
           <div className="flex w-full justify-between px-2">
             <Logo variant="full" size="lg" />
-            <SidebarTrigger className="hover:bg-gray-200 transition-colors duration-200" />
+            <SidebarTrigger className="transition-colors duration-200 hover:bg-gray-200" />
           </div>
         )}
-        {state === "collapsed" && (
+        {state === 'collapsed' && (
           <div
-            className="relative w-full flex items-center justify-center"
+            className="relative flex w-full items-center justify-center"
             onMouseEnter={() => setIsLogoHovered(true)}
             onMouseLeave={() => setIsLogoHovered(false)}
           >
             <Logo
               variant="mark"
               iconClassName="size-6"
-              className={`
-                absolute flex transition-all duration-300 ease-in-out
-                ${isLogoHovered ? "opacity-0 scale-0 rotate-12" : "opacity-100 scale-100 rotate-0"}
-              `}
+              className={`absolute flex transition-all duration-300 ease-in-out ${isLogoHovered ? 'scale-0 rotate-12 opacity-0' : 'scale-100 rotate-0 opacity-100'} `}
             />
-            <SidebarTrigger
-              className={`
-                hover:bg-gray-200 transition-all duration-300 ease-in-out
-                ${isLogoHovered ? "opacity-100" : "opacity-0"}
-              `}
-            />
+            <SidebarTrigger className={`transition-all duration-300 ease-in-out hover:bg-gray-200 ${isLogoHovered ? 'opacity-100' : 'opacity-0'} `} />
           </div>
         )}
       </SidebarHeader>
@@ -109,10 +101,7 @@ export function AppSidebar({ user }: SidebarProps) {
                 isActive={getCurrentView() === item.id}
                 className="transition-all duration-200 ease-in-out"
               >
-                <item.icon
-                  className="shrink-0"
-                  fill={getCurrentView() === item.id ? "rgb(156, 163, 175)" : "none"}
-                />
+                <item.icon className="shrink-0" fill={getCurrentView() === item.id ? 'rgb(156, 163, 175)' : 'none'} />
                 <span className="ml-3">{item.label}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -129,9 +118,7 @@ export function AppSidebar({ user }: SidebarProps) {
                 <SidebarMenuButton size="lg">
                   <Avatar className="rounded-lg">
                     <AvatarImage src={displayUser.avatar} alt={displayUser.name} />
-                    <AvatarFallback className="rounded-lg">
-                      {displayUser.name.charAt(0).toUpperCase()}
-                    </AvatarFallback>
+                    <AvatarFallback>{displayUser.name.charAt(0).toUpperCase()}</AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-medium">{displayUser.name}</span>
@@ -140,18 +127,16 @@ export function AppSidebar({ user }: SidebarProps) {
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent
-                className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg ml-2"
-                side={isMobile ? "bottom" : "top"}
+                className="ml-2 w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+                side={isMobile ? 'bottom' : 'top'}
                 align="end"
                 sideOffset={8}
               >
                 <DropdownMenuLabel className="p-0 font-normal">
                   <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                    <Avatar>
+                    <Avatar className="rounded-lg">
                       <AvatarImage src={displayUser.avatar} alt={displayUser.name} />
-                      <AvatarFallback>
-                        {displayUser.name.charAt(0).toUpperCase()}
-                      </AvatarFallback>
+                      <AvatarFallback>{displayUser.name.charAt(0).toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <div className="grid flex-1 text-left text-sm leading-tight">
                       <span className="truncate font-medium">{displayUser.name}</span>
@@ -160,7 +145,7 @@ export function AppSidebar({ user }: SidebarProps) {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate("/settings")}>
+                <DropdownMenuItem onClick={() => navigate('/settings')}>
                   <BadgeCheck />
                   Account
                 </DropdownMenuItem>
@@ -177,10 +162,7 @@ export function AppSidebar({ user }: SidebarProps) {
   )
 }
 
-export function SidebarLayout({
-  user,
-  children,
-}: SidebarProps & { children: React.ReactNode }) {
+export function SidebarLayout({ user, children }: SidebarProps & { children: React.ReactNode }) {
   return (
     <>
       <AppSidebar user={user} />

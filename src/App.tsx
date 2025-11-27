@@ -1,10 +1,11 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom"
-import { SidebarProvider } from "@/components/ui/sidebar"
-import { SidebarLayout } from "@/components/sidebar"
-import { BottomNav } from "@/components/bottom-nav"
-import { routes } from "@/configs"
-import { AuthProvider, useAuth } from "@/contexts/AuthContext"
-import { useIsMobile } from "@/hooks/use-mobile"
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { Toaster } from 'sonner'
+import { SidebarProvider } from '@/components/ui/sidebar'
+import { SidebarLayout } from '@/components/sidebar'
+import { BottomNav } from '@/components/bottom-nav'
+import { routes } from '@/configs'
+import { AuthProvider, useAuth } from '@/contexts/AuthContext'
+import { useIsMobile } from '@/hooks/use-mobile'
 
 function AppContent() {
   const { user } = useAuth()
@@ -30,6 +31,7 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
+      <Toaster position="top-center" richColors closeButton />
       <AppContent />
     </AuthProvider>
   )

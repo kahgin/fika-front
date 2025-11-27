@@ -1,76 +1,68 @@
-import { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { deleteItinerary, listItineraries, type CreatedItinerary } from '@/services/api';
-import { Map, SquareArrowOutUpRight, Trash } from 'lucide-react';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { BOTTOM_NAV_HEIGHT } from '@/components/bottom-nav';
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
-import { Tooltip } from '@/components/ui/tooltip';
-import { TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useEffect, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { deleteItinerary, listItineraries, type CreatedItinerary } from '@/services/api'
+import { Map, SquareArrowOutUpRight, Trash } from 'lucide-react'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { BOTTOM_NAV_HEIGHT } from '@/components/bottom-nav'
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
+import { Tooltip } from '@/components/ui/tooltip'
+import { TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import CreateItineraryForm from '@/components/forms/create-itinerary-form'
+import LoginForm from '@/components/forms/login-form'
 
 export default function ItineraryPage() {
-  const [chats, setChats] = useState<CreatedItinerary[]>([]);
-  const [loading, setLoading] = useState(true);
-  const isMobile = useIsMobile();
+  const [chats, setChats] = useState<CreatedItinerary[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showCreateItinerary, setShowCreateItinerary] = useState(false)
+  const [showLogin, setShowLogin] = useState(false)
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     const loadItineraries = async () => {
       try {
-        setLoading(true);
-        const items = await listItineraries();
+        setLoading(true)
+        const items = await listItineraries()
         if (items && Array.isArray(items)) {
-          setChats(items);
+          setChats(items)
           items.forEach((item) => {
             try {
-              localStorage.setItem(
-                `fika:chat:${item.itin_id}`,
-                JSON.stringify(item)
-              );
+              localStorage.setItem(`fika:chat:${item.itin_id}`, JSON.stringify(item))
             } catch {}
-          });
+          })
         } else {
-          setChats([]);
+          setChats([])
         }
       } catch (e) {
-        console.error('Failed to load itineraries', e);
-        setChats([]);
+        console.error('Failed to load itineraries', e)
+        setChats([])
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
-    loadItineraries();
-  }, []);
+    }
+    loadItineraries()
+  }, [])
 
   const handleOpen = (chatId: string) => {
-    localStorage.setItem('fika:lastChatId', chatId);
-    window.location.href = '/chat';
-  };
+    localStorage.setItem('fika:lastChatId', chatId)
+    window.location.href = '/chat'
+  }
 
   const handleDelete = async (chatId: string) => {
-    const ok = await deleteItinerary(chatId);
+    const ok = await deleteItinerary(chatId)
     if (ok) {
-      localStorage.removeItem(`fika:chat:${chatId}`);
-      setChats((prev) => prev.filter((c) => c.itin_id !== chatId));
+      localStorage.removeItem(`fika:chat:${chatId}`)
+      setChats((prev) => prev.filter((c) => c.itin_id !== chatId))
     }
-  };
+  }
 
   return (
     <>
       <div className="flex h-12 items-center border-b px-6">
         <h6>Itineraries</h6>
       </div>
-      <div
-        className="p-6"
-        style={
-          isMobile
-            ? { paddingBottom: `${BOTTOM_NAV_HEIGHT + 24}px` }
-            : undefined
-        }
-      >
+      <div className="p-6" style={isMobile ? { paddingBottom: `${BOTTOM_NAV_HEIGHT + 24}px` } : undefined}>
         {loading ? (
-          <div className="text-muted-foreground text-sm">
-            Loading itineraries...
-          </div>
+          <div className="text-muted-foreground text-sm">Loading itineraries...</div>
         ) : chats.length === 0 ? (
           <Empty>
             <EmptyHeader>
@@ -84,23 +76,18 @@ export default function ItineraryPage() {
                 Get started by creating one.
               </EmptyDescription>
             </EmptyHeader>
-            <EmptyContent className="flex flex-col justify-between">
-              <Button>Create Itinerary</Button>
-              <Button>Login</Button>
-            </EmptyContent>
+            <div className="flex gap-2">
+              <Button onClick={() => setShowCreateItinerary(true)}>Create Itinerary</Button>
+              <Button variant="outline" onClick={() => setShowLogin(true)}>Login</Button>
+            </div>
           </Empty>
         ) : (
           <div className="space-y-2">
             {chats.map((c) => (
-              <div
-                key={c.itin_id}
-                className="flex items-center justify-between rounded-lg border p-3"
-              >
+              <div key={c.itin_id} className="flex items-center justify-between rounded-lg border p-3">
                 <div>
                   <div className="font-medium">{c.meta?.title}</div>
-                  <div className="text-muted-foreground text-sm">
-                    {c.itin_id}
-                  </div>
+                  <div className="text-muted-foreground text-sm">{c.itin_id}</div>
                 </div>
                 <div className="flex gap-2">
                   <Tooltip>
@@ -113,11 +100,7 @@ export default function ItineraryPage() {
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        onClick={() => handleDelete(c.itin_id)}
-                      >
+                      <Button size="icon" variant="outline" onClick={() => handleDelete(c.itin_id)}>
                         <Trash className="size-4.5" />
                       </Button>
                     </TooltipTrigger>
@@ -129,6 +112,9 @@ export default function ItineraryPage() {
           </div>
         )}
       </div>
+
+      <CreateItineraryForm open={showCreateItinerary} onOpenChange={setShowCreateItinerary} />
+      <LoginForm open={showLogin} onOpenChange={setShowLogin} />
     </>
-  );
+  )
 }
