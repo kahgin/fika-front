@@ -101,8 +101,6 @@ function SortableStop({
     transition,
   }
 
-  const isDepot = stop.role === 'depot' || stop.role === 'hotel'
-
   // Convert 24h to 12h format
   const formatTime12h = (time24: string) => {
     const [hours, minutes] = time24.split(':')
@@ -566,10 +564,10 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
             <Accordion type="multiple" defaultValue={days.map((_, idx) => `day-${idx}`)} className="space-y-4">
               {days.map((day, dayIndex) => (
                 <AccordionItem key={dayIndex} value={`day-${dayIndex}`} className="group overflow-hidden rounded-xl border">
-                  <AccordionTrigger className="px-4 py-3 hover:bg-gray-50 border-b rounded-xl hover:no-underline [&>svg]:opacity-0 [&>svg]:group-hover:opacity-100">
+                  <AccordionTrigger className="rounded-xl border-b px-4 py-3 hover:bg-gray-50 hover:no-underline [&>svg]:opacity-0 [&>svg]:group-hover:opacity-100">
                     <div className="flex items-center gap-3">
                       <div className="text-left">
-                        <h5 className='font-medium'>{formatDayHeader(day)}</h5>
+                        <h5 className="font-medium">{formatDayHeader(day)}</h5>
                         {/* {day.total_distance && <p className="text-muted-foreground/90 text-sm">{day.total_distance}km</p>} */}
                       </div>
                     </div>

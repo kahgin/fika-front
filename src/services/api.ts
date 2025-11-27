@@ -306,15 +306,18 @@ export async function login(payload: LoginPayload): Promise<AuthResponse> {
 
     // Temporary mock response
     await new Promise((resolve) => setTimeout(resolve, 1000))
-    
+
     // Store mock token
     const mockToken = btoa(JSON.stringify({ email: payload.email, timestamp: Date.now() }))
     localStorage.setItem('fika:auth:token', mockToken)
-    localStorage.setItem('fika:auth:user', JSON.stringify({
-      id: 'mock-user-id',
-      email: payload.email,
-      name: payload.email.split('@')[0],
-    }))
+    localStorage.setItem(
+      'fika:auth:user',
+      JSON.stringify({
+        id: 'mock-user-id',
+        email: payload.email,
+        name: payload.email.split('@')[0],
+      })
+    )
 
     return {
       success: true,
@@ -347,15 +350,18 @@ export async function signup(payload: SignupPayload): Promise<AuthResponse> {
 
     // Temporary mock response
     await new Promise((resolve) => setTimeout(resolve, 1000))
-    
+
     // Store mock token
     const mockToken = btoa(JSON.stringify({ email: payload.email, timestamp: Date.now() }))
     localStorage.setItem('fika:auth:token', mockToken)
-    localStorage.setItem('fika:auth:user', JSON.stringify({
-      id: 'mock-user-id',
-      email: payload.email,
-      name: payload.name,
-    }))
+    localStorage.setItem(
+      'fika:auth:user',
+      JSON.stringify({
+        id: 'mock-user-id',
+        email: payload.email,
+        name: payload.name,
+      })
+    )
 
     return {
       success: true,

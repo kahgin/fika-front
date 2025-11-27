@@ -93,8 +93,9 @@ export default function POIPanel({ poi, size = 'half', onClose, onToggleFullWidt
 
       <div ref={contentRef} className="flex-1 overflow-y-auto">
         <div
-          className={`sticky top-0 z-10 h-12 place-content-center border-b bg-white px-6 transition-all duration-200 ${showNameDrawer ? 'opacity-100' : 'pointer-events-none opacity-0'
-            }`}
+          className={`sticky top-0 z-10 h-12 place-content-center border-b bg-white px-6 transition-all duration-200 ${
+            showNameDrawer ? 'opacity-100' : 'pointer-events-none opacity-0'
+          }`}
         >
           <h3 className="truncate text-sm font-medium">{poi.name}</h3>
         </div>
@@ -119,15 +120,12 @@ export default function POIPanel({ poi, size = 'half', onClose, onToggleFullWidt
                   .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
                   .join(' ')}
               </span>
-              {poi.priceLevel &&
+              {poi.priceLevel && (
                 <>
                   <span className="text-muted-foreground">∙</span>
-                  <span className="text-muted-foreground">
-                    {'$'.repeat(Number(poi.priceLevel))}
-                  </span>
+                  <span className="text-muted-foreground">{'$'.repeat(Number(poi.priceLevel))}</span>
                 </>
-              }
-
+              )}
             </div>
           </div>
 
@@ -135,15 +133,17 @@ export default function POIPanel({ poi, size = 'half', onClose, onToggleFullWidt
           <div className="sticky top-12 z-10 -mx-6 flex gap-6 border-b bg-white px-6">
             <button
               onClick={() => scrollToSection('overview')}
-              className={`border-b-2 py-3 text-sm font-medium whitespace-nowrap transition-colors ${activeSection === 'overview' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
+              className={`border-b-2 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
+                activeSection === 'overview' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
             >
               Overview
             </button>
             <button
               onClick={() => scrollToSection('location')}
-              className={`border-b-2 py-3 text-sm font-medium whitespace-nowrap transition-colors ${activeSection === 'location' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
+              className={`border-b-2 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
+                activeSection === 'location' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
             >
               Location
             </button>

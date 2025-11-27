@@ -1,17 +1,4 @@
-import {
-  Church,
-  Mountain,
-  Palette,
-  Baby,
-  Trees,
-  Music,
-  Sparkles,
-  ShoppingBag,
-  Landmark,
-  UtensilsCrossed,
-  Hotel,
-  MapPin,
-} from 'lucide-react'
+import { Church, Mountain, Palette, Baby, Trees, Music, Sparkles, ShoppingBag, Landmark, UtensilsCrossed, Hotel, MapPin } from 'lucide-react'
 
 export type POIRole = 'depot' | 'hotel' | 'accommodation' | 'meal' | 'attraction'
 export type POITheme =
@@ -72,15 +59,7 @@ function getPOIIconInternal(role?: string, themes?: string[] | null): typeof Map
 /**
  * Get icon component with default styling
  */
-export function POIIcon({
-  role,
-  themes,
-  className = 'size-4',
-}: {
-  role?: string
-  themes?: string[] | null
-  className?: string
-}) {
+export function POIIcon({ role, themes, className = 'size-4' }: { role?: string; themes?: string[] | null; className?: string }) {
   const Icon = getPOIIconInternal(role, themes)
   return <Icon className={className} />
 }

@@ -253,13 +253,12 @@ function ImageItem({ src, alt, isError, onLoad, onError }: ImageItemProps) {
 
       <img
         referrerPolicy="no-referrer"
-        src={`https://picsum.photos/seed/${alt}/900/900`}
+        src={`${src}=s1500`}
         alt={alt}
         onLoad={onLoad}
         onError={onError}
-        className="h-full w-full object-cover aspect-square"
+        className="aspect-square h-full w-full object-cover"
       />
-      {/* src={`${src}=s1500`} */}
     </div>
   )
 }
