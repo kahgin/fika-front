@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { format, startOfMonth } from 'date-fns'
+import type { DateRange } from 'react-day-picker'
 import {
   DndContext,
   closestCenter,
@@ -26,12 +27,13 @@ import { Calendar } from '@/components/ui/calendar'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Clock, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { reorderItineraryStops, schedulePOI, deletePOIFromItinerary } from '@/services/api'
+import { reorderItineraryStops, schedulePOI, deletePOIFromItinerary, updateItineraryMeta } from '@/services/api'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { BOTTOM_NAV_HEIGHT } from '@/components/bottom-nav'
 import { Separator } from '@/components/ui/separator'
 import { toast } from 'sonner'
 import { POIIcon } from '@/lib/poi-icons'
+import { WhenDialog, WhoDialog, BudgetDialog, PacingDialog } from '@/components/dialogs'
 
 interface Stop {
   poi_id: string
@@ -204,7 +206,6 @@ function StopOverlay({ stop }: { stop: Stop }) {
 
 export default function ItineraryPanel({ className = '', data, onOpenDetails, onItineraryUpdate }: ItineraryPanelProps) {
   const isMobile = useIsMobile()
-  const [open, setOpen] = useState(false)
   const [days, setDays] = useState<Day[]>(data?.plan?.days || [])
   const [activeId, setActiveId] = useState<string | null>(null)
   const [scheduleDialog, setScheduleDialog] = useState<{ open: boolean; stop: Stop | null; dayIndex: number }>({
@@ -217,6 +218,37 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
   const [scheduleStartTime, setScheduleStartTime] = useState('')
   const [scheduleEndTime, setScheduleEndTime] = useState('')
   const [scheduleDay, setScheduleDay] = useState('')
+
+  // Dialog state for When, Who, Budget, Pacing
+  const [showWhenDialog, setShowWhenDialog] = useState(false)
+  const [showWhoDialog, setShowWhoDialog] = useState(false)
+  const [showBudgetDialog, setShowBudgetDialog] = useState(false)
+  const [showPacingDialog, setShowPacingDialog] = useState(false)
+
+  // When dialog state
+  const [dateMode, setDateMode] = useState<'specific' | 'flexible'>(data?.meta?.dates?.type || 'specific')
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(
+    data?.meta?.dates?.type === 'specific' && data?.meta?.dates?.startDate && data?.meta?.dates?.endDate
+      ? {
+          from: new Date(data.meta.dates.startDate),
+          to: new Date(data.meta.dates.endDate),
+        }
+      : undefined
+  )
+  const [flexibleDays, setFlexibleDays] = useState(String(data?.meta?.dates?.days || '1'))
+  const [flexibleMonth, setFlexibleMonth] = useState(data?.meta?.dates?.preferredMonth || '')
+
+  // Who dialog state
+  const [adults, setAdults] = useState(data?.meta?.travelers?.adults || 2)
+  const [children, setChildren] = useState(data?.meta?.travelers?.children || 0)
+  const [pets, setPets] = useState(data?.meta?.travelers?.pets || 0)
+  const [isMuslim, setIsMuslim] = useState(data?.meta?.flags?.is_muslim || false)
+  const [kidFriendly, setKidFriendly] = useState(data?.meta?.flags?.kids_friendly || false)
+  const [petFriendly, setPetFriendly] = useState(data?.meta?.flags?.pets_friendly || false)
+
+  // Budget and Pacing state
+  const [budget, setBudget] = useState(data?.meta?.preferences?.budget || 'any')
+  const [pacing, setPacing] = useState(data?.meta?.preferences?.pacing || 'balanced')
 
   const itinId = data?.itin_id || localStorage.getItem('fika:lastChatId') || ''
 
@@ -490,31 +522,22 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
         </div>
 
         <ButtonGroup className="hidden sm:flex">
-          <Button value="destination" variant="outline" className="rounded-full shadow-none" onClick={() => setOpen(true)}>
+          <Button value="destination" variant="outline" className="rounded-full shadow-none">
             {tripData.destination}
           </Button>
-          <Button value="dates" variant="outline" className="rounded-full shadow-none" onClick={() => setOpen(true)}>
+          <Button value="dates" variant="outline" className="rounded-full shadow-none" onClick={() => setShowWhenDialog(true)}>
             {tripData.dates}
           </Button>
-          <Button value="travelers" variant="outline" className="rounded-full shadow-none" onClick={() => setOpen(true)}>
+          <Button value="travelers" variant="outline" className="rounded-full shadow-none" onClick={() => setShowWhoDialog(true)}>
             {tripData.travelers}
           </Button>
-          <Button value="budget" variant="outline" className="rounded-full shadow-none" onClick={() => setOpen(true)}>
+          <Button value="budget" variant="outline" className="rounded-full shadow-none" onClick={() => setShowBudgetDialog(true)}>
             {tripData.budget}
           </Button>
-          <Button value="pacing" variant="outline" className="rounded-full shadow-none" onClick={() => setOpen(true)}>
+          <Button value="pacing" variant="outline" className="rounded-full shadow-none" onClick={() => setShowPacingDialog(true)}>
             {tripData.pacing}
           </Button>
         </ButtonGroup>
-
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Coming Soon</DialogTitle>
-            </DialogHeader>
-            <p>Hi I haven't complete. 🥲</p>
-          </DialogContent>
-        </Dialog>
       </div>
 
       <div className="flex-1 overflow-auto p-6" style={isMobile ? { paddingBottom: `${BOTTOM_NAV_HEIGHT}px` } : undefined}>
@@ -530,7 +553,8 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
                     {item.image ? (
                       <img
                         referrerPolicy="no-referrer"
-                        src={`https://picsum.photos/seed/${item.name}/300/300`}
+                        // src={`https://picsum.photos/seed/${item.name}/300/300`}
+                        src={item.image}
                         alt={item.name}
                         className="h-full w-full object-cover"
                       />
@@ -680,6 +704,144 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* When Dialog */}
+      <WhenDialog
+        open={showWhenDialog}
+        onOpenChange={setShowWhenDialog}
+        dateMode={dateMode}
+        onDateModeChange={setDateMode}
+        dateRange={dateRange}
+        onDateRangeChange={setDateRange}
+        flexibleDays={flexibleDays}
+        onFlexibleDaysChange={setFlexibleDays}
+        flexibleMonth={flexibleMonth}
+        onFlexibleMonthChange={setFlexibleMonth}
+        onSave={async () => {
+          if (!itinId) return
+
+          const metaUpdates: Record<string, any> = {
+            dates: {
+              type: dateMode,
+            },
+          }
+
+          if (dateMode === 'specific' && dateRange?.from && dateRange?.to) {
+            metaUpdates.dates.startDate = format(dateRange.from, 'yyyy-MM-dd')
+            metaUpdates.dates.endDate = format(dateRange.to, 'yyyy-MM-dd')
+            metaUpdates.dates.days = Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)) + 1
+          } else if (dateMode === 'flexible') {
+            metaUpdates.dates.days = parseInt(flexibleDays) || 1
+            metaUpdates.dates.preferredMonth = flexibleMonth
+          }
+
+          const result = await updateItineraryMeta(itinId, metaUpdates)
+          if (result) {
+            onItineraryUpdate?.(result)
+            toast.success('Dates updated')
+          } else {
+            toast.error('Failed to update dates')
+          }
+          setShowWhenDialog(false)
+        }}
+      />
+
+      {/* Who Dialog */}
+      <WhoDialog
+        open={showWhoDialog}
+        onOpenChange={setShowWhoDialog}
+        adults={adults}
+        onAdultsChange={setAdults}
+        children={children}
+        onChildrenChange={setChildren}
+        pets={pets}
+        onPetsChange={setPets}
+        isMuslim={isMuslim}
+        onIsMuslimChange={setIsMuslim}
+        kidFriendly={kidFriendly}
+        onKidFriendlyChange={setKidFriendly}
+        petFriendly={petFriendly}
+        onPetFriendlyChange={setPetFriendly}
+        onSave={async () => {
+          if (!itinId) return
+
+          const metaUpdates = {
+            travelers: {
+              adults,
+              children,
+              pets,
+            },
+            flags: {
+              is_muslim: isMuslim,
+              kids_friendly: kidFriendly,
+              pets_friendly: petFriendly,
+            },
+          }
+
+          const result = await updateItineraryMeta(itinId, metaUpdates)
+          if (result) {
+            onItineraryUpdate?.(result)
+            toast.success('Travelers updated')
+          } else {
+            toast.error('Failed to update travelers')
+          }
+          setShowWhoDialog(false)
+        }}
+      />
+
+      {/* Budget Dialog */}
+      <BudgetDialog
+        open={showBudgetDialog}
+        onOpenChange={setShowBudgetDialog}
+        budget={budget}
+        onBudgetChange={setBudget}
+        onSave={async () => {
+          if (!itinId) return
+
+          const metaUpdates = {
+            preferences: {
+              ...data?.meta?.preferences,
+              budget,
+            },
+          }
+
+          const result = await updateItineraryMeta(itinId, metaUpdates)
+          if (result) {
+            onItineraryUpdate?.(result)
+            toast.success('Budget updated')
+          } else {
+            toast.error('Failed to update budget')
+          }
+          setShowBudgetDialog(false)
+        }}
+      />
+
+      {/* Pacing Dialog */}
+      <PacingDialog
+        open={showPacingDialog}
+        onOpenChange={setShowPacingDialog}
+        pacing={pacing}
+        onPacingChange={setPacing}
+        onSave={async () => {
+          if (!itinId) return
+
+          const metaUpdates = {
+            preferences: {
+              ...data?.meta?.preferences,
+              pacing,
+            },
+          }
+
+          const result = await updateItineraryMeta(itinId, metaUpdates)
+          if (result) {
+            onItineraryUpdate?.(result)
+            toast.success('Pacing updated')
+          } else {
+            toast.error('Failed to update pacing')
+          }
+          setShowPacingDialog(false)
+        }}
+      />
     </div>
   )
 }

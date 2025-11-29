@@ -196,6 +196,28 @@ export async function deletePOIFromItinerary(chatId: string, poiId: string): Pro
   }
 }
 
+export async function updateItineraryMeta(chatId: string, metaUpdates: Record<string, any>): Promise<CreatedItinerary | null> {
+  try {
+    const resp = await fetch(`${API_BASE_URL}/itinerary/${chatId}/update-meta`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(metaUpdates),
+    })
+
+    if (!resp.ok) {
+      const errorText = await resp.text()
+      console.error(`updateItineraryMeta error: ${resp.status} ${errorText}`)
+      return null
+    }
+
+    const data = await resp.json()
+    return data
+  } catch (e) {
+    console.error('updateItineraryMeta error', e)
+    return null
+  }
+}
+
 export async function fetchPOIs(page: number = 1, limit: number = DEFAULT_LIMIT): Promise<PaginatedResponse> {
   try {
     const offset = (page - 1) * limit

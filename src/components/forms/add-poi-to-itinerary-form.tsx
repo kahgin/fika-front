@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import type { POI } from '@/services/api'
+import { Button } from '@/components/ui/button'
 import CreateItineraryForm from '@/components/forms/create-itinerary-form'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import LoginForm from '@/components/forms/login-form'
 
 interface AddPOIToItineraryFormProps {
@@ -30,10 +30,10 @@ async function fetchItinerariesFromStorageOrAPI(): Promise<ItinerarySummary[]> {
         const data = JSON.parse(raw)
         summaries.push({
           id: data.itin_id || String(lastId),
-          title: (data?.meta?.destination ? `${data.meta.destination} Trip` : data?.title) || 'Trip',
+          title: (data?.meta?.title ? data.meta.title : `${data.meta.destination} Trip`) || 'Trip',
           dates:
             typeof data?.meta?.dates === 'object' && data?.meta?.dates?.type === 'specific'
-              ? `${data?.meta?.dates?.startDate || ''} - ${data?.meta?.dates?.endDate || ''}`
+              ? `${data?.meta?.dates?.startDate || ''} — ${data?.meta?.dates?.endDate || ''}`
               : data?.meta?.dates?.days
                 ? `${data?.meta?.dates?.days} days`
                 : undefined,
@@ -49,10 +49,10 @@ async function fetchItinerariesFromStorageOrAPI(): Promise<ItinerarySummary[]> {
       res.forEach((it: any) => {
         summaries.push({
           id: String(it.id || it.itin_id),
-          title: it.meta?.destination ? `${it.meta.destination} Trip` : it.title || 'Trip',
+          title: (it.meta?.title ? it.meta.title : `${it.meta.destination} Trip`) || 'Trip',
           dates:
             typeof it?.meta?.dates === 'object' && it?.meta?.dates?.type === 'specific'
-              ? `${it?.meta?.dates?.startDate || ''} - ${it?.meta?.dates?.endDate || ''}`
+              ? `${it?.meta?.dates?.startDate || ''} — ${it?.meta?.dates?.endDate || ''}`
               : it?.meta?.dates?.days
                 ? `${it?.meta?.dates?.days} days`
                 : undefined,

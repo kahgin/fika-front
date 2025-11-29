@@ -247,12 +247,12 @@ export default function SearchPanel({ onPOISelect, size = 'half' }: SearchPanelP
                   {poi.images && poi.images[0] ? (
                     <img
                       referrerPolicy="no-referrer"
-                      src={`https://picsum.photos/seed/${poi.name}/1200/900`}
+                      // src={`https://picsum.photos/seed/${poi.name}/1200/900`}
+                      src={`${poi.images[0]}=s1500`}
                       alt={poi.name}
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    // src={`${poi.images[0]}=s1500`}
                     <div className="flex h-full w-full items-center justify-center bg-gray-300">
                       <span className="text-sm text-gray-500">No image</span>
                     </div>
