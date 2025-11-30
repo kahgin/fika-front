@@ -119,7 +119,7 @@ function SortableStop({
       {...attributes}
       {...listeners}
       className={cn(
-        'group relative flex items-start gap-3 p-3 transition-colors',
+        'group relative flex items-start p-3 transition-colors items-center',
         isDragging && 'opacity-50',
         'cursor-grab hover:bg-gray-50 active:cursor-grabbing'
       )}
@@ -133,13 +133,15 @@ function SortableStop({
         }
       }}
     >
-      <POIIcon role={stop.role} themes={stop.themes} className="mt-1 size-4 flex-shrink-0 text-gray-600" />
 
-      <div className="min-w-0 flex-1">
-        <h6 className="mb-1 font-medium">{stop.name}</h6>
+      <div className="min-w-0 flex-1 space-y-1">
+        <div className='flex items-center gap-2'>
+          <POIIcon role={stop.role} themes={stop.themes} className="size-3.5 flex-shrink-0" />
+          <h6 className="font-medium">{stop.name}</h6>
+        </div>
         {stop.arrival && onScheduleClick && (
           <div
-            className="hover:text-primary flex w-fit cursor-pointer items-center gap-1 text-sm text-gray-500"
+            className="hover:text-primary flex w-fit cursor-pointer items-center gap-2 text-sm text-gray-500"
             onClick={(e) => {
               e.stopPropagation()
               onScheduleClick(stop)
@@ -172,7 +174,7 @@ function SortableStop({
           <Button
             variant="outline"
             size="sm"
-            className="cursor-pointer rounded-full text-xs shadow-none"
+            className=" cursor-pointer rounded-full text-xs"
             onClick={(e) => {
               e.stopPropagation()
               onDetails(stop)
@@ -230,9 +232,9 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
   const [dateRange, setDateRange] = useState<DateRange | undefined>(
     data?.meta?.dates?.type === 'specific' && data?.meta?.dates?.startDate && data?.meta?.dates?.endDate
       ? {
-          from: new Date(data.meta.dates.startDate),
-          to: new Date(data.meta.dates.endDate),
-        }
+        from: new Date(data.meta.dates.startDate),
+        to: new Date(data.meta.dates.endDate),
+      }
       : undefined
   )
   const [flexibleDays, setFlexibleDays] = useState(String(data?.meta?.dates?.days || '1'))
@@ -262,12 +264,12 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
     useSensor(PointerSensor, {
       activationConstraint: isMobile
         ? {
-            delay: 250,
-            tolerance: 5,
-          }
+          delay: 250,
+          tolerance: 5,
+        }
         : {
-            distance: 8,
-          },
+          distance: 8,
+        },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
@@ -374,7 +376,7 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
       try {
         const dayDate = new Date(days[dayIndex].date)
         setScheduleDate(dayDate)
-      } catch {}
+      } catch { }
     } else {
       setScheduleDay(String(dayIndex + 1))
     }
@@ -500,7 +502,7 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
     if (isSpecificDates && data?.meta?.dates?.startDate) {
       try {
         return startOfMonth(new Date(data.meta.dates.startDate))
-      } catch {}
+      } catch { }
     }
     return new Date()
   }
@@ -553,8 +555,8 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
                     {item.image ? (
                       <img
                         referrerPolicy="no-referrer"
-                        // src={`https://picsum.photos/seed/${item.name}/300/300`}
-                        src={item.image}
+                        src={`https://picsum.photos/seed/${item.name}/300/300`}
+                        // src={item.image}
                         alt={item.name}
                         className="h-full w-full object-cover"
                       />

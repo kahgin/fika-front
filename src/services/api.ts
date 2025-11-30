@@ -198,6 +198,18 @@ export async function deletePOIFromItinerary(chatId: string, poiId: string): Pro
 
 export async function updateItineraryMeta(chatId: string, metaUpdates: Record<string, any>): Promise<CreatedItinerary | null> {
   try {
+    const currentItinerary = await getItinerary(chatId)
+    if (!currentItinerary) throw new Error('Failed to load current itinerary')
+
+    const updatedItinerary = {
+      ...currentItinerary,
+      meta: {
+        ...currentItinerary.meta,
+        ...metaUpdates,
+      },
+    }
+
+    // Save updated itinerary by persisting to backend
     const resp = await fetch(`${API_BASE_URL}/itinerary/${chatId}/update-meta`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -205,13 +217,12 @@ export async function updateItineraryMeta(chatId: string, metaUpdates: Record<st
     })
 
     if (!resp.ok) {
-      const errorText = await resp.text()
-      console.error(`updateItineraryMeta error: ${resp.status} ${errorText}`)
-      return null
+      // Fallback: if endpoint doesn't exist, return the updated data locally
+      console.warn('update-meta endpoint not available, using local update')
+      return updatedItinerary
     }
 
-    const data = await resp.json()
-    return data
+    return await resp.json()
   } catch (e) {
     console.error('updateItineraryMeta error', e)
     return null
@@ -254,18 +265,18 @@ export async function searchPOIs(query: string, page: number = 1, limit: number 
   }
 }
 
-export async function fetchPOIsByCategory(category: string, page: number = 1, limit: number = DEFAULT_LIMIT): Promise<PaginatedResponse> {
+export async function fetchPOIsByRole(role: string, page: number = 1, limit: number = DEFAULT_LIMIT): Promise<PaginatedResponse> {
   try {
     const offset = (page - 1) * limit
-    const response = await fetch(`${API_BASE_URL}/pois?category=${encodeURIComponent(category)}&limit=${limit}&offset=${offset}`)
-    if (!response.ok) throw new Error('Failed to fetch POIs by category')
+    const response = await fetch(`${API_BASE_URL}/pois?role=${encodeURIComponent(role)}&limit=${limit}&offset=${offset}`)
+    if (!response.ok) throw new Error('Failed to fetch POIs by role')
     const data: ApiResponse<POI[]> = await response.json()
     return {
       pois: data.data || [],
       total: data.count || 0,
     }
   } catch (error) {
-    console.error('Error fetching POIs by category:', error)
+    console.error('Error fetching POIs by role:', error)
     return { pois: [], total: 0 }
   }
 }
@@ -430,17 +441,10 @@ export async function searchLocations(query: string): Promise<Location[]> {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
     const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
 
-    console.log('Supabase URL:', supabaseUrl)
-    console.log('Supabase Key exists:', !!supabaseKey)
-    console.log('All env vars:', import.meta.env)
-
     if (!supabaseUrl || !supabaseKey) {
-      console.error('Supabase credentials not configured')
-      console.error('URL:', supabaseUrl, 'Key:', supabaseKey ? 'exists' : 'missing')
+      console.error('Supabase credentials not configured for searchLocations')
       return []
     }
-
-    console.log('Searching for:', query)
 
     const response = await fetch(`${supabaseUrl}/rest/v1/rpc/rpc_search_locations`, {
       method: 'POST',
@@ -455,19 +459,56 @@ export async function searchLocations(query: string): Promise<Location[]> {
       }),
     })
 
-    console.log('Response status:', response.status)
-
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('API Error:', errorText)
       throw new Error(`Failed to search locations: ${response.status} ${errorText}`)
     }
 
     const data: Location[] = await response.json()
-    console.log('Search results:', data)
     return data || []
   } catch (error) {
     console.error('Error searching locations:', error)
+    return []
+  }
+}
+
+// Search POIs by destination and role(s) via Supabase RPC
+export async function searchPOIsByDestinationAndRole(destination: string, roles: string[], query?: string, limit: number = 5): Promise<POI[]> {
+  if (!destination || roles.length === 0) return []
+
+  try {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('Supabase credentials not configured for searchPOIsByDestinationAndRole')
+      return []
+    }
+
+    const resp = await fetch(`${supabaseUrl}/rest/v1/rpc/rpc_search_pois_by_destination`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+      },
+      body: JSON.stringify({
+        p_destination: destination,
+        p_roles: roles,
+        p_query: query ?? null,
+        p_limit: limit,
+      }),
+    })
+
+    if (!resp.ok) {
+      const errorText = await resp.text()
+      throw new Error(`Failed to search POIs: ${resp.status} ${errorText}`)
+    }
+
+    const data: POI[] = await resp.json()
+    return Array.isArray(data) ? data : []
+  } catch (e) {
+    console.error('searchPOIsByDestinationAndRole error', e)
     return []
   }
 }

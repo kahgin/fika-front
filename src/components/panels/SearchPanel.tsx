@@ -12,7 +12,7 @@ import {
   PaginationEllipsis,
 } from '@/components/ui/pagination'
 import { Search, Star, CirclePlus, LoaderCircle, AlertCircle, X } from 'lucide-react'
-import { fetchPOIs, searchPOIs, fetchPOIsByCategory, type POI } from '@/services/api'
+import { fetchPOIs, searchPOIs, fetchPOIsByRole, type POI } from '@/services/api'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { BOTTOM_NAV_HEIGHT } from '@/components/bottom-nav'
 
@@ -61,7 +61,7 @@ export default function SearchPanel({ onPOISelect, size = 'half' }: SearchPanelP
       if (activeTab === 'all') {
         result = await fetchPOIs(currentPage, ITEMS_PER_PAGE)
       } else {
-        result = await fetchPOIsByCategory(activeTab, currentPage, ITEMS_PER_PAGE)
+        result = await fetchPOIsByRole(activeTab, currentPage, ITEMS_PER_PAGE)
       }
       setPOIs(result.pois)
       setTotalResults(result.total)
@@ -247,8 +247,8 @@ export default function SearchPanel({ onPOISelect, size = 'half' }: SearchPanelP
                   {poi.images && poi.images[0] ? (
                     <img
                       referrerPolicy="no-referrer"
-                      // src={`https://picsum.photos/seed/${poi.name}/1200/900`}
-                      src={`${poi.images[0]}=s1500`}
+                      src={`https://picsum.photos/seed/${poi.name}/1200/900`}
+                      // src={`${poi.images[0]}=s1500`}
                       alt={poi.name}
                       className="h-full w-full object-cover"
                     />

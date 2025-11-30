@@ -1,0 +1,86 @@
+import React from 'react'
+import { Input } from '@/components/ui/input'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from '@/components/ui/command'
+import { cn } from '@/lib/utils'
+
+export interface SearchableSelectProps<T> {
+  inputValue: string
+  onInputChange: (value: string) => void
+  placeholder?: string
+  minLength?: number
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  isLoading: boolean
+  items: T[]
+  getItemKey: (item: T) => string
+  getItemLabel: (item: T) => string
+  onSelect: (item: T) => void
+  disabled?: boolean
+}
+
+export function SearchableSelect<T>({
+  inputValue,
+  onInputChange,
+  placeholder = '',
+  minLength = 3,
+  open,
+  onOpenChange,
+  isLoading,
+  items,
+  getItemKey,
+  getItemLabel,
+  onSelect,
+  disabled = false,
+}: SearchableSelectProps<T>) {
+  const hasResults = items.length > 0
+  const showBorder = isLoading || (inputValue.length >= minLength && hasResults)
+
+  return (
+    <Popover open={open} onOpenChange={onOpenChange}>
+      <PopoverTrigger asChild>
+        <div className="relative">
+          <Input
+            placeholder={placeholder}
+            value={inputValue}
+            onChange={(e) => {
+              onInputChange(e.target.value)
+              onOpenChange(true)
+            }}
+            onFocus={() => {
+              if (inputValue.length >= minLength) {
+                onOpenChange(true)
+              }
+            }}
+            disabled={disabled}
+          />
+        </div>
+      </PopoverTrigger>
+      <PopoverContent
+        className={cn('w-[var(--radix-popover-trigger-width)] p-0', !showBorder && 'border-none')}
+        align="start"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <Command shouldFilter={false}>
+          <CommandList>
+            {isLoading && (
+              <div className="py-6 text-center text-sm">
+                <div className="border-primary inline-block h-4 w-4 animate-spin rounded-full border-b-2"></div>
+              </div>
+            )}
+            {!isLoading && inputValue.length >= minLength && !hasResults && <CommandEmpty>No results found</CommandEmpty>}
+            {!isLoading && hasResults && (
+              <CommandGroup>
+                {items.map((item) => (
+                  <CommandItem key={getItemKey(item)} value={getItemLabel(item)} onSelect={() => onSelect(item)}>
+                    {getItemLabel(item)}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  )
+}

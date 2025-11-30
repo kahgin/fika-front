@@ -9,17 +9,41 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Field, FieldLabel, FieldError, FieldGroup } from '@/components/ui/field'
-import { ChevronLeft, Check } from 'lucide-react'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from '@/components/ui/command'
-import { searchLocations, type Location, createItinerary } from '@/services/api'
-import { cn } from '@/lib/utils'
-import { WhenDialog, WhoDialog, BudgetDialog, PacingDialog } from '@/components/dialogs'
+import { ChevronLeft, Check, X, ChevronRight } from 'lucide-react'
+import { SearchableSelect } from '@/components/ui/searchable-select'
+import { searchLocations, type Location, createItinerary, searchPOIsByDestinationAndRole } from '@/services/api'
+import { WhenDialog, WhoDialog, BudgetDialog, PacingDialog, ScheduleDialog } from '@/components/dialogs'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 // TYPES & INTERFACES
 interface CreateItineraryFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+}
+
+interface Accommodation {
+  poi_id: string
+  poi_name: string
+  check_in_date?: Date
+  check_out_date?: Date
+  check_in_day?: number
+  check_out_day?: number
+}
+
+interface MandatoryPOI {
+  poi_id: string
+  poi_name: string
+  date?: Date
+  day?: number
+  time_type: 'specific' | 'all_day' | 'any_time'
+  start_time?: string
+  end_time?: string
+}
+
+interface POI {
+  id: string
+  name: string
+  role: string
 }
 
 type DateMode = 'specific' | 'flexible'
@@ -130,7 +154,31 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
     from: new Date(Date.now() + 86400000),
   })
 
+  // Step 3 state
+  const [accommodations, setAccommodations] = useState<Accommodation[]>([])
+  const [mandatoryPOIs, setMandatoryPOIs] = useState<MandatoryPOI[]>([])
+  const [accommodationOpen, setAccommodationOpen] = useState(false)
+  const [accommodationSearch, setAccommodationSearch] = useState('')
+  const [accommodationPOIs, setAccommodationPOIs] = useState<POI[]>([])
+  const [isSearchingAccommodation, setIsSearchingAccommodation] = useState(false)
+  const [placesOpen, setPlacesOpen] = useState(false)
+  const [placesSearch, setPlacesSearch] = useState('')
+  const [placesPOIs, setPlacesPOIs] = useState<POI[]>([])
+  const [isSearchingPlaces, setIsSearchingPlaces] = useState(false)
+  const [scheduleAccommodationDialog, setScheduleAccommodationDialog] = useState<{
+    open: boolean
+    accommodation: Accommodation | null
+    index: number
+  }>({ open: false, accommodation: null, index: -1 })
+  const [schedulePlaceDialog, setSchedulePlaceDialog] = useState<{
+    open: boolean
+    place: MandatoryPOI | null
+    index: number
+  }>({ open: false, place: null, index: -1 })
+
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const accommodationSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const placesSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Form setup
   const form = useForm<FormData>({
@@ -181,8 +229,11 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
     if (dateMode === 'specific' && startDate && endDate) {
       const sameYear = startDate.getFullYear() === endDate.getFullYear()
       const sameMonth = startDate.getMonth() === endDate.getMonth()
+      const sameDay = startDate.getDate() === endDate.getDate()
 
-      if (sameYear && sameMonth) {
+      if (sameYear && sameMonth && sameDay) {
+        return `${format(startDate, 'MMM d')}`
+      } else if (sameYear && sameMonth) {
         return `${format(startDate, 'MMM d')} — ${format(endDate, 'd')}`
       } else if (sameYear) {
         return `${format(startDate, 'MMM d')} — ${format(endDate, 'MMM d')}`
@@ -201,6 +252,13 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
     const total = (adults || 0) + (children || 0)
     return `${total} ${total === 1 ? 'traveler' : 'travelers'}`
   }, [adults, children])
+
+  const totalDays = useMemo(() => {
+    if (dateMode === 'specific' && startDate && endDate) {
+      return calculateDaysBetween(startDate, endDate)
+    }
+    return parseInt(flexibleDays || '1')
+  }, [dateMode, startDate, endDate, flexibleDays])
 
   const generateTitle = useCallback((customTitle?: string, dest?: string, mode?: DateMode, start?: Date, end?: Date, flexDays?: string) => {
     if (customTitle && customTitle.trim()) {
@@ -240,11 +298,27 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
     [generateTitle, title, destination, dateMode, startDate, endDate, flexibleDays]
   )
 
+  const isDateDisabledForAccommodation = useCallback(
+    (date: Date, excludeIndex?: number) => {
+      if (!startDate || !endDate) return true
+      if (date < startDate || date > endDate) return true
+
+      return accommodations.some((acc, idx) => {
+        if (excludeIndex !== undefined && idx === excludeIndex) return false
+        if (!acc.check_in_date || !acc.check_out_date) return false
+        return date >= acc.check_in_date && date < acc.check_out_date
+      })
+    },
+    [accommodations, startDate, endDate]
+  )
+
   // Handlers
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
       setCurrentStep(1)
       form.reset()
+      setAccommodations([])
+      setMandatoryPOIs([])
     }
     onOpenChange(newOpen)
   }
@@ -268,14 +342,27 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
   const handleDateDialogSave = () => {
     if (dateMode === 'specific') {
       if (dateRange?.from) {
+        // Auto-set end date to the same as start if not provided
         form.setValue('startDate', dateRange.from)
         form.setValue('endDate', dateRange?.to || dateRange.from)
       }
       form.setValue('flexibleDays', undefined as any)
       form.setValue('flexibleMonth', undefined as any)
+
+      // Clear incompatible flexible fields
+      setAccommodations((prev) =>
+        prev.map((acc) => ({ ...acc, check_in_day: undefined, check_out_day: undefined }))
+      )
+      setMandatoryPOIs((prev) => prev.map((poi) => ({ ...poi, day: undefined })))
     } else {
       form.setValue('startDate', undefined)
       form.setValue('endDate', undefined)
+
+      // Clear incompatible specific fields
+      setAccommodations((prev) =>
+        prev.map((acc) => ({ ...acc, check_in_date: undefined, check_out_date: undefined }))
+      )
+      setMandatoryPOIs((prev) => prev.map((poi) => ({ ...poi, date: undefined })))
     }
     setShowDateDialog(false)
   }
@@ -293,7 +380,7 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
   const handleNext = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    if (canProceed() && currentStep < 2) {
+    if (canProceed() && currentStep < 3) {
       setCurrentStep((s) => s + 1)
     }
   }
@@ -316,6 +403,132 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
     setLocationOpen(false)
   }
 
+  const handleAddAccommodation = (poi: POI) => {
+    // Prevent adding more accommodations than total days
+    if (accommodations.length >= totalDays) {
+      toast.error('You cannot add more accommodations than the total number of days')
+      return
+    }
+    const newAccommodation: Accommodation = {
+      poi_id: poi.id,
+      poi_name: poi.name,
+    }
+    setAccommodations([...accommodations, newAccommodation])
+    setAccommodationSearch('')
+    setAccommodationOpen(false)
+  }
+
+  const handleRemoveAccommodation = (index: number) => {
+    setAccommodations(accommodations.filter((_, idx) => idx !== index))
+  }
+
+  const handleOpenAccommodationSchedule = (accommodation: Accommodation, index: number) => {
+    setScheduleAccommodationDialog({ open: true, accommodation, index })
+  }
+
+  const handleSaveAccommodationSchedule = () => {
+    const { accommodation, index } = scheduleAccommodationDialog
+    if (!accommodation) return
+
+    // Validate check-in/out ordering and minimum 2-day stay (overnight)
+    if (dateMode === 'specific') {
+      if (!accommodation.check_in_date || !accommodation.check_out_date) {
+        toast.error('Please select both check-in and check-out dates')
+        return
+      }
+      const inDate = new Date(accommodation.check_in_date)
+      const outDate = new Date(accommodation.check_out_date)
+      if (outDate < inDate) {
+        toast.error('Check-out must be on or after check-in')
+        return
+      }
+      if (calculateDaysBetween(inDate, outDate) < 2) {
+        toast.error('Accommodation stay must be at least 2 days (overnight)')
+        return
+      }
+    } else {
+      if (
+        accommodation.check_in_day === undefined ||
+        accommodation.check_out_day === undefined
+      ) {
+        toast.error('Please select both check-in and check-out day')
+        return
+      }
+      if (accommodation.check_out_day < accommodation.check_in_day) {
+        toast.error('Check-out day must be on or after check-in day')
+        return
+      }
+      if ((accommodation.check_out_day - accommodation.check_in_day + 1) < 2) {
+        toast.error('Accommodation stay must be at least 2 days (overnight)')
+        return
+      }
+    }
+
+    const updated = [...accommodations]
+    updated[index] = accommodation
+
+    const newOccupiedDays = updated.reduce((total, acc) => {
+      if (dateMode === 'specific' && acc.check_in_date && acc.check_out_date) {
+        return total + calculateDaysBetween(acc.check_in_date, acc.check_out_date)
+      } else if (dateMode === 'flexible' && acc.check_in_day !== undefined && acc.check_out_day !== undefined) {
+        return total + (acc.check_out_day - acc.check_in_day + 1)
+      }
+      return total
+    }, 0)
+
+    if (newOccupiedDays > totalDays) {
+      toast.error(`Total accommodation days (${newOccupiedDays}) cannot exceed trip duration (${totalDays} days)`)
+      return
+    }
+
+    setAccommodations(updated)
+    setScheduleAccommodationDialog({ open: false, accommodation: null, index: -1 })
+  }
+
+  const handleAddPlace = (poi: POI) => {
+    const newPlace: MandatoryPOI = {
+      poi_id: poi.id,
+      poi_name: poi.name,
+      time_type: 'any_time',
+    }
+    setMandatoryPOIs([...mandatoryPOIs, newPlace])
+    setPlacesSearch('')
+    setPlacesOpen(false)
+  }
+
+  const handleRemovePlace = (index: number) => {
+    setMandatoryPOIs(mandatoryPOIs.filter((_, idx) => idx !== index))
+  }
+
+  const handleOpenPlaceSchedule = (place: MandatoryPOI, index: number) => {
+    const p: MandatoryPOI = { ...place }
+    if (!p.time_type) {
+      p.time_type = 'any_time'
+    }
+    setSchedulePlaceDialog({ open: true, place: p, index })
+  }
+
+  const handleSavePlaceSchedule = () => {
+    const { place, index } = schedulePlaceDialog
+    if (!place) return
+
+    const updated = [...mandatoryPOIs]
+    updated[index] = place
+
+    setMandatoryPOIs(updated)
+    setSchedulePlaceDialog({ open: false, place: null, index: -1 })
+  }
+
+  const formatDateDisplay = (date?: Date) => {
+    if (!date) return 'Not set'
+    return format(date, 'MMM d, yyyy')
+  }
+
+  const formatDayDisplay = (day?: number) => {
+    if (day === undefined) return 'Not set'
+    return `Day ${day}`
+  }
+
   const generateAPIPayload = () => {
     const destination = form.watch('destination')
     const customTitle = form.watch('title')
@@ -326,6 +539,23 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
     const kidFriendly = form.watch('kidFriendly')
     const petFriendly = form.watch('petFriendly')
     const title = generateTitle(customTitle, destination, dateMode, startDate, endDate, flexibleDays)
+
+    const accommodationsPayload = accommodations.map((acc) => ({
+      poi_id: acc.poi_id,
+      check_in_date: acc.check_in_date ? formatDateToISO(acc.check_in_date) : undefined,
+      check_out_date: acc.check_out_date ? formatDateToISO(acc.check_out_date) : undefined,
+      check_in_day: acc.check_in_day,
+      check_out_day: acc.check_out_day,
+    }))
+
+    const mandatoryPOIsPayload = mandatoryPOIs.map((poi) => ({
+      poi_id: poi.poi_id,
+      date: poi.date ? formatDateToISO(poi.date) : undefined,
+      day: poi.day,
+      time_type: poi.time_type,
+      start_time: poi.time_type === 'specific' ? poi.start_time : undefined,
+      end_time: poi.time_type === 'specific' ? poi.end_time : undefined,
+    }))
 
     const basePayload = {
       title,
@@ -345,6 +575,8 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
         ...(kidFriendly && { kids_friendly: true }),
         ...(petFriendly && { pets_friendly: true }),
       },
+      ...(accommodationsPayload.length > 0 && { accommodations: accommodationsPayload }),
+      ...(mandatoryPOIsPayload.length > 0 && { mandatory_pois: mandatoryPOIsPayload }),
     }
 
     if (dateMode === 'specific') {
@@ -420,6 +652,55 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
     }
   }, [locationSearch])
 
+  useEffect(() => {
+    if (accommodationSearchTimeoutRef.current) {
+      clearTimeout(accommodationSearchTimeoutRef.current)
+    }
+
+    if (accommodationSearch.length >= 3 && destination) {
+      setIsSearchingAccommodation(true)
+      accommodationSearchTimeoutRef.current = setTimeout(async () => {
+        const results = await searchPOIsByDestinationAndRole(destination, ['accommodation'], accommodationSearch)
+        setAccommodationPOIs(results.map((poi) => ({ id: poi.id, name: poi.name, role: 'accommodation' })))
+        setIsSearchingAccommodation(false)
+      }, 300)
+    } else {
+      setAccommodationPOIs([])
+      setIsSearchingAccommodation(false)
+    }
+
+    return () => {
+      if (accommodationSearchTimeoutRef.current) {
+        clearTimeout(accommodationSearchTimeoutRef.current)
+      }
+    }
+  }, [accommodationSearch, destination])
+
+  useEffect(() => {
+    if (placesSearchTimeoutRef.current) {
+      clearTimeout(placesSearchTimeoutRef.current)
+    }
+
+    if (placesSearch.length >= 3 && destination) {
+      setIsSearchingPlaces(true)
+      placesSearchTimeoutRef.current = setTimeout(async () => {
+        const results = await searchPOIsByDestinationAndRole(destination, ['meal', 'attraction'], placesSearch)
+        setPlacesPOIs(results.map((poi) => ({ id: poi.id, name: poi.name, role: poi.category })))
+        setIsSearchingPlaces(false)
+      }, 300)
+    } else {
+      setPlacesPOIs([])
+      setIsSearchingPlaces(false)
+    }
+
+    return () => {
+      if (placesSearchTimeoutRef.current) {
+        clearTimeout(placesSearchTimeoutRef.current)
+      }
+    }
+  }, [placesSearch, destination])
+
+
   // RENDER
   return (
     <>
@@ -438,65 +719,28 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
 
                 <Field>
                   <FieldLabel>Where</FieldLabel>
-                  <Popover open={locationOpen} onOpenChange={setLocationOpen}>
-                    <PopoverTrigger asChild>
-                      <div className="relative">
-                        <Input
-                          placeholder="Where are you going?"
-                          value={locationSearch}
-                          onChange={(e) => {
-                            setLocationSearch(e.target.value)
-                            setLocationOpen(true)
-                            if (!e.target.value) {
-                              setSelectedLocation(null)
-                              form.setValue('destination', '', {
-                                shouldDirty: true,
-                                shouldValidate: true,
-                              })
-                            }
-                          }}
-                          onFocus={() => {
-                            if (locationSearch.length >= LOCATION_SEARCH_MIN_LENGTH) {
-                              setLocationOpen(true)
-                            }
-                          }}
-                          className={cn(selectedLocation && 'pr-8')}
-                        />
-                        {selectedLocation && <Check className="text-primary absolute top-1/2 right-3 size-4 -translate-y-1/2" />}
-                      </div>
-                    </PopoverTrigger>
-                    <PopoverContent
-                      className={cn(
-                        'w-[var(--radix-popover-trigger-width)] p-0',
-                        !(isSearching || (locationSearch.length >= LOCATION_SEARCH_MIN_LENGTH && locations.length > 0)) && 'border-none'
-                      )}
-                      align="start"
-                      onOpenAutoFocus={(e) => e.preventDefault()}
-                    >
-                      <Command shouldFilter={false}>
-                        <CommandList>
-                          {isSearching && (
-                            <div className="py-6 text-center text-sm">
-                              <div className="border-primary inline-block h-4 w-4 animate-spin rounded-full border-b-2"></div>
-                            </div>
-                          )}
-                          {!isSearching && locationSearch.length >= LOCATION_SEARCH_MIN_LENGTH && locations.length === 0 && (
-                            <CommandEmpty>No locations found</CommandEmpty>
-                          )}
-                          {!isSearching && locations.length > 0 && (
-                            <CommandGroup>
-                              {locations.map((location) => (
-                                <CommandItem key={location.id} value={location.label} onSelect={() => handleLocationSelect(location)}>
-                                  <Check className={cn('mr-2 h-4 w-4', selectedLocation?.id === location.id ? 'opacity-100' : 'opacity-0')} />
-                                  {location.label}
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          )}
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                  <div className="relative">
+                    <SearchableSelect
+                      inputValue={locationSearch}
+                      onInputChange={(val) => {
+                        setLocationSearch(val)
+                        if (!val) {
+                          setSelectedLocation(null)
+                          form.setValue('destination', '', { shouldDirty: true, shouldValidate: true })
+                        }
+                      }}
+                      placeholder="Where are you going?"
+                      minLength={LOCATION_SEARCH_MIN_LENGTH}
+                      open={locationOpen}
+                      onOpenChange={setLocationOpen}
+                      isLoading={isSearching}
+                      items={locations}
+                      getItemKey={(l) => l.id}
+                      getItemLabel={(l) => l.label}
+                      onSelect={handleLocationSelect}
+                    />
+                    {selectedLocation && <Check className="text-primary absolute top-3 right-3 size-4" />}
+                  </div>
                   {!isValidDestination && destination && <p className="text-destructive mt-1 text-sm">Please select a destination from the list</p>}
                   <FieldError className="pl-4 text-xs" errors={[form.formState.errors.destination]} />
                 </Field>
@@ -552,13 +796,149 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
                         type="button"
                         variant={watchInterests.includes(i.value) ? 'default' : 'outline'}
                         onClick={() => toggleInterest(i.value)}
-                        className={watchInterests.includes(i.value) ? 'bg-radial-[at_50%_0%] from-gray-700 via-gray-900 to-black' : ''}
+                        className={watchInterests.includes(i.value) ? 'bg-linear-to-r/longer from-gray via-gray-700 to-gray' : ''}
                       >
                         {i.label}
                       </Button>
                     ))}
                   </div>
                 </Field>
+                <Field orientation="horizontal">
+                  <Button type="button" variant="outline" size="icon" onClick={handlePrevious} aria-label="Previous step">
+                    <ChevronLeft className="size-5" />
+                  </Button>
+                  <Button type="submit" className="flex flex-1">
+                    Create Itinerary
+                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button type="button" variant="outline" size="icon" onClick={handleNext} aria-label="Next step">
+                        <ChevronRight className="size-5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Additional settings
+                    </TooltipContent>
+                  </Tooltip>
+
+                </Field>
+              </FieldGroup>
+            )}
+
+            {currentStep === 3 && (
+              <FieldGroup>
+                <Field>
+                  <FieldLabel>Accommodation</FieldLabel>
+                  <SearchableSelect
+                    inputValue={accommodationSearch}
+                    onInputChange={setAccommodationSearch}
+                    placeholder={accommodations.length >= totalDays ? 'Total number of accommodation cannot exceed total number of days' : 'Search for hotels, hostels...'}
+                    minLength={3}
+                    open={accommodationOpen}
+                    onOpenChange={setAccommodationOpen}
+                    isLoading={isSearchingAccommodation}
+                    items={accommodationPOIs}
+                    getItemKey={(p) => p.id}
+                    getItemLabel={(p) => p.name}
+                    onSelect={(poi) => {
+                      if (accommodations.length >= totalDays) {
+                        toast.error('You cannot add more accommodations than the total number of days')
+                        return
+                      }
+                      handleAddAccommodation(poi)
+                    }}
+                    disabled={accommodations.length >= totalDays}
+                  />
+
+                  <div className="space-y-2">
+                    {accommodations.map((acc, index) => (
+                      <div key={index} className="border rounded-xl p-3 pt-2">
+                        <div className="min-w-0 flex-1 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">{acc.poi_name}</span>
+                            <Button variant="ghost" size="icon" onClick={() => handleRemoveAccommodation(index)} className="h-8 w-8">
+                              <X />
+                            </Button>
+                          </div>
+                          <div className="flex gap-2">
+                            <Input
+                              readOnly
+                              value={dateMode === 'specific' ? formatDateDisplay(acc.check_in_date) : formatDayDisplay(acc.check_in_day)}
+                              onClick={() => handleOpenAccommodationSchedule(acc, index)}
+                              className="h-8 cursor-pointer text-xs"
+                              placeholder="Check-in"
+                            />
+                            <Input
+                              readOnly
+                              value={dateMode === 'specific' ? formatDateDisplay(acc.check_out_date) : formatDayDisplay(acc.check_out_day)}
+                              onClick={() => handleOpenAccommodationSchedule(acc, index)}
+                              className="h-8 cursor-pointer text-xs"
+                              placeholder="Check-out"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Field>
+
+                <Field>
+                  <FieldLabel>Places to Visit</FieldLabel>
+                  <SearchableSelect
+                    inputValue={placesSearch}
+                    onInputChange={setPlacesSearch}
+                    placeholder="Search for attractions, restaurants..."
+                    minLength={3}
+                    open={placesOpen}
+                    onOpenChange={setPlacesOpen}
+                    isLoading={isSearchingPlaces}
+                    items={placesPOIs}
+                    getItemKey={(p) => p.id}
+                    getItemLabel={(p) => p.name}
+                    onSelect={(poi) => handleAddPlace(poi)}
+                  />
+
+                  <div className="space-y-2">
+                    {mandatoryPOIs.map((place, index) => (
+                      <div key={index} className="border rounded-xl p-3 pt-2">
+                        <div className="min-w-0 flex-1 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className='text-sm font-medium'>{place.poi_name}</span>
+                            <Button variant="ghost" size="icon" onClick={() => handleRemovePlace(index)} className="h-8 w-8">
+                              <X />
+                            </Button>
+                          </div>
+                          <div className="mt-1 flex gap-2">
+                            <Input
+                              readOnly
+                              value={dateMode === 'specific' ? formatDateDisplay(place.date) : formatDayDisplay(place.day)}
+                              onClick={() => handleOpenPlaceSchedule(place, index)}
+                              className="h-8 cursor-pointer text-xs"
+                              placeholder="Date"
+                            />
+                            <Input
+                              readOnly
+                              value={
+                                place.time_type === 'all_day'
+                                  ? 'All day'
+                                  : place.time_type === 'any_time'
+                                    ? 'Any time'
+                                    : place.start_time && place.end_time
+                                      ? `${place.start_time} - ${place.end_time}`
+                                      : 'Set time'
+                              }
+                              onClick={() => handleOpenPlaceSchedule(place, index)}
+                              className="h-8 cursor-pointer text-xs"
+                              placeholder="Time"
+                            />
+                          </div>
+                        </div>
+
+                      </div>
+                    ))}
+                  </div>
+                </Field>
+
                 <Field orientation="horizontal">
                   <Button type="button" variant="outline" size="icon" onClick={handlePrevious} aria-label="Previous step">
                     <ChevronLeft className="size-5" />
@@ -620,6 +1000,87 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
         onPacingChange={(val) => form.setValue('pacing', val)}
         onSave={() => setShowPacingDialog(false)}
       />
+
+      {scheduleAccommodationDialog.accommodation && (
+        <ScheduleDialog
+          open={scheduleAccommodationDialog.open}
+          onOpenChange={(open) => setScheduleAccommodationDialog({ open, accommodation: null, index: -1 })}
+          mode="multi-day"
+          title={`Schedule: ${scheduleAccommodationDialog.accommodation.poi_name}`}
+          isSpecificDates={dateMode === 'specific'}
+          availableDates={
+            dateMode === 'specific' && startDate && endDate
+              ? Array.from({ length: totalDays }, (_, i) => new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000))
+              : Array.from({ length: totalDays }, () => new Date())
+          }
+          disabledDates={(date) => isDateDisabledForAccommodation(date, scheduleAccommodationDialog.index)}
+          defaultMonth={startDate}
+          dateRange={{ from: scheduleAccommodationDialog.accommodation.check_in_date, to: scheduleAccommodationDialog.accommodation.check_out_date }}
+          onDateRangeChange={(range) => {
+            const updated = { ...scheduleAccommodationDialog.accommodation! }
+            updated.check_in_date = range?.from
+            updated.check_out_date = range?.to
+            setScheduleAccommodationDialog({ ...scheduleAccommodationDialog, accommodation: updated })
+          }}
+          checkInDay={scheduleAccommodationDialog.accommodation.check_in_day?.toString()}
+          onCheckInDayChange={(day) => {
+            const updated = { ...scheduleAccommodationDialog.accommodation!, check_in_day: parseInt(day, 10) }
+            setScheduleAccommodationDialog({ ...scheduleAccommodationDialog, accommodation: updated })
+          }}
+          checkOutDay={scheduleAccommodationDialog.accommodation.check_out_day?.toString()}
+          onCheckOutDayChange={(day) => {
+            const updated = { ...scheduleAccommodationDialog.accommodation!, check_out_day: parseInt(day, 10) }
+            setScheduleAccommodationDialog({ ...scheduleAccommodationDialog, accommodation: updated })
+          }}
+          onSave={handleSaveAccommodationSchedule}
+        />
+      )}
+
+      {schedulePlaceDialog.place && (
+        <ScheduleDialog
+          open={schedulePlaceDialog.open}
+          onOpenChange={(open) => setSchedulePlaceDialog({ open, place: null, index: -1 })}
+          mode="single-day"
+          title={`Schedule: ${schedulePlaceDialog.place.poi_name}`}
+          isSpecificDates={dateMode === 'specific'}
+          availableDates={
+            dateMode === 'specific' && startDate && endDate
+              ? Array.from({ length: totalDays }, (_, i) => new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000))
+              : Array.from({ length: totalDays }, (_, i) => new Date())
+          }
+          disabledDates={(date) => {
+            if (!startDate || !endDate) return true
+            return date < startDate || date > endDate
+          }}
+          defaultMonth={startDate}
+          selectedDate={schedulePlaceDialog.place.date}
+          onDateChange={(date) => {
+            const updated = { ...schedulePlaceDialog.place!, date }
+            setSchedulePlaceDialog({ ...schedulePlaceDialog, place: updated })
+          }}
+          selectedDay={schedulePlaceDialog.place.day?.toString()}
+          onDayChange={(day) => {
+            const updated = { ...schedulePlaceDialog.place!, day: parseInt(day) }
+            setSchedulePlaceDialog({ ...schedulePlaceDialog, place: updated })
+          }}
+          timeType={schedulePlaceDialog.place.time_type}
+          onTimeTypeChange={(type) => {
+            const updated = { ...schedulePlaceDialog.place!, time_type: type }
+            setSchedulePlaceDialog({ ...schedulePlaceDialog, place: updated })
+          }}
+          startTime={schedulePlaceDialog.place.start_time || ''}
+          onStartTimeChange={(time) => {
+            const updated = { ...schedulePlaceDialog.place!, start_time: time }
+            setSchedulePlaceDialog({ ...schedulePlaceDialog, place: updated })
+          }}
+          endTime={schedulePlaceDialog.place.end_time || ''}
+          onEndTimeChange={(time) => {
+            const updated = { ...schedulePlaceDialog.place!, end_time: time }
+            setSchedulePlaceDialog({ ...schedulePlaceDialog, place: updated })
+          }}
+          onSave={handleSavePlaceSchedule}
+        />
+      )}
     </>
   )
 }
