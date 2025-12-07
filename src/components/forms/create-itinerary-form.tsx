@@ -1,111 +1,81 @@
 import { z } from 'zod'
+import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { useForm } from 'react-hook-form'
-import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react'
-import { zodResolver } from '@hookform/resolvers/zod'
 import type { DateRange } from 'react-day-picker'
-import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
+import { formatDateRange, calculateDaysBetween, formatDateToISO, formatDateDisplay, formatDayDisplay } from '@/lib/date-range'
+import { zodResolver } from '@hookform/resolvers/zod'
+import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react'
 import { Input } from '@/components/ui/input'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Field, FieldLabel, FieldError, FieldGroup } from '@/components/ui/field'
-import { ChevronLeft, Check, X, ChevronRight } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { SearchableSelect } from '@/components/ui/searchable-select'
-import { searchLocations, type Location, createItinerary, searchPOIsByDestinationAndRole } from '@/services/api'
-import { WhenDialog, WhoDialog, BudgetDialog, PacingDialog, ScheduleDialog } from '@/components/dialogs'
+import { Field, FieldLabel, FieldError, FieldGroup } from '@/components/ui/field'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { WhenDialog, WhoDialog, PacingDialog, DietaryDialog, ScheduleDialog } from '@/components/dialogs'
+import type { DateMode } from '@/components/dialogs/when-dialog'
+import type { TimeType } from '@/components/dialogs/schedule-dialog'
+import { PACING_OPTIONS, DIETARY_OPTIONS, INTEREST_OPTIONS, MONTHS } from '@/lib/constants'
+import { ChevronLeft, Check, X, ChevronRight } from 'lucide-react'
+import { searchLocations, type Location, createItinerary, searchPOIsByDestinationAndRole } from '@/services/api'
+import { Label } from '@/components/ui/label'
 
-// TYPES & INTERFACES
+// Types & Interfaces
 interface CreateItineraryFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
-interface Accommodation {
+interface Hotel {
   poi_id: string
   poi_name: string
+  latitude: number
+  longitude: number
   check_in_date?: Date
   check_out_date?: Date
   check_in_day?: number
   check_out_day?: number
+  themes?: string[]
+  role?: string
+  openHours?: any
+  images?: string[]
 }
 
 interface MandatoryPOI {
   poi_id: string
   poi_name: string
+  latitude: number
+  longitude: number
   date?: Date
   day?: number
-  time_type: 'specific' | 'all_day' | 'any_time'
+  time_type: TimeType
   start_time?: string
   end_time?: string
+  themes?: string[]
+  role?: string
+  openHours?: any
+  images?: string[]
 }
 
 interface POI {
   id: string
   name: string
   role: string
-}
-
-type DateMode = 'specific' | 'flexible'
-type BudgetKey = 'any' | 'tight' | 'sensible' | 'upscale' | 'luxury'
-
-// CONSTANTS
-const PACING_OPTIONS = [
-  { value: 'relaxed', label: 'Relaxed' },
-  { value: 'balanced', label: 'Balanced' },
-  { value: 'packed', label: 'Packed' },
-] as const
-
-const INTEREST_OPTIONS = [
-  { value: 'food_culinary', label: 'Food & Culinary' },
-  { value: 'cultural_history', label: 'Cultural & History' },
-  { value: 'religious_sites', label: 'Religious Sites' },
-  { value: 'nature', label: 'Nature & Parks' },
-  { value: 'shopping', label: 'Shopping' },
-  { value: 'family', label: 'Family Attractions' },
-  { value: 'art_museums', label: 'Art & Museums' },
-  { value: 'adventure', label: 'Adventure' },
-] as const
-
-const MONTHS = [
-  { value: 'september', label: 'September' },
-  { value: 'october', label: 'October' },
-  { value: 'november', label: 'November' },
-  { value: 'december', label: 'December' },
-  { value: 'january', label: 'January' },
-  { value: 'february', label: 'February' },
-  { value: 'march', label: 'March' },
-  { value: 'april', label: 'April' },
-  { value: 'may', label: 'May' },
-  { value: 'june', label: 'June' },
-  { value: 'july', label: 'July' },
-  { value: 'august', label: 'August' },
-] as const
-
-const BUDGET_LABELS: Record<BudgetKey, string> = {
-  any: 'Any budget',
-  tight: 'On a budget',
-  sensible: 'Sensibly priced',
-  upscale: 'Upscale',
-  luxury: 'Luxury',
+  latitude: number
+  longitude: number
+  themes?: string[]
+  openHours?: any
+  images?: string[]
+  coordinates?: {
+    lat: number
+    lng: number
+  }
 }
 
 const LOCATION_SEARCH_MIN_LENGTH = 3
 const LOCATION_SEARCH_DEBOUNCE_MS = 300
 
-// HELPER FUNCTIONS
-const calculateDaysBetween = (startDate: Date, endDate: Date): number => {
-  const start = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
-  const end = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate())
-  const diffMs = end.getTime() - start.getTime()
-  return Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1)
-}
-
-const formatDateToISO = (date: Date): string => {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-}
-
-// FORM SCHEMA
+// Form schema
 const formSchema = z
   .object({
     title: z.string().optional(),
@@ -118,10 +88,12 @@ const formSchema = z
     children: z.number().min(0).max(10),
     pets: z.number().min(0).max(5),
     isMuslim: z.boolean().optional(),
+    wheelchairAccessible: z.boolean().optional(),
     kidFriendly: z.boolean().optional(),
     petFriendly: z.boolean().optional(),
-    budget: z.string().min(1, 'Budget is required'),
+    // budget: z.string().min(1, 'Budget is required'),
     pacing: z.string().min(1, 'Pacing is required'),
+    dietaryRestrictions: z.string().min(1, 'Dietary restrictions is required'),
     interests: z.array(z.string()),
   })
   .refine(
@@ -136,15 +108,16 @@ const formSchema = z
 
 type FormData = z.infer<typeof formSchema>
 
-// COMPONENT
+// Component
 const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenChange }) => {
   // State
   const [currentStep, setCurrentStep] = useState(1)
   const [dateMode, setDateMode] = useState<DateMode>('flexible')
   const [showDateDialog, setShowDateDialog] = useState(false)
   const [showWhoDialog, setShowWhoDialog] = useState(false)
-  const [showBudgetDialog, setShowBudgetDialog] = useState(false)
+  // const [showBudgetDialog, setShowBudgetDialog] = useState(false)
   const [showPacingDialog, setShowPacingDialog] = useState(false)
+  const [showDietaryDialog, setShowDietaryDialog] = useState(false)
   const [locationOpen, setLocationOpen] = useState(false)
   const [locationSearch, setLocationSearch] = useState('')
   const [locations, setLocations] = useState<Location[]>([])
@@ -153,23 +126,21 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: new Date(Date.now() + 86400000),
   })
-
-  // Step 3 state
-  const [accommodations, setAccommodations] = useState<Accommodation[]>([])
+  const [hotels, setHotels] = useState<Hotel[]>([])
   const [mandatoryPOIs, setMandatoryPOIs] = useState<MandatoryPOI[]>([])
-  const [accommodationOpen, setAccommodationOpen] = useState(false)
-  const [accommodationSearch, setAccommodationSearch] = useState('')
-  const [accommodationPOIs, setAccommodationPOIs] = useState<POI[]>([])
-  const [isSearchingAccommodation, setIsSearchingAccommodation] = useState(false)
+  const [hotelOpen, setHotelOpen] = useState(false)
+  const [hotelSearch, setHotelSearch] = useState('')
+  const [hotelPOIs, setHotelPOIs] = useState<POI[]>([])
+  const [isSearchingHotel, setIsSearchingHotel] = useState(false)
   const [placesOpen, setPlacesOpen] = useState(false)
   const [placesSearch, setPlacesSearch] = useState('')
   const [placesPOIs, setPlacesPOIs] = useState<POI[]>([])
   const [isSearchingPlaces, setIsSearchingPlaces] = useState(false)
-  const [scheduleAccommodationDialog, setScheduleAccommodationDialog] = useState<{
+  const [scheduleHotelDialog, setScheduleHotelDialog] = useState<{
     open: boolean
-    accommodation: Accommodation | null
+    hotel: Hotel | null
     index: number
-  }>({ open: false, accommodation: null, index: -1 })
+  }>({ open: false, hotel: null, index: -1 })
   const [schedulePlaceDialog, setSchedulePlaceDialog] = useState<{
     open: boolean
     place: MandatoryPOI | null
@@ -177,7 +148,7 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
   }>({ open: false, place: null, index: -1 })
 
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const accommodationSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const hotelSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const placesSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Form setup
@@ -194,10 +165,12 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
       children: 0,
       pets: 0,
       isMuslim: false,
+      wheelchairAccessible: false,
       kidFriendly: false,
       petFriendly: false,
-      budget: 'any',
+      // budget: 'any',
       pacing: 'balanced',
+      dietaryRestrictions: 'none',
       interests: [],
     },
   })
@@ -212,34 +185,23 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
   const adults = form.watch('adults')
   const children = form.watch('children')
   const pets = form.watch('pets')
-  const budget = form.watch('budget')
+  // const budget = form.watch('budget')
   const pacing = form.watch('pacing')
+  const dietaryRestrictions = form.watch('dietaryRestrictions')
   const watchInterests = form.watch('interests') || []
 
   // Computed values
-  const budgetKey: BudgetKey = budget === 'tight' || budget === 'sensible' || budget === 'upscale' || budget === 'luxury' ? budget : 'any'
+  // const budgetKey: BudgetKey = budget === 'tight' || budget === 'sensible' || budget === 'upscale' || budget === 'luxury' ? budget : 'any'
 
   const isValidDestination = useMemo(() => {
     if (!destination) return false
-    if (selectedLocation && selectedLocation.name === destination) return true
+    if (selectedLocation && selectedLocation.label === destination) return true
     return false
   }, [destination, selectedLocation])
 
   const dateDisplay = useMemo(() => {
     if (dateMode === 'specific' && startDate && endDate) {
-      const sameYear = startDate.getFullYear() === endDate.getFullYear()
-      const sameMonth = startDate.getMonth() === endDate.getMonth()
-      const sameDay = startDate.getDate() === endDate.getDate()
-
-      if (sameYear && sameMonth && sameDay) {
-        return `${format(startDate, 'MMM d')}`
-      } else if (sameYear && sameMonth) {
-        return `${format(startDate, 'MMM d')} — ${format(endDate, 'd')}`
-      } else if (sameYear) {
-        return `${format(startDate, 'MMM d')} — ${format(endDate, 'MMM d')}`
-      } else {
-        return `${format(startDate, 'MMM d, yyyy')} — ${format(endDate, 'MMM d, yyyy')}`
-      }
+      return formatDateRange(startDate, endDate)
     }
     if (dateMode === 'flexible' && flexibleDays) {
       const label = MONTHS.find((m) => m.value === flexibleMonth)?.label
@@ -259,13 +221,14 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
     }
     return parseInt(flexibleDays || '1')
   }, [dateMode, startDate, endDate, flexibleDays])
+  const availableNights = useMemo(() => Math.max(0, totalDays - 1), [totalDays])
 
   const generateTitle = useCallback((customTitle?: string, dest?: string, mode?: DateMode, start?: Date, end?: Date, flexDays?: string) => {
     if (customTitle && customTitle.trim()) {
       return customTitle.trim()
     }
 
-    const destination = dest || 'Trip'
+    const destination = dest?.split(',')[0].trim() || 'Trip'
 
     if (mode === 'specific' && start) {
       const endDate = end || start
@@ -298,18 +261,67 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
     [generateTitle, title, destination, dateMode, startDate, endDate, flexibleDays]
   )
 
-  const isDateDisabledForAccommodation = useCallback(
+  const isSameDay = (a?: Date, b?: Date) => {
+    if (!a || !b) return false
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+  }
+
+  const dayIndexFromTripStart = useCallback(
+    (d: Date | undefined) => {
+      if (!startDate || !d) return -1
+      const a = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
+      const b = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+      return Math.floor((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24))
+    },
+    [startDate]
+  )
+
+  const computeOccupiedSpecific = useCallback(
+    (excludeIndex?: number) => {
+      const occupied = new Set<number>()
+      if (!startDate || !endDate) return occupied
+      hotels.forEach((h, i) => {
+        if (excludeIndex !== undefined && i === excludeIndex) return
+        if (!h.check_in_date || !h.check_out_date) return
+        const inIdx = dayIndexFromTripStart(h.check_in_date)
+        const outIdx = dayIndexFromTripStart(h.check_out_date)
+        // occupy [inIdx, outIdx)
+        for (let idx = inIdx; idx < outIdx; idx++) {
+          if (idx >= 0 && idx < totalDays) occupied.add(idx)
+        }
+      })
+      return occupied
+    },
+    [hotels, startDate, endDate, totalDays, dayIndexFromTripStart]
+  )
+
+  const computeOccupiedFlexible = useCallback(
+    (excludeIndex?: number) => {
+      const occupied = new Set<number>()
+      hotels.forEach((h, i) => {
+        if (excludeIndex !== undefined && i === excludeIndex) return
+        if (h.check_in_day === undefined || h.check_out_day === undefined) return
+        for (let d = h.check_in_day; d < h.check_out_day; d++) {
+          if (d >= 1 && d <= totalDays) occupied.add(d)
+        }
+      })
+      return occupied
+    },
+    [hotels, totalDays]
+  )
+
+  const isDateDisabledForHotel = useCallback(
     (date: Date, excludeIndex?: number) => {
       if (!startDate || !endDate) return true
       if (date < startDate || date > endDate) return true
 
-      return accommodations.some((acc, idx) => {
-        if (excludeIndex !== undefined && idx === excludeIndex) return false
-        if (!acc.check_in_date || !acc.check_out_date) return false
-        return date >= acc.check_in_date && date < acc.check_out_date
-      })
+      const idx = dayIndexFromTripStart(date)
+      if (idx < 0 || idx >= totalDays) return true
+
+      const occupied = computeOccupiedSpecific(excludeIndex)
+      return occupied.has(idx)
     },
-    [accommodations, startDate, endDate]
+    [startDate, endDate, totalDays, computeOccupiedSpecific, dayIndexFromTripStart]
   )
 
   // Handlers
@@ -317,7 +329,7 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
     if (!newOpen) {
       setCurrentStep(1)
       form.reset()
-      setAccommodations([])
+      setHotels([])
       setMandatoryPOIs([])
     }
     onOpenChange(newOpen)
@@ -339,6 +351,48 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
     [watchInterests, form]
   )
 
+  const hasAvailableCheckInSpecific = useMemo(() => {
+    if (dateMode !== 'specific') {
+      return true
+    }
+    if (!startDate || !endDate) {
+      return true
+    }
+
+    const occupied = computeOccupiedSpecific()
+    const validOffsets: number[] = []
+
+    // In specific mode, check-in is valid only on days that:
+    // - are not fully occupied by another hotel range, and
+    // - are not the last trip day (no night after it), and
+    // - respect your rule that trip end cannot be used as check-in.
+    for (let offset = 0; offset < totalDays; offset++) {
+      const isLastDay = offset === totalDays - 1
+      if (isLastDay) continue
+      if (!occupied.has(offset)) {
+        validOffsets.push(offset)
+      }
+    }
+
+    if (validOffsets.length > 0) {
+      return true
+    }
+
+    return false
+  }, [dateMode, startDate, endDate, totalDays, computeOccupiedSpecific])
+
+  const hasAvailableCheckInFlexible = useMemo(() => {
+    if (dateMode !== 'flexible') return true
+    const occupied = computeOccupiedFlexible()
+    // in flexible, check-in last day is disabled in UI; look for any open day in [1, totalDays - 1]
+    for (let d = 1; d <= Math.max(1, totalDays - 1); d++) {
+      if (!occupied.has(d)) {
+        return true
+      }
+    }
+    return false
+  }, [dateMode, totalDays, computeOccupiedFlexible])
+
   const handleDateDialogSave = () => {
     if (dateMode === 'specific') {
       if (dateRange?.from) {
@@ -350,18 +404,14 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
       form.setValue('flexibleMonth', undefined as any)
 
       // Clear incompatible flexible fields
-      setAccommodations((prev) =>
-        prev.map((acc) => ({ ...acc, check_in_day: undefined, check_out_day: undefined }))
-      )
+      setHotels((prev) => prev.map((acc) => ({ ...acc, check_in_day: undefined, check_out_day: undefined })))
       setMandatoryPOIs((prev) => prev.map((poi) => ({ ...poi, day: undefined })))
     } else {
       form.setValue('startDate', undefined)
       form.setValue('endDate', undefined)
 
       // Clear incompatible specific fields
-      setAccommodations((prev) =>
-        prev.map((acc) => ({ ...acc, check_in_date: undefined, check_out_date: undefined }))
-      )
+      setHotels((prev) => prev.map((acc) => ({ ...acc, check_in_date: undefined, check_out_date: undefined })))
       setMandatoryPOIs((prev) => prev.map((poi) => ({ ...poi, date: undefined })))
     }
     setShowDateDialog(false)
@@ -372,7 +422,7 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
       const v = form.getValues()
       const hasValidDestination = !!v.destination && isValidDestination
       const hasDates = dateMode === 'specific' ? !!v.startDate && !!v.endDate : !!v.flexibleDays
-      return hasValidDestination && hasDates && !!v.budget && !!v.pacing
+      return hasValidDestination && hasDates && !!v.pacing  // && !!v.budget 
     }
     return true
   }
@@ -395,7 +445,7 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
 
   const handleLocationSelect = (location: Location) => {
     setSelectedLocation(location)
-    form.setValue('destination', location.name, {
+    form.setValue('destination', location.label, {
       shouldDirty: true,
       shouldValidate: true,
     })
@@ -403,86 +453,192 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
     setLocationOpen(false)
   }
 
-  const handleAddAccommodation = (poi: POI) => {
-    // Prevent adding more accommodations than total days
-    if (accommodations.length >= totalDays) {
-      toast.error('You cannot add more accommodations than the total number of days')
+  const handleAddHotel = (poi: POI) => {
+    // Prevent adding more hotels than available nights
+    if (hotels.length >= availableNights) {
+      toast.error('Total number of hotels cannot be more than the number of nights in the trip')
       return
     }
-    const newAccommodation: Accommodation = {
+    const newHotel: Hotel = {
       poi_id: poi.id,
       poi_name: poi.name,
+      latitude: poi.latitude,
+      longitude: poi.longitude,
+      themes: poi.themes,
+      role: poi.role,
+      openHours: poi.openHours,
+      images: poi.images,
     }
-    setAccommodations([...accommodations, newAccommodation])
-    setAccommodationSearch('')
-    setAccommodationOpen(false)
+    setHotels([...hotels, newHotel])
+    setHotelSearch('')
+    setHotelOpen(false)
   }
 
-  const handleRemoveAccommodation = (index: number) => {
-    setAccommodations(accommodations.filter((_, idx) => idx !== index))
+  const handleRemoveHotel = (index: number) => {
+    setHotels(hotels.filter((_, idx) => idx !== index))
   }
 
-  const handleOpenAccommodationSchedule = (accommodation: Accommodation, index: number) => {
-    setScheduleAccommodationDialog({ open: true, accommodation, index })
+  const handleOpenHotelSchedule = (hotel: Hotel, index: number) => {
+    setScheduleHotelDialog({ open: true, hotel, index })
   }
 
-  const handleSaveAccommodationSchedule = () => {
-    const { accommodation, index } = scheduleAccommodationDialog
-    if (!accommodation) return
+  const getUsedNights = (arr: Hotel[]) =>
+    arr.reduce((sum, h) => {
+      if (h.check_in_date && h.check_out_date) {
+        return sum + Math.max(0, calculateDaysBetween(h.check_in_date, h.check_out_date) - 1)
+      }
+      if (h.check_in_day !== undefined && h.check_out_day !== undefined) {
+        return sum + Math.max(0, h.check_out_day - h.check_in_day)
+      }
+      return sum
+    }, 0)
 
-    // Validate check-in/out ordering and minimum 2-day stay (overnight)
+  const handleSaveHotelSchedule = () => {
+    const { hotel, index } = scheduleHotelDialog
+    if (!hotel) return
+
+    const availableNights = Math.max(0, totalDays - 1)
+
+    // Helper to check overlaps (half-open intervals [start, end))
+    const hasOverlapSpecific = (inA: Date, outA: Date, exIdx: number) =>
+      hotels.some((h, i) => {
+        if (i === exIdx) return false
+        if (!h.check_in_date || !h.check_out_date) return false
+        const aStart = new Date(inA.getFullYear(), inA.getMonth(), inA.getDate())
+        const aEnd = new Date(outA.getFullYear(), outA.getMonth(), outA.getDate())
+        const bStart = new Date(h.check_in_date.getFullYear(), h.check_in_date.getMonth(), h.check_in_date.getDate())
+        const bEnd = new Date(h.check_out_date.getFullYear(), h.check_out_date.getMonth(), h.check_out_date.getDate())
+        return aStart < bEnd && bStart < aEnd
+      })
+
+    const hasOverlapFlexible = (inDay: number, outDay: number, exIdx: number) =>
+      hotels.some((h, i) => {
+        if (i === exIdx) return false
+        if (h.check_in_day === undefined || h.check_out_day === undefined) return false
+        return inDay < h.check_out_day && h.check_in_day < outDay
+      })
+
+    // Validate check-in/out ordering and business rules
     if (dateMode === 'specific') {
-      if (!accommodation.check_in_date || !accommodation.check_out_date) {
+      if (!hotel.check_in_date || !hotel.check_out_date) {
         toast.error('Please select both check-in and check-out dates')
         return
       }
-      const inDate = new Date(accommodation.check_in_date)
-      const outDate = new Date(accommodation.check_out_date)
+
+      const inDate = new Date(hotel.check_in_date.getFullYear(), hotel.check_in_date.getMonth(), hotel.check_in_date.getDate())
+      const outDate = new Date(hotel.check_out_date.getFullYear(), hotel.check_out_date.getMonth(), hotel.check_out_date.getDate())
+
+      // Strict ordering: out > in; allow same-day to be handled inline
       if (outDate < inDate) {
-        toast.error('Check-out must be on or after check-in')
+        toast.error('Check-out cannot be before check-in')
         return
       }
-      if (calculateDaysBetween(inDate, outDate) < 2) {
-        toast.error('Accommodation stay must be at least 2 days (overnight)')
+
+      // Compute nights (inclusive days minus 1)
+      const nights = Math.max(0, calculateDaysBetween(inDate, outDate) - 1)
+      if (nights < 1) {
+        // Keep dialog open; rely on inline error under the calendar
         return
       }
+
+      // Check-in cannot be on the last trip day
+      if (startDate) {
+        const lastDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + (totalDays - 1))
+        if (isSameDay(inDate, lastDay)) {
+          toast.error('Check-in cannot be on the last trip day')
+          return
+        }
+      }
+
+      // Check-out cannot be on the first trip day
+      if (startDate && isSameDay(outDate, startDate)) {
+        toast.error('Check-out cannot be on the first trip day')
+        return
+      }
+
+      // Overlap check
+      if (hasOverlapSpecific(inDate, outDate, index)) {
+        toast.error('Hotel stay overlaps with another stay')
+        return
+      }
+
+      // Total nights used must not exceed available nights
+      const updated = [...hotels]
+      updated[index] = { ...hotel, check_in_date: inDate, check_out_date: outDate }
+
+      const usedNights = getUsedNights(updated)
+
+      if (usedNights > availableNights) {
+        toast.error(`Total hotel nights (${usedNights}) exceed available nights (${availableNights})`)
+        return
+      }
+
+      setHotels(updated)
+      setScheduleHotelDialog({ open: false, hotel: null, index: -1 })
+      return
     } else {
-      if (
-        accommodation.check_in_day === undefined ||
-        accommodation.check_out_day === undefined
-      ) {
+      // Flexible mode
+      if (hotel.check_in_day === undefined || hotel.check_out_day === undefined) {
         toast.error('Please select both check-in and check-out day')
         return
       }
-      if (accommodation.check_out_day < accommodation.check_in_day) {
-        toast.error('Check-out day must be on or after check-in day')
+
+      const inDay = hotel.check_in_day
+      const outDay = hotel.check_out_day
+
+      // bounds
+      if (inDay < 1 || inDay > totalDays) {
+        toast.error('Invalid check-in day')
         return
       }
-      if ((accommodation.check_out_day - accommodation.check_in_day + 1) < 2) {
-        toast.error('Accommodation stay must be at least 2 days (overnight)')
+      if (outDay < 1 || outDay > totalDays) {
+        toast.error('Invalid check-out day')
         return
       }
-    }
 
-    const updated = [...accommodations]
-    updated[index] = accommodation
-
-    const newOccupiedDays = updated.reduce((total, acc) => {
-      if (dateMode === 'specific' && acc.check_in_date && acc.check_out_date) {
-        return total + calculateDaysBetween(acc.check_in_date, acc.check_out_date)
-      } else if (dateMode === 'flexible' && acc.check_in_day !== undefined && acc.check_out_day !== undefined) {
-        return total + (acc.check_out_day - acc.check_in_day + 1)
+      // Check-in cannot be on the last trip day
+      if (inDay === totalDays) {
+        toast.error('Check-in cannot be on the last trip day')
+        return
       }
-      return total
-    }, 0)
 
-    if (newOccupiedDays > totalDays) {
-      toast.error(`Total accommodation days (${newOccupiedDays}) cannot exceed trip duration (${totalDays} days)`)
-      return
+      // Check-out cannot be on the first trip day
+      if (outDay === 1) {
+        toast.error('Check-out cannot be on the first trip day')
+        return
+      }
+
+      // Strict ordering
+      if (!(outDay > inDay)) {
+        toast.error('Check-out day must be strictly after check-in day')
+        return
+      }
+
+      const nights = outDay - inDay
+      if (nights < 1) {
+        toast.error('Hotel stay must be at least 1 night')
+        return
+      }
+
+      // Overlap
+      if (hasOverlapFlexible(inDay, outDay, index)) {
+        toast.error('Hotel stay overlaps with another stay')
+        return
+      }
+
+      const updated = [...hotels]
+      updated[index] = { ...hotel, check_in_day: inDay, check_out_day: outDay }
+
+      const usedNights = getUsedNights(updated)
+
+      if (usedNights > availableNights) {
+        toast.error(`Total hotel nights (${usedNights}) exceed available nights (${availableNights})`)
+        return
+      }
+
+      setHotels(updated)
+      setScheduleHotelDialog({ open: false, hotel: null, index: -1 })
     }
-
-    setAccommodations(updated)
-    setScheduleAccommodationDialog({ open: false, accommodation: null, index: -1 })
   }
 
   const handleAddPlace = (poi: POI) => {
@@ -490,6 +646,12 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
       poi_id: poi.id,
       poi_name: poi.name,
       time_type: 'any_time',
+      latitude: poi.latitude,
+      longitude: poi.longitude,
+      themes: poi.themes,
+      role: poi.role,
+      openHours: poi.openHours,
+      images: poi.images,
     }
     setMandatoryPOIs([...mandatoryPOIs, newPlace])
     setPlacesSearch('')
@@ -519,16 +681,6 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
     setSchedulePlaceDialog({ open: false, place: null, index: -1 })
   }
 
-  const formatDateDisplay = (date?: Date) => {
-    if (!date) return 'Not set'
-    return format(date, 'MMM d, yyyy')
-  }
-
-  const formatDayDisplay = (day?: number) => {
-    if (day === undefined) return 'Not set'
-    return `Day ${day}`
-  }
-
   const generateAPIPayload = () => {
     const destination = form.watch('destination')
     const customTitle = form.watch('title')
@@ -536,26 +688,43 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
     const endDate = form.watch('endDate')
     const flexibleDays = form.watch('flexibleDays')
     const isMuslim = form.watch('isMuslim')
+    const wheelchairAccessible = form.watch('wheelchairAccessible')
     const kidFriendly = form.watch('kidFriendly')
     const petFriendly = form.watch('petFriendly')
     const title = generateTitle(customTitle, destination, dateMode, startDate, endDate, flexibleDays)
 
-    const accommodationsPayload = accommodations.map((acc) => ({
+    const hotelPayload = hotels.map((acc) => ({
       poi_id: acc.poi_id,
+      poi_name: acc.poi_name,
+      latitude: acc.latitude,
+      longitude: acc.longitude,
       check_in_date: acc.check_in_date ? formatDateToISO(acc.check_in_date) : undefined,
       check_out_date: acc.check_out_date ? formatDateToISO(acc.check_out_date) : undefined,
       check_in_day: acc.check_in_day,
       check_out_day: acc.check_out_day,
+      themes: acc.themes,
+      role: acc.role,
+      open_hours: acc.openHours,
+      images: acc.images,
     }))
 
     const mandatoryPOIsPayload = mandatoryPOIs.map((poi) => ({
       poi_id: poi.poi_id,
+      poi_name: poi.poi_name,
+      latitude: poi.latitude,
+      longitude: poi.longitude,
       date: poi.date ? formatDateToISO(poi.date) : undefined,
       day: poi.day,
       time_type: poi.time_type,
       start_time: poi.time_type === 'specific' ? poi.start_time : undefined,
       end_time: poi.time_type === 'specific' ? poi.end_time : undefined,
+      themes: poi.themes,
+      role: poi.role,
+      open_hours: poi.openHours,
+      images: poi.images,
     }))
+
+    const dietaryRestrictionsValue = form.watch('dietaryRestrictions')
 
     const basePayload = {
       title,
@@ -566,16 +735,18 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
         pets: form.watch('pets'),
       },
       preferences: {
-        budget: form.watch('budget'),
+        // budget: form.watch('budget'),
         pacing: form.watch('pacing'),
         interests: form.watch('interests'),
       },
       flags: {
         ...(isMuslim && { is_muslim: true }),
+        ...(wheelchairAccessible && { wheelchair_accessible: true }),
         ...(kidFriendly && { kids_friendly: true }),
         ...(petFriendly && { pets_friendly: true }),
       },
-      ...(accommodationsPayload.length > 0 && { accommodations: accommodationsPayload }),
+      ...(dietaryRestrictionsValue && dietaryRestrictionsValue !== 'none' && { dietary_restrictions: dietaryRestrictionsValue }),
+      ...(hotelPayload.length > 0 && { hotels: hotelPayload }),
       ...(mandatoryPOIsPayload.length > 0 && { mandatory_pois: mandatoryPOIsPayload }),
     }
 
@@ -653,28 +824,39 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
   }, [locationSearch])
 
   useEffect(() => {
-    if (accommodationSearchTimeoutRef.current) {
-      clearTimeout(accommodationSearchTimeoutRef.current)
+    if (hotelSearchTimeoutRef.current) {
+      clearTimeout(hotelSearchTimeoutRef.current)
     }
 
-    if (accommodationSearch.length >= 3 && destination) {
-      setIsSearchingAccommodation(true)
-      accommodationSearchTimeoutRef.current = setTimeout(async () => {
-        const results = await searchPOIsByDestinationAndRole(destination, ['accommodation'], accommodationSearch)
-        setAccommodationPOIs(results.map((poi) => ({ id: poi.id, name: poi.name, role: 'accommodation' })))
-        setIsSearchingAccommodation(false)
+    if (hotelSearch.length >= 3 && destination) {
+      setIsSearchingHotel(true)
+      hotelSearchTimeoutRef.current = setTimeout(async () => {
+        const results = await searchPOIsByDestinationAndRole(destination, ['accommodation'], hotelSearch)
+        setHotelPOIs(
+          results.map((poi) => ({
+            id: poi.id,
+            name: poi.name,
+            role: poi.role || 'accommodation',
+            latitude: poi.coordinates?.lat || 0,
+            longitude: poi.coordinates?.lng || 0,
+            themes: poi.themes || [],
+            openHours: poi.openHours,
+            images: poi.images || [],
+          }))
+        )
+        setIsSearchingHotel(false)
       }, 300)
     } else {
-      setAccommodationPOIs([])
-      setIsSearchingAccommodation(false)
+      setHotelPOIs([])
+      setIsSearchingHotel(false)
     }
 
     return () => {
-      if (accommodationSearchTimeoutRef.current) {
-        clearTimeout(accommodationSearchTimeoutRef.current)
+      if (hotelSearchTimeoutRef.current) {
+        clearTimeout(hotelSearchTimeoutRef.current)
       }
     }
-  }, [accommodationSearch, destination])
+  }, [hotelSearch, destination])
 
   useEffect(() => {
     if (placesSearchTimeoutRef.current) {
@@ -685,7 +867,18 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
       setIsSearchingPlaces(true)
       placesSearchTimeoutRef.current = setTimeout(async () => {
         const results = await searchPOIsByDestinationAndRole(destination, ['meal', 'attraction'], placesSearch)
-        setPlacesPOIs(results.map((poi) => ({ id: poi.id, name: poi.name, role: poi.category })))
+        setPlacesPOIs(
+          results.map((poi) => ({
+            id: poi.id,
+            name: poi.name,
+            role: poi.role || poi.category,
+            latitude: poi.coordinates?.lat || 0,
+            longitude: poi.coordinates?.lng || 0,
+            themes: poi.themes || [],
+            openHours: poi.openHours,
+            images: poi.images || [],
+          }))
+        )
         setIsSearchingPlaces(false)
       }, 300)
     } else {
@@ -699,7 +892,6 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
       }
     }
   }, [placesSearch, destination])
-
 
   // RENDER
   return (
@@ -755,16 +947,16 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
                   <Input readOnly value={whoDisplay} onClick={() => setShowWhoDialog(true)} className="cursor-pointer" placeholder="Select travelers" />
                 </Field>
 
-                <Field>
+                {/* <Field>
                   <FieldLabel>Budget</FieldLabel>
                   <Input
                     readOnly
-                    value={BUDGET_LABELS[budgetKey]}
+                    value={BUDGET_OPTIONS.find((d) => d.value === budget)?.label || ''}
                     onClick={() => setShowBudgetDialog(true)}
                     className="cursor-pointer"
                     placeholder="Select budget"
                   />
-                </Field>
+                </Field> */}
 
                 <Field>
                   <FieldLabel>Travel Pacing</FieldLabel>
@@ -774,6 +966,17 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
                     onClick={() => setShowPacingDialog(true)}
                     className="cursor-pointer"
                     placeholder="Select pacing"
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel>Dietary Restrictions</FieldLabel>
+                  <Input
+                    readOnly
+                    value={DIETARY_OPTIONS.find((d) => d.value === dietaryRestrictions)?.label || ''}
+                    onClick={() => setShowDietaryDialog(true)}
+                    className="cursor-pointer"
+                    placeholder="Select dietary restrictions"
                   />
                 </Field>
 
@@ -796,7 +999,7 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
                         type="button"
                         variant={watchInterests.includes(i.value) ? 'default' : 'outline'}
                         onClick={() => toggleInterest(i.value)}
-                        className={watchInterests.includes(i.value) ? 'bg-linear-to-r/longer from-gray via-gray-700 to-gray' : ''}
+                        className={watchInterests.includes(i.value) ? 'from-gray to-gray bg-linear-to-r/longer via-gray-700' : ''}
                       >
                         {i.label}
                       </Button>
@@ -816,71 +1019,89 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
                         <ChevronRight className="size-5" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>
-                      Additional settings
-                    </TooltipContent>
+                    <TooltipContent>Additional settings</TooltipContent>
                   </Tooltip>
-
                 </Field>
               </FieldGroup>
             )}
 
             {currentStep === 3 && (
               <FieldGroup>
-                <Field>
-                  <FieldLabel>Accommodation</FieldLabel>
-                  <SearchableSelect
-                    inputValue={accommodationSearch}
-                    onInputChange={setAccommodationSearch}
-                    placeholder={accommodations.length >= totalDays ? 'Total number of accommodation cannot exceed total number of days' : 'Search for hotels, hostels...'}
-                    minLength={3}
-                    open={accommodationOpen}
-                    onOpenChange={setAccommodationOpen}
-                    isLoading={isSearchingAccommodation}
-                    items={accommodationPOIs}
-                    getItemKey={(p) => p.id}
-                    getItemLabel={(p) => p.name}
-                    onSelect={(poi) => {
-                      if (accommodations.length >= totalDays) {
-                        toast.error('You cannot add more accommodations than the total number of days')
-                        return
+                {totalDays > 1 && (
+                  <Field>
+                    <FieldLabel>Hotel</FieldLabel>
+                    <SearchableSelect
+                      inputValue={hotelSearch}
+                      onInputChange={setHotelSearch}
+                      placeholder={
+                        hotels.length >= availableNights || (dateMode === 'specific' ? !hasAvailableCheckInSpecific : !hasAvailableCheckInFlexible)
+                          ? 'No more hotel dates available'
+                          : 'Search for hotels, hostels...'
                       }
-                      handleAddAccommodation(poi)
-                    }}
-                    disabled={accommodations.length >= totalDays}
-                  />
+                      minLength={3}
+                      open={hotelOpen}
+                      onOpenChange={(open) => {
+                        const addDisabledByNights = hotels.length >= availableNights
+                        const addDisabledByOccupancy = dateMode === 'specific' ? !hasAvailableCheckInSpecific : !hasAvailableCheckInFlexible
+                        if ((addDisabledByNights || addDisabledByOccupancy) && open) {
+                          const msg = addDisabledByNights
+                            ? 'Total number of hotels cannot be more than the number of nights in the trip'
+                            : 'No available hotel check-in dates remain in your trip'
+                          toast.error(msg)
+                          return false
+                        }
+                        setHotelOpen(open)
+                      }}
+                      isLoading={isSearchingHotel}
+                      items={hotelPOIs}
+                      getItemKey={(p) => p.id}
+                      getItemLabel={(p) => p.name}
+                      onSelect={(poi) => {
+                        handleAddHotel(poi)
+                      }}
+                      disabled={
+                        hotels.length >= availableNights || (dateMode === 'specific' ? !hasAvailableCheckInSpecific : !hasAvailableCheckInFlexible)
+                      }
+                    />
 
-                  <div className="space-y-2">
-                    {accommodations.map((acc, index) => (
-                      <div key={index} className="border rounded-xl p-3 pt-2">
-                        <div className="min-w-0 flex-1 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium">{acc.poi_name}</span>
-                            <Button variant="ghost" size="icon" onClick={() => handleRemoveAccommodation(index)} className="h-8 w-8">
-                              <X />
-                            </Button>
-                          </div>
-                          <div className="flex gap-2">
-                            <Input
-                              readOnly
-                              value={dateMode === 'specific' ? formatDateDisplay(acc.check_in_date) : formatDayDisplay(acc.check_in_day)}
-                              onClick={() => handleOpenAccommodationSchedule(acc, index)}
-                              className="h-8 cursor-pointer text-xs"
-                              placeholder="Check-in"
-                            />
-                            <Input
-                              readOnly
-                              value={dateMode === 'specific' ? formatDateDisplay(acc.check_out_date) : formatDayDisplay(acc.check_out_day)}
-                              onClick={() => handleOpenAccommodationSchedule(acc, index)}
-                              className="h-8 cursor-pointer text-xs"
-                              placeholder="Check-out"
-                            />
+                    <div className="space-y-2">
+                      {hotels.map((acc, index) => (
+                        <div key={index} className="rounded-xl border p-3 pt-2">
+                          <div className="min-w-0 flex-1 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium">{acc.poi_name}</span>
+                              <Button variant="ghost" size="icon" onClick={() => handleRemoveHotel(index)} className="h-8 w-8">
+                                <X />
+                              </Button>
+                            </div>
+                            <div className="flex gap-4">
+                              <div className="flex w-full flex-col items-center">
+                                <Label className="text-muted-foreground/60 text-xs">Check-in</Label>
+                                <Input
+                                  readOnly
+                                  value={dateMode === 'specific' ? formatDateDisplay(acc.check_in_date) : formatDayDisplay(acc.check_in_day)}
+                                  onClick={() => handleOpenHotelSchedule(acc, index)}
+                                  className="h-8 w-full cursor-pointer text-xs"
+                                  placeholder="Check-in"
+                                />
+                              </div>
+                              <div className="flex w-full flex-col items-center">
+                                <Label className="text-muted-foreground/60 text-xs">Check-out</Label>
+                                <Input
+                                  readOnly
+                                  value={dateMode === 'specific' ? formatDateDisplay(acc.check_out_date) : formatDayDisplay(acc.check_out_day)}
+                                  onClick={() => handleOpenHotelSchedule(acc, index)}
+                                  className="h-8 w-full cursor-pointer text-xs"
+                                  placeholder="Check-out"
+                                />
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </Field>
+                      ))}
+                    </div>
+                  </Field>
+                )}
 
                 <Field>
                   <FieldLabel>Places to Visit</FieldLabel>
@@ -900,40 +1121,45 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
 
                   <div className="space-y-2">
                     {mandatoryPOIs.map((place, index) => (
-                      <div key={index} className="border rounded-xl p-3 pt-2">
+                      <div key={index} className="rounded-xl border p-3 pt-2">
                         <div className="min-w-0 flex-1 space-y-2">
                           <div className="flex items-center justify-between">
-                            <span className='text-sm font-medium'>{place.poi_name}</span>
+                            <span className="text-sm font-medium">{place.poi_name}</span>
                             <Button variant="ghost" size="icon" onClick={() => handleRemovePlace(index)} className="h-8 w-8">
                               <X />
                             </Button>
                           </div>
-                          <div className="mt-1 flex gap-2">
-                            <Input
-                              readOnly
-                              value={dateMode === 'specific' ? formatDateDisplay(place.date) : formatDayDisplay(place.day)}
-                              onClick={() => handleOpenPlaceSchedule(place, index)}
-                              className="h-8 cursor-pointer text-xs"
-                              placeholder="Date"
-                            />
-                            <Input
-                              readOnly
-                              value={
-                                place.time_type === 'all_day'
-                                  ? 'All day'
-                                  : place.time_type === 'any_time'
-                                    ? 'Any time'
-                                    : place.start_time && place.end_time
-                                      ? `${place.start_time} - ${place.end_time}`
-                                      : 'Set time'
-                              }
-                              onClick={() => handleOpenPlaceSchedule(place, index)}
-                              className="h-8 cursor-pointer text-xs"
-                              placeholder="Time"
-                            />
+                          <div className="flex gap-4">
+                            <div className="flex w-full flex-col items-center">
+                              <Label className="text-muted-foreground/60 text-xs">{dateMode === 'specific' ? 'Date' : 'Day'}</Label>
+                              <Input
+                                readOnly
+                                value={dateMode === 'specific' ? formatDateDisplay(place.date) : formatDayDisplay(place.day)}
+                                onClick={() => handleOpenPlaceSchedule(place, index)}
+                                className="h-8 cursor-pointer text-xs"
+                                placeholder="Date"
+                              />
+                            </div>
+                            <div className="flex w-full flex-col items-center">
+                              <Label className="text-muted-foreground/60 text-xs">Time</Label>
+                              <Input
+                                readOnly
+                                value={
+                                  place.time_type === 'all_day'
+                                    ? 'All day'
+                                    : place.time_type === 'any_time'
+                                      ? 'Any time'
+                                      : place.start_time && place.end_time
+                                        ? `${place.start_time} - ${place.end_time}`
+                                        : 'Set time'
+                                }
+                                onClick={() => handleOpenPlaceSchedule(place, index)}
+                                className="h-8 cursor-pointer text-xs"
+                                placeholder="Time"
+                              />
+                            </div>
                           </div>
                         </div>
-
                       </div>
                     ))}
                   </div>
@@ -978,6 +1204,8 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
         onPetsChange={(val) => form.setValue('pets', val)}
         isMuslim={form.watch('isMuslim') || false}
         onIsMuslimChange={(val) => form.setValue('isMuslim', val)}
+        wheelchairAccessible={form.watch('wheelchairAccessible') || false}
+        onWheelchairAccessibleChange={(val) => form.setValue('wheelchairAccessible', val)}
         kidFriendly={form.watch('kidFriendly') || false}
         onKidFriendlyChange={(val) => form.setValue('kidFriendly', val)}
         petFriendly={form.watch('petFriendly') || false}
@@ -985,13 +1213,13 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
         onSave={() => setShowWhoDialog(false)}
       />
 
-      <BudgetDialog
+      {/* <BudgetDialog
         open={showBudgetDialog}
         onOpenChange={setShowBudgetDialog}
         budget={budget}
         onBudgetChange={(val) => form.setValue('budget', val)}
         onSave={() => setShowBudgetDialog(false)}
-      />
+      /> */}
 
       <PacingDialog
         open={showPacingDialog}
@@ -1001,38 +1229,76 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
         onSave={() => setShowPacingDialog(false)}
       />
 
-      {scheduleAccommodationDialog.accommodation && (
+      <DietaryDialog
+        open={showDietaryDialog}
+        onOpenChange={setShowDietaryDialog}
+        dietaryRestrictions={dietaryRestrictions}
+        onDietaryRestrictionsChange={(val) => form.setValue('dietaryRestrictions', val)}
+        onSave={() => setShowDietaryDialog(false)}
+      />
+
+      {scheduleHotelDialog.hotel && (
         <ScheduleDialog
-          open={scheduleAccommodationDialog.open}
-          onOpenChange={(open) => setScheduleAccommodationDialog({ open, accommodation: null, index: -1 })}
+          open={scheduleHotelDialog.open}
+          onOpenChange={(open) => setScheduleHotelDialog({ open, hotel: null, index: -1 })}
           mode="multi-day"
-          title={`Schedule: ${scheduleAccommodationDialog.accommodation.poi_name}`}
+          title={`Schedule: ${scheduleHotelDialog.hotel.poi_name}`}
           isSpecificDates={dateMode === 'specific'}
           availableDates={
             dateMode === 'specific' && startDate && endDate
               ? Array.from({ length: totalDays }, (_, i) => new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000))
               : Array.from({ length: totalDays }, () => new Date())
           }
-          disabledDates={(date) => isDateDisabledForAccommodation(date, scheduleAccommodationDialog.index)}
+          disabledDates={(date) => isDateDisabledForHotel(date, scheduleHotelDialog.index)}
+          disabledCheckInDayIndices={
+            dateMode === 'flexible'
+              ? (() => {
+                  const occupied = computeOccupiedFlexible(scheduleHotelDialog.index)
+                  const indices = new Set<number>()
+                  occupied.forEach((d) => indices.add(d))
+                  // still prevent check-in on the very last trip day (no night after)
+                  indices.add(totalDays)
+                  return Array.from(indices)
+                })()
+              : undefined
+          }
+          disabledCheckOutDayIndices={
+            dateMode === 'flexible'
+              ? (() => {
+                  const base = new Set<number>()
+                  // cannot check-out on trip start (no night before it)
+                  base.add(1)
+                  const inDay = scheduleHotelDialog.hotel?.check_in_day
+                  if (typeof inDay === 'number') {
+                    // cannot check-out same day as check-in
+                    base.add(inDay)
+                    const occ = computeOccupiedFlexible(scheduleHotelDialog.index)
+                    // disable the in-range occupied days (they belong to other hotels)
+                    occ.forEach((d) => base.add(d))
+                  }
+                  return Array.from(base)
+                })()
+              : undefined
+          }
           defaultMonth={startDate}
-          dateRange={{ from: scheduleAccommodationDialog.accommodation.check_in_date, to: scheduleAccommodationDialog.accommodation.check_out_date }}
+          dateRange={{ from: scheduleHotelDialog.hotel.check_in_date, to: scheduleHotelDialog.hotel.check_out_date }}
           onDateRangeChange={(range) => {
-            const updated = { ...scheduleAccommodationDialog.accommodation! }
+            const updated = { ...scheduleHotelDialog.hotel! }
             updated.check_in_date = range?.from
             updated.check_out_date = range?.to
-            setScheduleAccommodationDialog({ ...scheduleAccommodationDialog, accommodation: updated })
+            setScheduleHotelDialog({ ...scheduleHotelDialog, hotel: updated })
           }}
-          checkInDay={scheduleAccommodationDialog.accommodation.check_in_day?.toString()}
+          checkInDay={scheduleHotelDialog.hotel.check_in_day?.toString()}
           onCheckInDayChange={(day) => {
-            const updated = { ...scheduleAccommodationDialog.accommodation!, check_in_day: parseInt(day, 10) }
-            setScheduleAccommodationDialog({ ...scheduleAccommodationDialog, accommodation: updated })
+            const updated = { ...scheduleHotelDialog.hotel!, check_in_day: parseInt(day, 10) }
+            setScheduleHotelDialog({ ...scheduleHotelDialog, hotel: updated })
           }}
-          checkOutDay={scheduleAccommodationDialog.accommodation.check_out_day?.toString()}
+          checkOutDay={scheduleHotelDialog.hotel.check_out_day?.toString()}
           onCheckOutDayChange={(day) => {
-            const updated = { ...scheduleAccommodationDialog.accommodation!, check_out_day: parseInt(day, 10) }
-            setScheduleAccommodationDialog({ ...scheduleAccommodationDialog, accommodation: updated })
+            const updated = { ...scheduleHotelDialog.hotel!, check_out_day: parseInt(day, 10) }
+            setScheduleHotelDialog({ ...scheduleHotelDialog, hotel: updated })
           }}
-          onSave={handleSaveAccommodationSchedule}
+          onSave={handleSaveHotelSchedule}
         />
       )}
 
@@ -1046,7 +1312,7 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
           availableDates={
             dateMode === 'specific' && startDate && endDate
               ? Array.from({ length: totalDays }, (_, i) => new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000))
-              : Array.from({ length: totalDays }, (_, i) => new Date())
+              : Array.from({ length: totalDays }, () => new Date())
           }
           disabledDates={(date) => {
             if (!startDate || !endDate) return true

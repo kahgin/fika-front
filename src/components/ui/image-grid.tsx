@@ -30,7 +30,7 @@ export function ImageGrid({ images, title, maxImages = 5 }: ImageGridProps) {
   if (displayImages.length === 0) {
     return (
       <div className="flex aspect-video w-full items-center justify-center rounded-2xl bg-gray-100">
-        <div className="flex items-center gap-2 text-gray-500">
+        <div className="text-muted-foreground flex items-center gap-2">
           <AlertCircle className="size-4" />
           <span className="text-sm">No images available</span>
         </div>
@@ -247,14 +247,14 @@ function ImageItem({ src, alt, isError, onLoad, onError }: ImageItemProps) {
     <div className="relative h-full w-full overflow-hidden bg-gray-100">
       {isError && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-300">
-          <AlertCircle className="size-5 text-gray-500" />
+          <AlertCircle className="text-muted-foreground size-5" />
         </div>
       )}
 
       <img
         referrerPolicy="no-referrer"
-        src={`https://picsum.photos/seed/${alt}/1500/1500`}
-        // src={`${src}=s1500`}
+        // src={`https://picsum.photos/seed/${alt}/1500/1500`}
+        src={`${src}=s1500`}
         alt={alt}
         onLoad={onLoad}
         onError={onError}

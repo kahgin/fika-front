@@ -18,7 +18,6 @@ const DAYS_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Sat
 
 export function parseOpenHours(openHoursData: unknown): ParsedOpenHours | null {
   if (!openHoursData || typeof openHoursData !== 'object') {
-    console.log('No open hours available')
     return null
   }
 

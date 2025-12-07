@@ -17,6 +17,8 @@ interface WhoDialogProps {
   onPetsChange: (value: number) => void
   isMuslim: boolean
   onIsMuslimChange: (value: boolean) => void
+  wheelchairAccessible: boolean
+  onWheelchairAccessibleChange: (value: boolean) => void
   kidFriendly: boolean
   onKidFriendlyChange: (value: boolean) => void
   petFriendly: boolean
@@ -35,6 +37,8 @@ export const WhoDialog: React.FC<WhoDialogProps> = ({
   onPetsChange,
   isMuslim,
   onIsMuslimChange,
+  wheelchairAccessible,
+  onWheelchairAccessibleChange,
   kidFriendly,
   onKidFriendlyChange,
   petFriendly,
@@ -132,6 +136,28 @@ export const WhoDialog: React.FC<WhoDialogProps> = ({
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Prioritize halal restaurants and exclude nightlife</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="wheelchairAccessible"
+                checked={wheelchairAccessible}
+                onCheckedChange={(checked) => onWheelchairAccessibleChange(checked as boolean)}
+                className="cursor-pointer"
+              />
+              <label
+                htmlFor="wheelchairAccessible"
+                className="text-primary/90 cursor-pointer text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                Wheelchair accessible
+              </label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="text-muted-foreground size-3.5" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Prioritize places that are wheelchair accessible</p>
                 </TooltipContent>
               </Tooltip>
             </div>

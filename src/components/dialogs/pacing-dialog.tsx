@@ -1,7 +1,5 @@
 import React from 'react'
-import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { OptionSelectDialog } from '@/components/dialogs/option-select-dialog'
 
 const PACING_OPTIONS = [
   { value: 'relaxed', label: 'Relaxed' },
@@ -19,25 +17,14 @@ interface PacingDialogProps {
 
 export const PacingDialog: React.FC<PacingDialogProps> = ({ open, onOpenChange, pacing, onPacingChange, onSave }) => {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Pacing</DialogTitle>
-        </DialogHeader>
-        <RadioGroup value={pacing} onValueChange={onPacingChange}>
-          {PACING_OPTIONS.map((p) => (
-            <div key={p.value} className="flex items-center space-x-3">
-              <RadioGroupItem value={p.value} id={p.value} />
-              <label className="text-sm" htmlFor={p.value}>
-                {p.label}
-              </label>
-            </div>
-          ))}
-        </RadioGroup>
-        <DialogFooter>
-          <Button onClick={onSave}>Update</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <OptionSelectDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Pacing"
+      options={PACING_OPTIONS}
+      value={pacing}
+      onValueChange={onPacingChange}
+      onSave={onSave}
+    />
   )
 }

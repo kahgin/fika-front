@@ -27,27 +27,12 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { BadgeCheck, LogOut } from 'lucide-react'
 
-interface SidebarProps {
-  user: {
-    name: string
-    email: string
-    avatar: string
-  } | null
-}
-
-export function AppSidebar({ user }: SidebarProps) {
+export function AppSidebar({ user }: { user: any }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { state, isMobile } = useSidebar()
   const [isLogoHovered, setIsLogoHovered] = useState(false)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
-
-  // Default placeholder user
-  const displayUser = user || {
-    name: 'Traveller',
-    email: 'traveller@example.com',
-    avatar: '',
-  }
 
   const getCurrentView = (): NavigationViewType | string => {
     const path = location.pathname.slice(1) || 'chat'
@@ -71,7 +56,7 @@ export function AppSidebar({ user }: SidebarProps) {
         {state === 'expanded' && (
           <div className="flex w-full justify-between px-2">
             <Logo variant="full" size="lg" />
-            <SidebarTrigger className="transition-colors duration-200 hover:bg-gray-200" />
+            <SidebarTrigger className="hover:bg-muted-foreground/15 transition-colors duration-200" />
           </div>
         )}
         {state === 'collapsed' && (
@@ -85,7 +70,9 @@ export function AppSidebar({ user }: SidebarProps) {
               iconClassName="size-6"
               className={`absolute flex transition-all duration-300 ease-in-out ${isLogoHovered ? 'scale-0 rotate-12 opacity-0' : 'scale-100 rotate-0 opacity-100'} `}
             />
-            <SidebarTrigger className={`transition-all duration-300 ease-in-out hover:bg-gray-200 ${isLogoHovered ? 'opacity-100' : 'opacity-0'} `} />
+            <SidebarTrigger
+              className={`hover:bg-muted-foreground/15 transition-all duration-300 ease-in-out ${isLogoHovered ? 'opacity-100' : 'opacity-0'} `}
+            />
           </div>
         )}
       </SidebarHeader>
@@ -116,13 +103,13 @@ export function AppSidebar({ user }: SidebarProps) {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton size="lg">
-                  <Avatar className="rounded-lg">
-                    <AvatarImage src={displayUser.avatar} alt={displayUser.name} />
-                    <AvatarFallback>{displayUser.name.charAt(0).toUpperCase()}</AvatarFallback>
+                  <Avatar>
+                    <AvatarImage src={user.avatar} alt={user.name} />
+                    <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-medium">{displayUser.name}</span>
-                    <span className="truncate text-xs">{displayUser.email}</span>
+                    <span className="truncate font-medium">{user.name}</span>
+                    <span className="truncate text-xs">{user.email}</span>
                   </div>
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
@@ -134,13 +121,13 @@ export function AppSidebar({ user }: SidebarProps) {
               >
                 <DropdownMenuLabel className="p-0 font-normal">
                   <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                    <Avatar className="rounded-lg">
-                      <AvatarImage src={displayUser.avatar} alt={displayUser.name} />
-                      <AvatarFallback>{displayUser.name.charAt(0).toUpperCase()}</AvatarFallback>
+                    <Avatar>
+                      <AvatarImage src={user.avatar} alt={user.name} />
+                      <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <div className="grid flex-1 text-left text-sm leading-tight">
-                      <span className="truncate font-medium">{displayUser.name}</span>
-                      <span className="truncate text-xs">{displayUser.email}</span>
+                      <span className="truncate font-medium">{user.name}</span>
+                      <span className="truncate text-xs">{user.email}</span>
                     </div>
                   </div>
                 </DropdownMenuLabel>
@@ -162,7 +149,7 @@ export function AppSidebar({ user }: SidebarProps) {
   )
 }
 
-export function SidebarLayout({ user, children }: SidebarProps & { children: React.ReactNode }) {
+export function SidebarLayout({ children, user }: { children: React.ReactNode; user: any }) {
   return (
     <>
       <AppSidebar user={user} />

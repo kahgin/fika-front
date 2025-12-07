@@ -1,6 +1,6 @@
-import { Church, Mountain, Palette, Baby, Trees, Music, Sparkles, ShoppingBag, Landmark, UtensilsCrossed, Hotel, MapPin } from 'lucide-react'
+import { Church, Kayak, Palette, Baby, TreeDeciduous, Martini, Sparkles, Store, Landmark, IceCreamBowl, Utensils, BedSingle, MapPin } from 'lucide-react'
 
-export type POIRole = 'depot' | 'hotel' | 'accommodation' | 'meal' | 'attraction'
+export type POIRole = 'depot' | 'meal' | 'attraction'
 export type POITheme =
   | 'religious_sites'
   | 'adventure'
@@ -16,15 +16,15 @@ export type POITheme =
 // Theme icon mapping
 const themeIcons: Record<POITheme, typeof Church> = {
   religious_sites: Church,
-  adventure: Mountain,
+  adventure: Kayak,
   art_museums: Palette,
   family: Baby,
-  nature: Trees,
-  nightlife: Music,
+  nature: TreeDeciduous,
+  nightlife: Martini,
   relax: Sparkles,
-  shopping: ShoppingBag,
+  shopping: Store,
   cultural_history: Landmark,
-  food_culinary: UtensilsCrossed,
+  food_culinary: IceCreamBowl,
 }
 
 /**
@@ -32,14 +32,14 @@ const themeIcons: Record<POITheme, typeof Church> = {
  * Priority: role-specific icons (hotel, meal) > theme icons > generic attraction icon
  */
 function getPOIIconInternal(role?: string, themes?: string[] | null): typeof MapPin {
-  // Handle accommodation/hotel/depot roles
-  if (role === 'depot' || role === 'hotel' || role === 'accommodation') {
-    return Hotel
+  // Handle depot roles
+  if (role === 'depot') {
+    return BedSingle
   }
 
   // Handle meal role
   if (role === 'meal') {
-    return UtensilsCrossed
+    return Utensils
   }
 
   // For attractions, check themes

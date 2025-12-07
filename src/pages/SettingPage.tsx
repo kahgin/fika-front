@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { useAuth } from '@/contexts/AuthContext'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { BOTTOM_NAV_HEIGHT } from '@/components/bottom-nav'
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 
 export default function SettingsPage() {
   const { user, setUser } = useAuth()
@@ -34,7 +35,6 @@ export default function SettingsPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     // send to backend here
-    console.log('Saving:', formValues)
     if (user) {
       setUser({ ...user, ...formValues })
     }
@@ -54,14 +54,12 @@ export default function SettingsPage() {
 
             {/* Profile Picture */}
             <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600">
-                <span className="text-xl font-semibold text-white">
-                  {(user?.name || 'G')
-                    .split(' ')
-                    .map((n) => n[0])
-                    .join('')}
-                </span>
-              </div>
+              {user?.avatar && (
+                <Avatar className="h-12 w-12 ">
+                  <AvatarImage src={user.avatar} alt={user.name} />
+                  <AvatarFallback className="text-xs">{user.name.charAt(0).toUpperCase()}</AvatarFallback>
+                </Avatar>
+              )}
               <div>
                 <h6>@{user?.username || 'guest'}</h6>
                 <a href="#" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary text-sm hover:no-underline">
@@ -85,14 +83,14 @@ export default function SettingsPage() {
             {/* Username Field */}
             <div>
               <label className="mb-2 block text-sm font-medium">Username</label>
-              <Input name="username" type="username" value={`@${user?.username || 'guest'}`} readOnly />
+              <Input name="username" type="username" value={`@${user?.username}`} readOnly />
             </div>
 
             {/* Password */}
             <div>
               <label className="mb-2 block text-sm font-medium">Password</label>
               <div className="flex items-center gap-2">
-                <Input value={`••••••••••••`} className="select-none" readOnly />
+                <Input type="password" value={`password`} className="select-none" readOnly />
                 <Button variant="outline" onClick={() => setShowPasswordModal(true)}>
                   Change
                 </Button>
@@ -144,7 +142,6 @@ export default function SettingsPage() {
                 type="submit"
                 onClick={(e) => {
                   e.preventDefault()
-                  console.log('Password changed')
                   setShowPasswordModal(false)
                 }}
               >
@@ -169,7 +166,6 @@ export default function SettingsPage() {
             <Button
               className="bg-red-600 hover:bg-red-700"
               onClick={() => {
-                console.log('Account deleted')
                 setShowDeleteConfirm(false)
               }}
             >

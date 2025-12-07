@@ -131,8 +131,7 @@ export function AddPOIToItineraryForm({ open, onOpenChange, poi, onSuccess }: Ad
             <p className="text-muted-foreground text-sm">Loading itineraries…</p>
           ) : itineraries.length === 0 ? (
             <div className="space-y-4">
-              <p className="text-sm">No itineraries found.</p>
-              <p className="text-muted-foreground text-xs">Create a trip first, then add places.</p>
+              <p className="text-muted-foreground text-sm">No itineraries found. Create a trip first, then add places.</p>
               <div className="flex gap-2">
                 <Button
                   className="flex-1"

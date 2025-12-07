@@ -64,7 +64,7 @@ export default function POIPanel({ poi, size = 'half', onClose, onToggleFullWidt
   const scrollToSection = (sectionId: string) => {
     const element = sectionId === 'overview' ? overviewRef.current : locationRef.current
     if (element && contentRef.current) {
-      const offset = element.offsetTop - 160
+      const offset = element.offsetTop - 220
       contentRef.current.scrollTo({ top: offset, behavior: 'smooth' })
       setActiveSection(sectionId)
     }
@@ -134,7 +134,7 @@ export default function POIPanel({ poi, size = 'half', onClose, onToggleFullWidt
             <button
               onClick={() => scrollToSection('overview')}
               className={`border-b-2 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
-                activeSection === 'overview' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'
+                activeSection === 'overview' ? 'border-primary text-primary' : 'text-muted-foreground hover:text-primary/80 border-transparent'
               }`}
             >
               Overview
@@ -142,7 +142,7 @@ export default function POIPanel({ poi, size = 'half', onClose, onToggleFullWidt
             <button
               onClick={() => scrollToSection('location')}
               className={`border-b-2 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
-                activeSection === 'location' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'
+                activeSection === 'location' ? 'border-primary text-primary' : 'text-muted-foreground hover:text-primary/80 border-transparent'
               }`}
             >
               Location

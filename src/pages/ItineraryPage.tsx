@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { formatDateRange } from '@/lib/date-range'
 import { Button } from '@/components/ui/button'
 import { deleteItinerary, listItineraries, type CreatedItinerary } from '@/services/api'
 import { Map, SquareArrowOutUpRight, Trash } from 'lucide-react'
@@ -91,7 +92,13 @@ export default function ItineraryPage() {
               <div key={c.itin_id} className="flex items-center justify-between rounded-lg border p-3">
                 <div>
                   <div className="font-medium">{c.meta?.title}</div>
-                  <div className="text-muted-foreground text-sm">{c.itin_id}</div>
+                  <div className="text-muted-foreground text-sm">
+                    {c?.meta?.dates?.type === 'specific'
+                      ? formatDateRange(c?.meta?.dates?.startDate, c?.meta?.dates?.endDate)
+                      : c?.meta?.dates?.days
+                        ? `${c?.meta?.dates?.days} days`
+                        : ''}
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <Tooltip>

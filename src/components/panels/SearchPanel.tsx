@@ -172,7 +172,7 @@ export default function SearchPanel({ onPOISelect, size = 'half' }: SearchPanelP
       <div className="flex-shrink-0 border-b">
         <form onSubmit={handleSearch} className="mb-4">
           <div className="relative">
-            <InputGroup className="!focus-within:border !focus-within:ring-0 !focus-within:border-transparent h-12 rounded-none border-0 border-b px-2 !ring-0 !ring-offset-0">
+            <InputGroup className="!focus-within:border !focus-within:ring-0 !focus-within:border-transparent has-[[data-slot=input-group-control]:focus-visible]:border-input rounded-none border-0 border-b px-2 py-6.5 has-[[data-slot=input-group-control]:focus-visible]:ring-0">
               <InputGroupInput type="text" placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} disabled={loading} />
               <InputGroupAddon>
                 <Search />
@@ -227,8 +227,8 @@ export default function SearchPanel({ onPOISelect, size = 'half' }: SearchPanelP
           </div>
         ) : error && pois.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-3">
-            <AlertCircle className="size-6 text-gray-500" />
-            <p className="text-sm text-gray-600">{error}</p>
+            <AlertCircle className="text-muted-foreground size-6" />
+            <p className="text-muted-foreground text-sm">{error}</p>
             {hasSearched && (
               <Button variant="outline" size="sm" onClick={handleClearSearch}>
                 Try Different Search
@@ -254,7 +254,7 @@ export default function SearchPanel({ onPOISelect, size = 'half' }: SearchPanelP
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center bg-gray-300">
-                      <span className="text-sm text-gray-500">No image</span>
+                      <span className="text-muted-foreground text-sm">No image</span>
                     </div>
                   )}
                   <div className="absolute top-4 right-4">

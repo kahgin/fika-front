@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { format, startOfMonth } from 'date-fns'
+import { formatDateRange } from '@/lib/date-range'
 import type { DateRange } from 'react-day-picker'
 import {
   DndContext,
@@ -33,7 +34,7 @@ import { BOTTOM_NAV_HEIGHT } from '@/components/bottom-nav'
 import { Separator } from '@/components/ui/separator'
 import { toast } from 'sonner'
 import { POIIcon } from '@/lib/poi-icons'
-import { WhenDialog, WhoDialog, BudgetDialog, PacingDialog } from '@/components/dialogs'
+import { WhenDialog, WhoDialog, PacingDialog } from '@/components/dialogs'
 
 interface Stop {
   poi_id: string
@@ -119,7 +120,7 @@ function SortableStop({
       {...attributes}
       {...listeners}
       className={cn(
-        'group relative flex items-start p-3 transition-colors items-center',
+        'group relative flex items-center items-start rounded-xl border p-3 transition-colors',
         isDragging && 'opacity-50',
         'cursor-grab hover:bg-gray-50 active:cursor-grabbing'
       )}
@@ -133,15 +134,14 @@ function SortableStop({
         }
       }}
     >
-
       <div className="min-w-0 flex-1 space-y-1">
-        <div className='flex items-center gap-2'>
+        <div className="flex items-center gap-2">
           <POIIcon role={stop.role} themes={stop.themes} className="size-3.5 flex-shrink-0" />
           <h6 className="font-medium">{stop.name}</h6>
         </div>
         {stop.arrival && onScheduleClick && (
           <div
-            className="hover:text-primary flex w-fit cursor-pointer items-center gap-2 text-sm text-gray-500"
+            className="hover:text-primary text-muted-foreground flex w-fit cursor-pointer items-center gap-2 text-sm"
             onClick={(e) => {
               e.stopPropagation()
               onScheduleClick(stop)
@@ -161,7 +161,7 @@ function SortableStop({
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 cursor-pointer px-2 text-gray-600 hover:text-gray-900"
+            className="text-muted-foreground h-8 cursor-pointer px-2 hover:text-black"
             onClick={(e) => {
               e.stopPropagation()
               onDelete(stop)
@@ -174,7 +174,7 @@ function SortableStop({
           <Button
             variant="outline"
             size="sm"
-            className=" cursor-pointer rounded-full text-xs"
+            className="cursor-pointer rounded-full text-xs"
             onClick={(e) => {
               e.stopPropagation()
               onDetails(stop)
@@ -194,7 +194,7 @@ function StopOverlay({ stop }: { stop: Stop }) {
       <div className="min-w-0 flex-1">
         <h6 className="mb-1 font-medium">{stop.name}</h6>
         {stop.arrival && (
-          <div className="flex w-fit items-center gap-1 text-sm text-gray-500">
+          <div className="text-muted-foreground flex w-fit items-center gap-1 text-sm">
             <Clock className="size-3" />
             <span>
               {stop.arrival} - {stop.depart}
@@ -224,7 +224,7 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
   // Dialog state for When, Who, Budget, Pacing
   const [showWhenDialog, setShowWhenDialog] = useState(false)
   const [showWhoDialog, setShowWhoDialog] = useState(false)
-  const [showBudgetDialog, setShowBudgetDialog] = useState(false)
+  // const [showBudgetDialog, setShowBudgetDialog] = useState(false)
   const [showPacingDialog, setShowPacingDialog] = useState(false)
 
   // When dialog state
@@ -232,9 +232,9 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
   const [dateRange, setDateRange] = useState<DateRange | undefined>(
     data?.meta?.dates?.type === 'specific' && data?.meta?.dates?.startDate && data?.meta?.dates?.endDate
       ? {
-        from: new Date(data.meta.dates.startDate),
-        to: new Date(data.meta.dates.endDate),
-      }
+          from: new Date(data.meta.dates.startDate),
+          to: new Date(data.meta.dates.endDate),
+        }
       : undefined
   )
   const [flexibleDays, setFlexibleDays] = useState(String(data?.meta?.dates?.days || '1'))
@@ -245,11 +245,12 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
   const [children, setChildren] = useState(data?.meta?.travelers?.children || 0)
   const [pets, setPets] = useState(data?.meta?.travelers?.pets || 0)
   const [isMuslim, setIsMuslim] = useState(data?.meta?.flags?.is_muslim || false)
+  const [wheelchairAccessible, setWheelchairAccessible] = useState(data?.meta?.flags?.wheelchair_accessible || false)
   const [kidFriendly, setKidFriendly] = useState(data?.meta?.flags?.kids_friendly || false)
   const [petFriendly, setPetFriendly] = useState(data?.meta?.flags?.pets_friendly || false)
 
   // Budget and Pacing state
-  const [budget, setBudget] = useState(data?.meta?.preferences?.budget || 'any')
+  // const [budget, setBudget] = useState(data?.meta?.preferences?.budget || 'any')
   const [pacing, setPacing] = useState(data?.meta?.preferences?.pacing || 'balanced')
 
   const itinId = data?.itin_id || localStorage.getItem('fika:lastChatId') || ''
@@ -264,12 +265,12 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
     useSensor(PointerSensor, {
       activationConstraint: isMobile
         ? {
-          delay: 250,
-          tolerance: 5,
-        }
+            delay: 250,
+            tolerance: 5,
+          }
         : {
-          distance: 8,
-        },
+            distance: 8,
+          },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
@@ -294,9 +295,9 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
     const sourceDayIndex = activeData.dayIndex
     const targetDayIndex = overData.dayIndex
 
-    // Don't allow moving depot/hotel
+    // Don't allow moving depot
     const activeStop = activeData.stop as Stop
-    if (activeStop.role === 'depot' || activeStop.role === 'hotel') {
+    if (activeStop.role === 'depot') {
       return
     }
 
@@ -376,7 +377,7 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
       try {
         const dayDate = new Date(days[dayIndex].date)
         setScheduleDate(dayDate)
-      } catch { }
+      } catch {}
     } else {
       setScheduleDay(String(dayIndex + 1))
     }
@@ -447,16 +448,16 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
     return poiId.split('_day')[0]
   }
 
-  type BudgetKey = 'any' | 'tight' | 'sensible' | 'upscale' | 'luxury'
-  const budgetMap: Record<BudgetKey, string> = {
-    any: '$–$$$$',
-    tight: '$',
-    sensible: '$$',
-    upscale: '$$$',
-    luxury: '$$$$',
-  }
-  const rawBudget = data?.meta?.preferences?.budget as string | undefined
-  const budgetKey: BudgetKey = rawBudget && rawBudget in budgetMap ? (rawBudget as BudgetKey) : 'any'
+  // type BudgetKey = 'any' | 'tight' | 'sensible' | 'upscale' | 'luxury'
+  // const budgetMap: Record<BudgetKey, string> = {
+  // any: '$–$$$$',
+  // tight: '$',
+  // sensible: '$$',
+  // upscale: '$$$',
+  // luxury: '$$$$',
+  // }
+  // const rawBudget = data?.meta?.preferences?.budget as string | undefined
+  // const budgetKey: BudgetKey = rawBudget && rawBudget in budgetMap ? (rawBudget as BudgetKey) : 'any'
 
   const pacingMap: Record<string, string> = {
     relaxed: 'Relaxed',
@@ -471,12 +472,12 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
     destination: data?.meta?.destination || 'Singapore',
     dates:
       typeof data?.meta?.dates === 'object' && data?.meta?.dates?.type === 'specific'
-        ? `${data?.meta?.dates?.startDate || ''} — ${data?.meta?.dates?.endDate || ''}`
+        ? formatDateRange(data?.meta?.dates?.startDate, data?.meta?.dates?.endDate)
         : data?.meta?.dates?.days
           ? `${data?.meta?.dates?.days} days`
           : '5 days',
     travelers: data?.meta?.travelers ? `${(data.meta.travelers.adults || 0) + (data.meta.travelers.children || 0)} travelers` : '2 travelers',
-    budget: budgetMap[budgetKey],
+    // budget: budgetMap[budgetKey],
     pacing: pacingLabel,
   }
 
@@ -502,7 +503,7 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
     if (isSpecificDates && data?.meta?.dates?.startDate) {
       try {
         return startOfMonth(new Date(data.meta.dates.startDate))
-      } catch { }
+      } catch {}
     }
     return new Date()
   }
@@ -524,7 +525,12 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
         </div>
 
         <ButtonGroup className="hidden sm:flex">
-          <Button value="destination" variant="outline" className="rounded-full shadow-none">
+          <Button
+            value="destination"
+            variant="outline"
+            className="rounded-full shadow-none"
+            onClick={() => toast('Changing trip destionation is not allowed.')}
+          >
             {tripData.destination}
           </Button>
           <Button value="dates" variant="outline" className="rounded-full shadow-none" onClick={() => setShowWhenDialog(true)}>
@@ -533,9 +539,9 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
           <Button value="travelers" variant="outline" className="rounded-full shadow-none" onClick={() => setShowWhoDialog(true)}>
             {tripData.travelers}
           </Button>
-          <Button value="budget" variant="outline" className="rounded-full shadow-none" onClick={() => setShowBudgetDialog(true)}>
+          {/* <Button value="budget" variant="outline" className="rounded-full shadow-none" onClick={() => setShowBudgetDialog(true)}>
             {tripData.budget}
-          </Button>
+          </Button> */}
           <Button value="pacing" variant="outline" className="rounded-full shadow-none" onClick={() => setShowPacingDialog(true)}>
             {tripData.pacing}
           </Button>
@@ -589,8 +595,8 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <Accordion type="multiple" defaultValue={days.map((_, idx) => `day-${idx}`)} className="space-y-4">
               {days.map((day, dayIndex) => (
-                <AccordionItem key={dayIndex} value={`day-${dayIndex}`} className="group overflow-hidden rounded-xl border">
-                  <AccordionTrigger className="rounded-xl border-b px-4 py-3 hover:bg-gray-50 hover:no-underline [&>svg]:opacity-0 [&>svg]:group-hover:opacity-100">
+                <AccordionItem key={dayIndex} value={`day-${dayIndex}`} className="group overflow-hidden rounded-xl">
+                  <AccordionTrigger className="hover:bg-muted-foreground/5 rounded-xl p-3 hover:no-underline">
                     <div className="flex items-center gap-3">
                       <div className="text-left">
                         <h5 className="font-medium">{formatDayHeader(day)}</h5>
@@ -598,9 +604,9 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
                       </div>
                     </div>
                   </AccordionTrigger>
-                  <AccordionContent className="pb-0">
+                  <AccordionContent className="px-1 pb-0">
                     <SortableContext items={day.stops.map((s) => s.poi_id)} strategy={verticalListSortingStrategy}>
-                      <div className="divide-y">
+                      <div className="space-y-2 divide-y">
                         {day.stops.map((stop) => (
                           <SortableStop
                             key={stop.poi_id}
@@ -609,6 +615,7 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
                             onDetails={onOpenDetails ? () => onOpenDetails({ id: stripDaySuffix(stop.poi_id), name: stop.name }) : undefined}
                             onScheduleClick={(s) => handleScheduleClick(s, dayIndex)}
                             onDelete={handleDelete}
+                            // className="rounded-xl"
                           />
                         ))}
                       </div>
@@ -760,6 +767,8 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
         onPetsChange={setPets}
         isMuslim={isMuslim}
         onIsMuslimChange={setIsMuslim}
+        wheelchairAccessible={wheelchairAccessible}
+        onWheelchairAccessibleChange={setWheelchairAccessible}
         kidFriendly={kidFriendly}
         onKidFriendlyChange={setKidFriendly}
         petFriendly={petFriendly}
@@ -792,7 +801,7 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
       />
 
       {/* Budget Dialog */}
-      <BudgetDialog
+      {/* <BudgetDialog
         open={showBudgetDialog}
         onOpenChange={setShowBudgetDialog}
         budget={budget}
@@ -816,7 +825,7 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
           }
           setShowBudgetDialog(false)
         }}
-      />
+      /> */}
 
       {/* Pacing Dialog */}
       <PacingDialog

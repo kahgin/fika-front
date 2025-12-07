@@ -5,6 +5,7 @@ interface User {
   name: string
   username: string
   email: string
+  password: string
   avatar: string
 }
 
@@ -20,6 +21,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     name: 'Traveller',
     username: 'traveller',
     email: 'traveller@example.com',
+    password: 'password',
     avatar: 'https://i.pinimg.com/736x/35/e2/78/35e2788fd9c56df3d3c51287549d5c0a.jpg',
   })
 

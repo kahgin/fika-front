@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 
 type ScheduleMode = 'single-day' | 'multi-day'
-type TimeType = 'specific' | 'all_day' | 'any_time'
+export type TimeType = 'specific' | 'all_day' | 'any_time'
 
 interface ScheduleDialogProps {
   open: boolean
@@ -22,6 +22,9 @@ interface ScheduleDialogProps {
   isSpecificDates?: boolean
   availableDates?: Date[]
   disabledDates?: (date: Date) => boolean
+  // For flexible-day selection, allow dimming day indices separately for check-in and check-out (1-based)
+  disabledCheckInDayIndices?: number[]
+  disabledCheckOutDayIndices?: number[]
   defaultMonth?: Date
 
   // Single-day mode
@@ -30,7 +33,7 @@ interface ScheduleDialogProps {
   selectedDay?: string
   onDayChange?: (day: string) => void
 
-  // Multi-day mode (for accommodations)
+  // Multi-day mode (for hotels)
   // Specific dates: range selection
   dateRange?: DateRange
   onDateRangeChange?: (range: DateRange | undefined) => void
@@ -66,6 +69,8 @@ export function ScheduleDialog({
   isSpecificDates = true,
   availableDates,
   disabledDates,
+  disabledCheckInDayIndices,
+  disabledCheckOutDayIndices,
   defaultMonth,
   dateRange,
   onDateRangeChange,
@@ -100,6 +105,23 @@ export function ScheduleDialog({
     }
   }
 
+  const isSameDay = (a?: Date, b?: Date) => {
+    if (!a || !b) return false
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+  }
+
+  const handleRangeSelect = (range: DateRange | undefined) => {
+    // Auto-extend to next day when only one date is clicked
+    if (range?.from && !range.to) {
+      const next = new Date(range.from)
+      next.setDate(next.getDate() + 1)
+      const adjusted: DateRange = { from: range.from, to: next }
+      onDateRangeChange?.(adjusted)
+      return
+    }
+    onDateRangeChange?.(range)
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -132,7 +154,12 @@ export function ScheduleDialog({
                     </SelectTrigger>
                     <SelectContent className="rounded-xl">
                       {availableDates?.map((_, idx) => (
-                        <SelectItem key={idx} value={String(idx + 1)} className="rounded-lg">
+                        <SelectItem
+                          key={idx}
+                          value={String(idx + 1)}
+                          className="rounded-lg"
+                          disabled={disabledCheckInDayIndices?.includes(idx + 1)}
+                        >
                           Day {idx + 1}
                         </SelectItem>
                       ))}
@@ -186,27 +213,32 @@ export function ScheduleDialog({
                   <Calendar
                     mode="range"
                     selected={dateRange as any}
-                    onSelect={onDateRangeChange as any}
+                    onSelect={handleRangeSelect as any}
                     numberOfMonths={isMobile ? 1 : 2}
                     className="p-0"
                     defaultMonth={defaultMonth}
                     disabled={disabledDates}
                   />
+                  {dateRange?.from && dateRange?.to && isSameDay(dateRange.from, dateRange.to) && (
+                    <p className="text-destructive mt-2 text-xs">Check-out must be at least the next day.</p>
+                  )}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
+                <div className="flex justify-around gap-4">
+                  <div className="place-items-center space-y-2">
                     <Label className="text-sm">Check-in Day</Label>
-                    <Select
-                      value={checkInDay ?? selectedDay}
-                      onValueChange={(v) => (onCheckInDayChange ? onCheckInDayChange(v) : onDayChange?.(v))}
-                    >
+                    <Select value={checkInDay ?? selectedDay} onValueChange={(v) => (onCheckInDayChange ? onCheckInDayChange(v) : onDayChange?.(v))}>
                       <SelectTrigger className="gap-12 rounded-full">
                         <SelectValue placeholder="Select day" />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl">
                         {availableDates?.map((_, idx) => (
-                          <SelectItem key={idx} value={String(idx + 1)} className="rounded-lg">
+                          <SelectItem
+                            key={idx}
+                            value={String(idx + 1)}
+                            className="rounded-lg"
+                            disabled={disabledCheckInDayIndices?.includes(idx + 1)}
+                          >
                             Day {idx + 1}
                           </SelectItem>
                         ))}
@@ -214,18 +246,20 @@ export function ScheduleDialog({
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="place-items-center space-y-2">
                     <Label className="text-sm">Check-out Day</Label>
-                    <Select
-                      value={checkOutDay ?? selectedDay}
-                      onValueChange={(v) => (onCheckOutDayChange ? onCheckOutDayChange(v) : onDayChange?.(v))}
-                    >
+                    <Select value={checkOutDay ?? selectedDay} onValueChange={(v) => (onCheckOutDayChange ? onCheckOutDayChange(v) : onDayChange?.(v))}>
                       <SelectTrigger className="gap-12 rounded-full">
                         <SelectValue placeholder="Select day" />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl">
                         {availableDates?.map((_, idx) => (
-                          <SelectItem key={idx} value={String(idx + 1)} className="rounded-lg">
+                          <SelectItem
+                            key={idx}
+                            value={String(idx + 1)}
+                            className="rounded-lg"
+                            disabled={disabledCheckOutDayIndices?.includes(idx + 1)}
+                          >
                             Day {idx + 1}
                           </SelectItem>
                         ))}

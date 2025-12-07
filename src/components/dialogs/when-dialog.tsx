@@ -7,33 +7,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { CalendarIcon, Plus, Minus } from 'lucide-react'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { calculateDaysBetween } from '@/lib/date-range'
+import { MONTHS } from '@/lib/constants'
 
-type DateMode = 'specific' | 'flexible'
+export type DateMode = 'specific' | 'flexible'
 
-const MONTHS = [
-  { value: 'september', label: 'September' },
-  { value: 'october', label: 'October' },
-  { value: 'november', label: 'November' },
-  { value: 'december', label: 'December' },
-  { value: 'january', label: 'January' },
-  { value: 'february', label: 'February' },
-  { value: 'march', label: 'March' },
-  { value: 'april', label: 'April' },
-  { value: 'may', label: 'May' },
-  { value: 'june', label: 'June' },
-  { value: 'july', label: 'July' },
-  { value: 'august', label: 'August' },
-] as const
 
 const MIN_TRIP_DAYS = 1
 const MAX_TRIP_DAYS = 10
-
-const calculateDaysBetween = (startDate: Date, endDate: Date): number => {
-  const start = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
-  const end = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate())
-  const diffMs = end.getTime() - start.getTime()
-  return Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1)
-}
 
 interface WhenDialogProps {
   open: boolean
@@ -87,7 +68,16 @@ export const WhenDialog: React.FC<WhenDialogProps> = ({
                       onDateRangeChange(range)
                     }
                   } else {
-                    onDateRangeChange(range)
+                    // Auto-extend to next day on single click
+                    const next = new Date(range.from)
+                    next.setDate(next.getDate() + 1)
+                    const adjusted = { from: range.from, to: next }
+                    const numDays = calculateDaysBetween(adjusted.from!, adjusted.to!)
+                    if (numDays >= MIN_TRIP_DAYS && numDays <= MAX_TRIP_DAYS) {
+                      onDateRangeChange(adjusted)
+                    } else {
+                      onDateRangeChange(range)
+                    }
                   }
                 } else {
                   onDateRangeChange(range)

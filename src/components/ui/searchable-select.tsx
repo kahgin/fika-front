@@ -1,4 +1,3 @@
-import React from 'react'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from '@/components/ui/command'
@@ -65,7 +64,7 @@ export function SearchableSelect<T>({
           <CommandList>
             {isLoading && (
               <div className="py-6 text-center text-sm">
-                <div className="border-primary inline-block h-4 w-4 animate-spin rounded-full border-b-2"></div>
+                <div className="inline-block h-4 w-4 animate-spin rounded-full border border-b-2"></div>
               </div>
             )}
             {!isLoading && inputValue.length >= minLength && !hasResults && <CommandEmpty>No results found</CommandEmpty>}

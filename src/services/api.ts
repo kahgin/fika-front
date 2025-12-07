@@ -1,5 +1,4 @@
-const API_BASE_URL = 'http://localhost:8000/api'
-// const API_BASE_URL = 'https://fika-core.onrender.com';
+const API_BASE_URL = import.meta.env.VITE_FIKA_URL 
 
 const DEFAULT_LIMIT = 12
 
@@ -37,6 +36,9 @@ export interface POI {
   reviewCount: number
   location: string
   images: string[]
+  role?: string
+  poiRoles?: string[]
+  themes?: string[]
   description?: string
   coordinates?: {
     lat: number
@@ -46,9 +48,8 @@ export interface POI {
   googleMapsUrl?: string
   address?: string
   phone?: string
-  openHours?: string
+  openHours?: any
   priceLevel?: string
-  isOpenNow?: boolean
 }
 
 interface ApiResponse<T> {
@@ -438,77 +439,33 @@ export async function searchLocations(query: string): Promise<Location[]> {
   }
 
   try {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-
-    if (!supabaseUrl || !supabaseKey) {
-      console.error('Supabase credentials not configured for searchLocations')
-      return []
-    }
-
-    const response = await fetch(`${supabaseUrl}/rest/v1/rpc/rpc_search_locations`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`,
-      },
-      body: JSON.stringify({
-        p_query: query,
-        p_limit: 10,
-      }),
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`Failed to search locations: ${response.status} ${errorText}`)
-    }
-
-    const data: Location[] = await response.json()
-    return data || []
+    const response = await fetch(`${API_BASE_URL}/locations/search?q=${encodeURIComponent(query)}&limit=10`)
+    if (!response.ok) throw new Error('Failed to search locations')
+    const data: ApiResponse<Location[]> = await response.json()
+    return data.data || []
   } catch (error) {
     console.error('Error searching locations:', error)
     return []
   }
 }
 
-// Search POIs by destination and role(s) via Supabase RPC
 export async function searchPOIsByDestinationAndRole(destination: string, roles: string[], query?: string, limit: number = 5): Promise<POI[]> {
   if (!destination || roles.length === 0) return []
 
   try {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-
-    if (!supabaseUrl || !supabaseKey) {
-      console.error('Supabase credentials not configured for searchPOIsByDestinationAndRole')
-      return []
-    }
-
-    const resp = await fetch(`${supabaseUrl}/rest/v1/rpc/rpc_search_pois_by_destination`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`,
-      },
-      body: JSON.stringify({
-        p_destination: destination,
-        p_roles: roles,
-        p_query: query ?? null,
-        p_limit: limit,
-      }),
+    const params = new URLSearchParams({
+      destination,
+      roles: roles.join(','),
+      limit: limit.toString(),
     })
+    if (query) params.append('q', query)
 
-    if (!resp.ok) {
-      const errorText = await resp.text()
-      throw new Error(`Failed to search POIs: ${resp.status} ${errorText}`)
-    }
-
-    const data: POI[] = await resp.json()
-    return Array.isArray(data) ? data : []
-  } catch (e) {
-    console.error('searchPOIsByDestinationAndRole error', e)
+    const response = await fetch(`${API_BASE_URL}/pois/search-by-destination?${params}`)
+    if (!response.ok) throw new Error('Failed to search POIs by destination')
+    const data: ApiResponse<POI[]> = await response.json()
+    return data.data || []
+  } catch (error) {
+    console.error('Error searching POIs by destination:', error)
     return []
   }
 }

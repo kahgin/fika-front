@@ -21,7 +21,7 @@ function AppContent() {
               <Route key={route.id} path={route.path} element={route.element} />
             ))}
           </Routes>
-          {isMobile && <BottomNav />}
+          {isMobile && <BottomNav user={user} />}
         </SidebarLayout>
       </SidebarProvider>
     </Router>
