@@ -14,6 +14,7 @@ export interface SearchableSelectProps<T> {
   items: T[]
   getItemKey: (item: T) => string
   getItemLabel: (item: T) => string
+  getItemDisabled?: (item: T) => boolean
   onSelect: (item: T) => void
   disabled?: boolean
 }
@@ -29,6 +30,7 @@ export function SearchableSelect<T>({
   items,
   getItemKey,
   getItemLabel,
+  getItemDisabled,
   onSelect,
   disabled = false,
 }: SearchableSelectProps<T>) {
@@ -37,7 +39,7 @@ export function SearchableSelect<T>({
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild className='w-full'>
+      <PopoverTrigger asChild className="w-full">
         <div className="relative">
           <Input
             placeholder={placeholder}
@@ -70,11 +72,23 @@ export function SearchableSelect<T>({
             {!isLoading && inputValue.length >= minLength && !hasResults && <CommandEmpty>No results found</CommandEmpty>}
             {!isLoading && hasResults && (
               <CommandGroup>
-                {items.map((item) => (
-                  <CommandItem key={getItemKey(item)} value={getItemLabel(item)} onSelect={() => onSelect(item)}>
-                    {getItemLabel(item)}
-                  </CommandItem>
-                ))}
+                {items.map((item) => {
+                  const isDisabled = getItemDisabled?.(item) || false
+                  return (
+                    <CommandItem
+                      key={getItemKey(item)}
+                      value={getItemLabel(item)}
+                      onSelect={() => !isDisabled && onSelect(item)}
+                      disabled={isDisabled}
+                      className={cn(isDisabled && 'opacity-50 cursor-not-allowed')}
+                    >
+                      <div className="flex w-full items-center justify-between">
+                        <span>{getItemLabel(item)}</span>
+                        {isDisabled && <span className="text-muted-foreground text-xs">Added</span>}
+                      </div>
+                    </CommandItem>
+                  )
+                })}
               </CommandGroup>
             )}
           </CommandList>

@@ -154,12 +154,7 @@ export function ScheduleDialog({
                     </SelectTrigger>
                     <SelectContent className="rounded-xl">
                       {availableDates?.map((_, idx) => (
-                        <SelectItem
-                          key={idx}
-                          value={String(idx + 1)}
-                          className="rounded-lg"
-                          disabled={disabledCheckInDayIndices?.includes(idx + 1)}
-                        >
+                        <SelectItem key={idx} value={String(idx + 1)} className="rounded-lg" disabled={disabledCheckInDayIndices?.includes(idx + 1)}>
                           Day {idx + 1}
                         </SelectItem>
                       ))}
@@ -233,12 +228,7 @@ export function ScheduleDialog({
                       </SelectTrigger>
                       <SelectContent className="rounded-xl">
                         {availableDates?.map((_, idx) => (
-                          <SelectItem
-                            key={idx}
-                            value={String(idx + 1)}
-                            className="rounded-lg"
-                            disabled={disabledCheckInDayIndices?.includes(idx + 1)}
-                          >
+                          <SelectItem key={idx} value={String(idx + 1)} className="rounded-lg" disabled={disabledCheckInDayIndices?.includes(idx + 1)}>
                             Day {idx + 1}
                           </SelectItem>
                         ))}
@@ -254,12 +244,7 @@ export function ScheduleDialog({
                       </SelectTrigger>
                       <SelectContent className="rounded-xl">
                         {availableDates?.map((_, idx) => (
-                          <SelectItem
-                            key={idx}
-                            value={String(idx + 1)}
-                            className="rounded-lg"
-                            disabled={disabledCheckOutDayIndices?.includes(idx + 1)}
-                          >
+                          <SelectItem key={idx} value={String(idx + 1)} className="rounded-lg" disabled={disabledCheckOutDayIndices?.includes(idx + 1)}>
                             Day {idx + 1}
                           </SelectItem>
                         ))}

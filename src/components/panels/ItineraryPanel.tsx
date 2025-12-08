@@ -448,17 +448,6 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
     return poiId.split('_day')[0]
   }
 
-  // type BudgetKey = 'any' | 'tight' | 'sensible' | 'upscale' | 'luxury'
-  // const budgetMap: Record<BudgetKey, string> = {
-  // any: '$–$$$$',
-  // tight: '$',
-  // sensible: '$$',
-  // upscale: '$$$',
-  // luxury: '$$$$',
-  // }
-  // const rawBudget = data?.meta?.preferences?.budget as string | undefined
-  // const budgetKey: BudgetKey = rawBudget && rawBudget in budgetMap ? (rawBudget as BudgetKey) : 'any'
-
   const pacingMap: Record<string, string> = {
     relaxed: 'Relaxed',
     balanced: 'Balanced',
@@ -469,9 +458,8 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
 
   // Handle multi-city destinations
   const destinations = data?.meta?.destinations || []
-  const destinationDisplay = destinations.length > 0
-    ? destinations.map((d: any) => d.city || d.name || d.destination).join(' & ')
-    : data?.meta?.destination || 'Singapore'
+  const destinationDisplay =
+    destinations.length > 0 ? destinations.map((d: any) => d.city || d.name || d.destination).join(' & ') : data?.meta?.destination || 'Singapore'
 
   const tripData = {
     title: data?.meta?.title || (destinationDisplay ? `${destinationDisplay} Trip` : 'Trip'),
@@ -483,7 +471,6 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
           ? `${data?.meta?.dates?.days} days`
           : '5 days',
     travelers: data?.meta?.travelers ? `${(data.meta.travelers.adults || 0) + (data.meta.travelers.children || 0)} travelers` : '2 travelers',
-    // budget: budgetMap[budgetKey],
     pacing: pacingLabel,
   }
 
@@ -531,12 +518,7 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
         </div>
 
         <ButtonGroup className="hidden sm:flex">
-          <Button
-            value="destination"
-            variant="outline"
-            className="rounded-full shadow-none"
-            onClick={() => toast('Changing trip destination is not allowed.')}
-          >
+          <Button value="destination" variant="outline" className="rounded-full shadow-none" onClick={() => toast('Changing trip destination is not allowed.')}>
             {tripData.destination}
           </Button>
           <Button value="dates" variant="outline" className="rounded-full shadow-none" onClick={() => setShowWhenDialog(true)}>

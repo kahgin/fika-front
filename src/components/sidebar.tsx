@@ -43,7 +43,6 @@ export function AppSidebar({ user }: { user: any }) {
 
   return (
     <Sidebar collapsible="icon" variant="sidebar">
-
       {/* Header */}
       <SidebarHeader className="flex h-12 items-center">
         {state === 'expanded' && (

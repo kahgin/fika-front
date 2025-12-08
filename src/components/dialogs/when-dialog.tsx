@@ -12,7 +12,6 @@ import { MONTHS } from '@/lib/constants'
 
 export type DateMode = 'specific' | 'flexible'
 
-
 const MIN_TRIP_DAYS = 1
 const MAX_TRIP_DAYS = 10
 

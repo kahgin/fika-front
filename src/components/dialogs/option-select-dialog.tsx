@@ -18,15 +18,7 @@ interface OptionSelectDialogProps {
   onSave: () => void
 }
 
-export const OptionSelectDialog: React.FC<OptionSelectDialogProps> = ({
-  open,
-  onOpenChange,
-  title,
-  options,
-  value,
-  onValueChange,
-  onSave,
-}) => {
+export const OptionSelectDialog: React.FC<OptionSelectDialogProps> = ({ open, onOpenChange, title, options, value, onValueChange, onSave }) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="!max-w-sm">

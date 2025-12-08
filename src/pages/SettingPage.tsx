@@ -55,7 +55,7 @@ export default function SettingsPage() {
             {/* Profile Picture */}
             <div className="flex items-center gap-4">
               {user?.avatar && (
-                <Avatar className="h-12 w-12 ">
+                <Avatar className="h-12 w-12">
                   <AvatarImage src={user.avatar} alt={user.name} />
                   <AvatarFallback className="text-xs">{user.name.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>

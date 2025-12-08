@@ -3,10 +3,38 @@ import { OptionSelectDialog } from '@/components/dialogs/option-select-dialog'
 
 const BUDGET_OPTIONS = [
   { value: 'any', label: 'Any budget' },
-  { value: 'tight', label: (<><span className="mr-2">$</span>On a budget</>) },
-  { value: 'sensible', label: (<><span className="mr-2">$</span>Sensibly priced</>) },
-  { value: 'upscale', label: (<><span className="mr-2">$$</span>Upscale</>) },
-  { value: 'luxury', label: (<><span className="mr-2">$$</span>Luxury</>) },
+  {
+    value: 'tight',
+    label: (
+      <>
+        <span className="mr-2">$</span>On a budget
+      </>
+    ),
+  },
+  {
+    value: 'sensible',
+    label: (
+      <>
+        <span className="mr-2">$</span>Sensibly priced
+      </>
+    ),
+  },
+  {
+    value: 'upscale',
+    label: (
+      <>
+        <span className="mr-2">$$</span>Upscale
+      </>
+    ),
+  },
+  {
+    value: 'luxury',
+    label: (
+      <>
+        <span className="mr-2">$$</span>Luxury
+      </>
+    ),
+  },
 ] as const
 
 interface BudgetDialogProps {
