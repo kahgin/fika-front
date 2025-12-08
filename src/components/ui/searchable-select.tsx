@@ -80,7 +80,7 @@ export function SearchableSelect<T>({
                       value={getItemLabel(item)}
                       onSelect={() => !isDisabled && onSelect(item)}
                       disabled={isDisabled}
-                      className={cn(isDisabled && 'opacity-50 cursor-not-allowed')}
+                      className={cn(isDisabled && 'cursor-not-allowed opacity-50')}
                     >
                       <div className="flex w-full items-center justify-between">
                         <span>{getItemLabel(item)}</span>

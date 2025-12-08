@@ -91,6 +91,7 @@ const LOCATION_SEARCH_MIN_LENGTH = 3
 const LOCATION_SEARCH_DEBOUNCE_MS = 300
 const MAX_DESTINATIONS = 2
 const TITLE_THRESHOLD = 150
+const FORM_STATE_KEY = 'fika:createItineraryFormState'
 
 // Form schema
 const formSchema = z
@@ -251,7 +252,6 @@ const CreateItineraryForm: React.FC = () => {
     }
     return parseInt(flexibleDays || '1')
   }, [dateMode, startDate, endDate, flexibleDays])
-  const availableNights = useMemo(() => Math.max(0, totalDays - 1), [totalDays])
 
   const generateTitle = useCallback(
     (customTitle?: string, dests?: Destination[], dest?: string, mode?: DateMode, start?: Date, end?: Date, flexDays?: string) => {
@@ -404,48 +404,6 @@ const CreateItineraryForm: React.FC = () => {
     },
     [watchInterests, form]
   )
-
-  const hasAvailableCheckInSpecific = useMemo(() => {
-    if (dateMode !== 'specific') {
-      return true
-    }
-    if (!startDate || !endDate) {
-      return true
-    }
-
-    const occupied = computeOccupiedSpecific()
-    const validOffsets: number[] = []
-
-    // In specific mode, check-in is valid only on days that:
-    // - are not fully occupied by another hotel range, and
-    // - are not the last trip day (no night after it), and
-    // - respect your rule that trip end cannot be used as check-in.
-    for (let offset = 0; offset < totalDays; offset++) {
-      const isLastDay = offset === totalDays - 1
-      if (isLastDay) continue
-      if (!occupied.has(offset)) {
-        validOffsets.push(offset)
-      }
-    }
-
-    if (validOffsets.length > 0) {
-      return true
-    }
-
-    return false
-  }, [dateMode, startDate, endDate, totalDays, computeOccupiedSpecific])
-
-  const hasAvailableCheckInFlexible = useMemo(() => {
-    if (dateMode !== 'flexible') return true
-    const occupied = computeOccupiedFlexible()
-    // in flexible, check-in last day is disabled in UI; look for any open day in [1, totalDays - 1]
-    for (let d = 1; d <= Math.max(1, totalDays - 1); d++) {
-      if (!occupied.has(d)) {
-        return true
-      }
-    }
-    return false
-  }, [dateMode, totalDays, computeOccupiedFlexible])
 
   const handleDateDialogSave = () => {
     if (dateMode === 'specific') {
@@ -614,6 +572,15 @@ const CreateItineraryForm: React.FC = () => {
     // Check for duplicates
     if (destinations.some((d) => d.city === location.label)) {
       toast.error('Destination already added')
+      return
+    }
+
+    // Validate destination is Johor or Singapore
+    const cityName = location.label.split(',')[0].trim().toLowerCase()
+    const isValidDestination = cityName === 'johor' || cityName === 'singapore'
+
+    if (!isValidDestination) {
+      toast.error('Only Johor and Singapore destinations are supported')
       return
     }
 
@@ -844,17 +811,21 @@ const CreateItineraryForm: React.FC = () => {
   }
 
   const handleAddHotel = (poi: POI) => {
-    // Prevent adding more hotels than available nights
-    if (hotels.length >= availableNights) {
-      toast.error('Total number of hotels cannot be more than the number of nights in the trip')
+    const targetDestination = selectedHotelDestination || destinations[0]?.city
+
+    // Check if destination already has a hotel
+    const destinationHasHotel = hotels.some(h => h.destination_city === targetDestination)
+    if (destinationHasHotel) {
+      toast.error('Only one hotel per destination allowed')
       return
     }
+
     const newHotel: Hotel = {
       poi_id: poi.id,
       poi_name: poi.name,
       latitude: poi.latitude,
       longitude: poi.longitude,
-      destination_city: selectedHotelDestination || destinations[0]?.city,
+      destination_city: targetDestination,
       themes: poi.themes,
       role: poi.role,
       openHours: poi.openHours,
@@ -867,10 +838,6 @@ const CreateItineraryForm: React.FC = () => {
 
   const handleRemoveHotel = (index: number) => {
     setHotels(hotels.filter((_, idx) => idx !== index))
-  }
-
-  const handleOpenHotelSchedule = (hotel: Hotel, index: number) => {
-    setScheduleHotelDialog({ open: true, hotel, index })
   }
 
   const handleSaveHotelSchedule = () => {
@@ -890,10 +857,10 @@ const CreateItineraryForm: React.FC = () => {
       const hasOverlap = hotels.some((h, i) => {
         if (i === index) return false
         if (!h.check_in_date || !h.check_out_date) return false
-        
+
         const existingIn = new Date(h.check_in_date.getFullYear(), h.check_in_date.getMonth(), h.check_in_date.getDate())
         const existingOut = new Date(h.check_out_date.getFullYear(), h.check_out_date.getMonth(), h.check_out_date.getDate())
-        
+
         // Overlap if: new_check_in < existing_check_out AND new_check_out > existing_check_in
         return inDate < existingOut && outDate > existingIn
       })
@@ -945,7 +912,7 @@ const CreateItineraryForm: React.FC = () => {
       const hasOverlap = hotels.some((h, i) => {
         if (i === index) return false
         if (h.check_in_day === undefined || h.check_out_day === undefined) return false
-        
+
         // Overlap if: new_check_in < existing_check_out AND new_check_out > existing_check_in
         return inDay < h.check_out_day && outDay > h.check_in_day
       })
@@ -1135,13 +1102,13 @@ const CreateItineraryForm: React.FC = () => {
             }
 
             // If any other POI on same day is all_day, current POI cannot be added
-            if (sameDayPOIs.some(p => p.time_type === 'all_day')) {
+            if (sameDayPOIs.some((p) => p.time_type === 'all_day')) {
               error = error || 'Cannot add activity on a day with an all-day activity'
             }
 
             // Check for specific time overlaps
             if (poi.time_type === 'specific' && poi.start_time && poi.end_time) {
-              const hasTimeOverlap = sameDayPOIs.some(p => {
+              const hasTimeOverlap = sameDayPOIs.some((p) => {
                 if (p.time_type !== 'specific' || !p.start_time || !p.end_time) return false
                 // Check if time ranges overlap: [start1, end1) overlaps with [start2, end2)
                 return poi.start_time! < p.end_time && poi.end_time! > p.start_time
@@ -1168,13 +1135,13 @@ const CreateItineraryForm: React.FC = () => {
           }
 
           // If any other POI on same day is all_day, current POI cannot be added
-          if (sameDayPOIs.some(p => p.time_type === 'all_day')) {
+          if (sameDayPOIs.some((p) => p.time_type === 'all_day')) {
             error = error || 'Cannot add activity on a day with an all-day activity'
           }
 
           // Check for specific time overlaps
           if (poi.time_type === 'specific' && poi.start_time && poi.end_time) {
-            const hasTimeOverlap = sameDayPOIs.some(p => {
+            const hasTimeOverlap = sameDayPOIs.some((p) => {
               if (p.time_type !== 'specific' || !p.start_time || !p.end_time) return false
               // Check if time ranges overlap: [start1, end1) overlaps with [start2, end2)
               return poi.start_time! < p.end_time && poi.end_time! > p.start_time
@@ -1214,21 +1181,49 @@ const CreateItineraryForm: React.FC = () => {
     const petFriendly = form.watch('petFriendly')
     const title = generateTitle(customTitle, destinations, destination, dateMode, startDate, endDate, flexibleDays)
 
-    const hotelPayload = hotels.map((acc) => ({
-      poi_id: acc.poi_id,
-      poi_name: acc.poi_name,
-      latitude: acc.latitude,
-      longitude: acc.longitude,
-      destination: acc.destination_city,
-      check_in_date: acc.check_in_date ? formatDateToISO(acc.check_in_date) : undefined,
-      check_out_date: acc.check_out_date ? formatDateToISO(acc.check_out_date) : undefined,
-      check_in_day: acc.check_in_day,
-      check_out_day: acc.check_out_day,
-      themes: acc.themes,
-      role: acc.role,
-      open_hours: acc.openHours,
-      images: acc.images,
-    }))
+    // Map hotels and use destination dates/days if hotel dates/days are not set
+    const hotelPayload = hotels.map((acc) => {
+      // Find the destination for this hotel
+      const hotelDest = destinations.find((dest) => dest.city.toLowerCase() === acc.destination_city?.toLowerCase())
+
+      let checkInDate = acc.check_in_date ? formatDateToISO(acc.check_in_date) : undefined
+      let checkOutDate = acc.check_out_date ? formatDateToISO(acc.check_out_date) : undefined
+      let checkInDay = acc.check_in_day
+      let checkOutDay = acc.check_out_day
+
+      // If hotel dates/days are not set, use destination dates/days
+      if (dateMode === 'specific' && hotelDest?.dates) {
+        if (!checkInDate && hotelDest.dates.start_date) {
+          checkInDate = hotelDest.dates.start_date
+        }
+        if (!checkOutDate && hotelDest.dates.end_date) {
+          checkOutDate = hotelDest.dates.end_date
+        }
+      } else if (dateMode === 'flexible' && hotelDest?.days) {
+        if (checkInDay === undefined) {
+          checkInDay = 1 // First day of destination
+        }
+        if (checkOutDay === undefined) {
+          checkOutDay = hotelDest.days + 1 // Last day + 1 (checkout day)
+        }
+      }
+
+      return {
+        poi_id: acc.poi_id,
+        poi_name: acc.poi_name,
+        latitude: acc.latitude,
+        longitude: acc.longitude,
+        destination: acc.destination_city,
+        check_in_date: checkInDate,
+        check_out_date: checkOutDate,
+        check_in_day: checkInDay,
+        check_out_day: checkOutDay,
+        themes: acc.themes,
+        role: acc.role,
+        open_hours: acc.openHours,
+        images: acc.images,
+      }
+    })
 
     const mandatoryPOIsPayload = mandatoryPOIs.map((poi) => {
       const payload: any = {
@@ -1493,6 +1488,104 @@ const CreateItineraryForm: React.FC = () => {
     }
   }, [placesSearch, selectedPlacesDestination, destinations])
 
+  // Load form state from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedState = localStorage.getItem(FORM_STATE_KEY)
+      if (savedState) {
+        const parsed = JSON.parse(savedState)
+
+        // Restore form values
+        if (parsed.formValues) {
+          Object.keys(parsed.formValues).forEach((key) => {
+            const value = parsed.formValues[key]
+            if (key === 'startDate' || key === 'endDate') {
+              form.setValue(key as any, value ? new Date(value) : undefined)
+            } else {
+              form.setValue(key as any, value)
+            }
+          })
+        }
+
+        // Restore other state
+        if (parsed.currentStep) setCurrentStep(parsed.currentStep)
+        if (parsed.dateMode) setDateMode(parsed.dateMode)
+        if (parsed.destinations) setDestinations(parsed.destinations)
+        if (parsed.hotels) {
+          setHotels(parsed.hotels.map((h: any) => ({
+            ...h,
+            check_in_date: h.check_in_date ? new Date(h.check_in_date) : undefined,
+            check_out_date: h.check_out_date ? new Date(h.check_out_date) : undefined,
+          })))
+        }
+        if (parsed.mandatoryPOIs) {
+          setMandatoryPOIs(parsed.mandatoryPOIs.map((p: any) => ({
+            ...p,
+            date: p.date ? new Date(p.date) : undefined,
+          })))
+        }
+        if (parsed.selectedHotelDestination) setSelectedHotelDestination(parsed.selectedHotelDestination)
+        if (parsed.selectedPlacesDestination) setSelectedPlacesDestination(parsed.selectedPlacesDestination)
+        if (parsed.dateRange) {
+          setDateRange({
+            from: parsed.dateRange.from ? new Date(parsed.dateRange.from) : undefined,
+            to: parsed.dateRange.to ? new Date(parsed.dateRange.to) : undefined,
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load form state:', error)
+    }
+  }, [])
+
+  // Save form state to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      const formValues = form.getValues()
+      const stateToSave = {
+        formValues: {
+          ...formValues,
+          startDate: formValues.startDate?.toISOString(),
+          endDate: formValues.endDate?.toISOString(),
+        },
+        currentStep,
+        dateMode,
+        destinations,
+        hotels: hotels.map((h) => ({
+          ...h,
+          check_in_date: h.check_in_date?.toISOString(),
+          check_out_date: h.check_out_date?.toISOString(),
+          validationError: undefined, // Don't persist errors
+        })),
+        mandatoryPOIs: mandatoryPOIs.map((p) => ({
+          ...p,
+          date: p.date?.toISOString(),
+          validationError: undefined, // Don't persist errors
+        })),
+        selectedHotelDestination,
+        selectedPlacesDestination,
+        dateRange: {
+          from: dateRange?.from?.toISOString(),
+          to: dateRange?.to?.toISOString(),
+        },
+      }
+
+      localStorage.setItem(FORM_STATE_KEY, JSON.stringify(stateToSave))
+    } catch (error) {
+      console.error('Failed to save form state:', error)
+    }
+  }, [
+    form.watch(),
+    currentStep,
+    dateMode,
+    destinations,
+    hotels,
+    mandatoryPOIs,
+    selectedHotelDestination,
+    selectedPlacesDestination,
+    dateRange,
+  ])
+
   return (
     <>
       <div className="p-6">
@@ -1701,20 +1794,17 @@ const CreateItineraryForm: React.FC = () => {
                       inputValue={hotelSearch}
                       onInputChange={setHotelSearch}
                       placeholder={
-                        hotels.length >= availableNights || (dateMode === 'specific' ? !hasAvailableCheckInSpecific : !hasAvailableCheckInFlexible)
-                          ? 'No more hotel dates available'
+                        hotels.some(h => h.destination_city === (selectedHotelDestination || destinations[0]?.city))
+                          ? 'Only one hotel per destination'
                           : 'Search for hotels, hostels...'
                       }
                       minLength={3}
                       open={hotelOpen}
                       onOpenChange={(open) => {
-                        const addDisabledByNights = hotels.length >= availableNights
-                        const addDisabledByOccupancy = dateMode === 'specific' ? !hasAvailableCheckInSpecific : !hasAvailableCheckInFlexible
-                        if ((addDisabledByNights || addDisabledByOccupancy) && open) {
-                          const msg = addDisabledByNights
-                            ? 'Total number of hotels cannot be more than the number of nights in the trip'
-                            : 'No available hotel check-in dates remain in your trip'
-                          toast.error(msg)
+                        const targetDest = selectedHotelDestination || destinations[0]?.city
+                        const destHasHotel = hotels.some(h => h.destination_city === targetDest)
+                        if (destHasHotel && open) {
+                          toast.error('Only one hotel per destination allowed')
                           return false
                         }
                         setHotelOpen(open)
@@ -1723,11 +1813,11 @@ const CreateItineraryForm: React.FC = () => {
                       items={hotelPOIs}
                       getItemKey={(p) => p.id}
                       getItemLabel={(p) => p.name}
-                      getItemDisabled={(p) => hotels.some(h => h.poi_id === p.id)}
+                      getItemDisabled={(p) => hotels.some((h) => h.poi_id === p.id)}
                       onSelect={(poi) => {
                         handleAddHotel(poi)
                       }}
-                      disabled={hotels.length >= availableNights || (dateMode === 'specific' ? !hasAvailableCheckInSpecific : !hasAvailableCheckInFlexible)}
+                      disabled={hotels.some(h => h.destination_city === (selectedHotelDestination || destinations[0]?.city))}
                     />
                   </div>
 
@@ -1744,7 +1834,8 @@ const CreateItineraryForm: React.FC = () => {
                               <X />
                             </Button>
                           </div>
-                          <div className="flex gap-4">
+                          {/* Hotel check-in/check-out dates are automatically set to match destination dates */}
+                          {/* <div className="flex gap-4">
                             <div className="flex w-full flex-col items-center">
                               <Label className="text-muted-foreground/60 text-xs">Check-in</Label>
                               <Input
@@ -1765,7 +1856,7 @@ const CreateItineraryForm: React.FC = () => {
                                 placeholder="Check-out"
                               />
                             </div>
-                          </div>
+                          </div> */}
                           {acc.validationError && <FieldError className="text-center">{acc.validationError}</FieldError>}
                         </div>
                       </div>
@@ -1802,7 +1893,7 @@ const CreateItineraryForm: React.FC = () => {
                     items={placesPOIs}
                     getItemKey={(p) => p.id}
                     getItemLabel={(p) => p.name}
-                    getItemDisabled={(p) => mandatoryPOIs.some(poi => poi.poi_id === p.id)}
+                    getItemDisabled={(p) => mandatoryPOIs.some((poi) => poi.poi_id === p.id)}
                     onSelect={(poi) => handleAddPlace(poi)}
                   />
                 </div>
@@ -1946,31 +2037,31 @@ const CreateItineraryForm: React.FC = () => {
           disabledCheckInDayIndices={
             dateMode === 'flexible'
               ? (() => {
-                  const occupied = computeOccupiedFlexible(scheduleHotelDialog.index)
-                  const indices = new Set<number>()
-                  occupied.forEach((d) => indices.add(d))
-                  // still prevent check-in on the very last trip day (no night after)
-                  indices.add(totalDays)
-                  return Array.from(indices)
-                })()
+                const occupied = computeOccupiedFlexible(scheduleHotelDialog.index)
+                const indices = new Set<number>()
+                occupied.forEach((d) => indices.add(d))
+                // still prevent check-in on the very last trip day (no night after)
+                indices.add(totalDays)
+                return Array.from(indices)
+              })()
               : undefined
           }
           disabledCheckOutDayIndices={
             dateMode === 'flexible'
               ? (() => {
-                  const base = new Set<number>()
-                  // cannot check-out on first trip day (no night before it)
-                  base.add(1)
-                  const inDay = scheduleHotelDialog.hotel?.check_in_day
-                  if (typeof inDay === 'number') {
-                    // cannot check-out same day as check-in
-                    base.add(inDay)
-                    const occ = computeOccupiedFlexible(scheduleHotelDialog.index)
-                    // disable the in-range occupied days (they belong to other hotels)
-                    occ.forEach((d) => base.add(d))
-                  }
-                  return Array.from(base)
-                })()
+                const base = new Set<number>()
+                // cannot check-out on first trip day (no night before it)
+                base.add(1)
+                const inDay = scheduleHotelDialog.hotel?.check_in_day
+                if (typeof inDay === 'number') {
+                  // cannot check-out same day as check-in
+                  base.add(inDay)
+                  const occ = computeOccupiedFlexible(scheduleHotelDialog.index)
+                  // disable the in-range occupied days (they belong to other hotels)
+                  occ.forEach((d) => base.add(d))
+                }
+                return Array.from(base)
+              })()
               : undefined
           }
           defaultMonth={startDate}
