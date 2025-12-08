@@ -11,19 +11,25 @@ import { Button } from '@/components/ui/button'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import { Field, FieldLabel, FieldError, FieldGroup } from '@/components/ui/field'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { WhenDialog, WhoDialog, PacingDialog, DietaryDialog, ScheduleDialog } from '@/components/dialogs'
 import type { DateMode } from '@/components/dialogs/when-dialog'
 import type { TimeType } from '@/components/dialogs/schedule-dialog'
 import { PACING_OPTIONS, DIETARY_OPTIONS, INTEREST_OPTIONS, MONTHS } from '@/lib/constants'
-import { ChevronLeft, Check, X, ChevronRight } from 'lucide-react'
+import { ChevronLeft, X, ChevronRight } from 'lucide-react'
 import { searchLocations, type Location, createItinerary, searchPOIsByDestinationAndRole } from '@/services/api'
 import { Label } from '@/components/ui/label'
 
 // Types & Interfaces
-interface CreateItineraryFormProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+
+interface Destination {
+  city: string
+  days?: number
+  dates?: {
+    type: 'specific' | 'flexible'
+    start_date?: string
+    end_date?: string
+    days?: number
+  }
 }
 
 interface Hotel {
@@ -35,6 +41,7 @@ interface Hotel {
   check_out_date?: Date
   check_in_day?: number
   check_out_day?: number
+  destination_city?: string
   themes?: string[]
   role?: string
   openHours?: any
@@ -48,6 +55,7 @@ interface MandatoryPOI {
   longitude: number
   date?: Date
   day?: number
+  destination_city?: string
   time_type: TimeType
   start_time?: string
   end_time?: string
@@ -74,12 +82,14 @@ interface POI {
 
 const LOCATION_SEARCH_MIN_LENGTH = 3
 const LOCATION_SEARCH_DEBOUNCE_MS = 300
+const MAX_DESTINATIONS = 3
+const TITLE_THRESHOLD = 150
 
 // Form schema
 const formSchema = z
   .object({
     title: z.string().optional(),
-    destination: z.string().min(1, 'Destination is required'),
+    destination: z.string().optional(),
     startDate: z.date().optional(),
     endDate: z.date().optional(),
     flexibleDays: z.string().optional(),
@@ -105,11 +115,18 @@ const formSchema = z
     },
     { message: 'Please select travel dates', path: ['startDate'] }
   )
+  .refine(
+    (data: any) => {
+      // At least one destination is required (legacy or new)
+      return !!data.destination
+    },
+    { message: 'At least one destination is required', path: ['destination'] }
+  )
 
 type FormData = z.infer<typeof formSchema>
 
 // Component
-const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenChange }) => {
+const CreateItineraryForm: React.FC = () => {
   // State
   const [currentStep, setCurrentStep] = useState(1)
   const [dateMode, setDateMode] = useState<DateMode>('flexible')
@@ -128,6 +145,16 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
   })
   const [hotels, setHotels] = useState<Hotel[]>([])
   const [mandatoryPOIs, setMandatoryPOIs] = useState<MandatoryPOI[]>([])
+  const [destinations, setDestinations] = useState<Destination[]>([])
+  const [destinationOpen, setDestinationOpen] = useState(false)
+  const [destinationSearch, setDestinationSearch] = useState('')
+  const [destinationLocations, setDestinationLocations] = useState<Location[]>([])
+  const [isSearchingDestination, setIsSearchingDestination] = useState(false)
+  const [scheduleDestinationDialog, setScheduleDestinationDialog] = useState<{
+    open: boolean
+    destination: Destination | null
+    index: number
+  }>({ open: false, destination: null, index: -1 })
   const [hotelOpen, setHotelOpen] = useState(false)
   const [hotelSearch, setHotelSearch] = useState('')
   const [hotelPOIs, setHotelPOIs] = useState<POI[]>([])
@@ -148,6 +175,7 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
   }>({ open: false, place: null, index: -1 })
 
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const destinationSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const hotelSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const placesSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -194,10 +222,13 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
   // const budgetKey: BudgetKey = budget === 'tight' || budget === 'sensible' || budget === 'upscale' || budget === 'luxury' ? budget : 'any'
 
   const isValidDestination = useMemo(() => {
+    // Valid if we have destinations array with at least one entry
+    if (destinations.length > 0) return true
+    // Fallback to legacy single destination
     if (!destination) return false
     if (selectedLocation && selectedLocation.label === destination) return true
     return false
-  }, [destination, selectedLocation])
+  }, [destination, selectedLocation, destinations])
 
   const dateDisplay = useMemo(() => {
     if (dateMode === 'specific' && startDate && endDate) {
@@ -223,11 +254,48 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
   }, [dateMode, startDate, endDate, flexibleDays])
   const availableNights = useMemo(() => Math.max(0, totalDays - 1), [totalDays])
 
-  const generateTitle = useCallback((customTitle?: string, dest?: string, mode?: DateMode, start?: Date, end?: Date, flexDays?: string) => {
+  const generateTitle = useCallback((customTitle?: string, dests?: Destination[], dest?: string, mode?: DateMode, start?: Date, end?: Date, flexDays?: string) => {
     if (customTitle && customTitle.trim()) {
       return customTitle.trim()
     }
 
+    // Multi-city title generation
+    if (dests && dests.length > 0) {
+      const cityNames = dests.map(d => d.city.split(',')[0].trim()).join(' & ')
+
+      // Check if title exceeds threshold
+      let titlePrefix = `Trip to ${cityNames}`
+      if (titlePrefix.length > TITLE_THRESHOLD) {
+        titlePrefix = 'Trip'
+      }
+
+      if (mode === 'specific' && start) {
+        const endDate = end || start
+        const numDays = calculateDaysBetween(start, endDate)
+
+        if (numDays === 1) {
+          return `${titlePrefix} @ ${format(start, 'MMM d')}`
+        } else {
+          const sameMonth = start.getMonth() === endDate.getMonth()
+          if (sameMonth) {
+            return `${titlePrefix} @ ${format(start, 'MMM d')} — ${format(endDate, 'd')}`
+          } else {
+            return `${titlePrefix} @ ${format(start, 'MMM d')} — ${format(endDate, 'MMM d')}`
+          }
+        }
+      } else if (flexDays) {
+        const days = parseInt(flexDays)
+        if (days === 1) {
+          return `${titlePrefix} @ 1 day`
+        } else {
+          return `${titlePrefix} @ ${days} days`
+        }
+      }
+
+      return titlePrefix
+    }
+
+    // Legacy single destination
     const destination = dest?.split(',')[0].trim() || 'Trip'
 
     if (mode === 'specific' && start) {
@@ -257,8 +325,8 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
   }, [])
 
   const generatedTitle = useMemo(
-    () => generateTitle(title, destination, dateMode, startDate, endDate, flexibleDays),
-    [generateTitle, title, destination, dateMode, startDate, endDate, flexibleDays]
+    () => generateTitle(title, destinations, destination, dateMode, startDate, endDate, flexibleDays),
+    [generateTitle, title, destinations, destination, dateMode, startDate, endDate, flexibleDays]
   )
 
   const isSameDay = (a?: Date, b?: Date) => {
@@ -285,7 +353,6 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
         if (!h.check_in_date || !h.check_out_date) return
         const inIdx = dayIndexFromTripStart(h.check_in_date)
         const outIdx = dayIndexFromTripStart(h.check_out_date)
-        // occupy [inIdx, outIdx)
         for (let idx = inIdx; idx < outIdx; idx++) {
           if (idx >= 0 && idx < totalDays) occupied.add(idx)
         }
@@ -325,16 +392,7 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
   )
 
   // Handlers
-  const handleOpenChange = (newOpen: boolean) => {
-    if (!newOpen) {
-      setCurrentStep(1)
-      form.reset()
-      setHotels([])
-      setMandatoryPOIs([])
-    }
-    onOpenChange(newOpen)
-  }
-
+  
   const handleInputChange = (field: keyof FormData, value: any) => {
     form.setValue(field as any, value, {
       shouldDirty: true,
@@ -403,26 +461,76 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
       form.setValue('flexibleDays', undefined as any)
       form.setValue('flexibleMonth', undefined as any)
 
-      // Clear incompatible flexible fields
+      // Clear incompatible flexible fields and destination days
       setHotels((prev) => prev.map((acc) => ({ ...acc, check_in_day: undefined, check_out_day: undefined })))
       setMandatoryPOIs((prev) => prev.map((poi) => ({ ...poi, day: undefined })))
+      setDestinations((prev) => prev.map((dest) => ({ ...dest, days: undefined, dates: undefined })))
     } else {
       form.setValue('startDate', undefined)
       form.setValue('endDate', undefined)
 
-      // Clear incompatible specific fields
+      // Clear incompatible specific fields and destination dates
       setHotels((prev) => prev.map((acc) => ({ ...acc, check_in_date: undefined, check_out_date: undefined })))
       setMandatoryPOIs((prev) => prev.map((poi) => ({ ...poi, date: undefined })))
+      setDestinations((prev) => prev.map((dest) => ({ ...dest, dates: undefined, days: undefined })))
     }
     setShowDateDialog(false)
   }
 
+  const validateDestinations = useCallback(() => {
+    if (destinations.length === 0) {
+      return { valid: true, error: null }
+    }
+
+    // Check if all destinations have dates/days OR all are empty
+    const hasAnyScheduled = destinations.some((dest) => {
+      if (dateMode === 'specific') {
+        return dest.dates?.start_date && dest.dates?.end_date
+      } else {
+        return dest.days !== undefined && dest.days > 0
+      }
+    })
+
+    const hasAllScheduled = destinations.every((dest) => {
+      if (dateMode === 'specific') {
+        return dest.dates?.start_date && dest.dates?.end_date
+      } else {
+        return dest.days !== undefined && dest.days > 0
+      }
+    })
+
+    // All empty -> accepted
+    if (!hasAnyScheduled) {
+      return { valid: true, error: null }
+    }
+
+    // Partial destinations empty -> error
+    if (hasAnyScheduled && !hasAllScheduled) {
+      return { valid: false, error: 'All destinations must have dates/days specified, or leave all empty' }
+    }
+
+    // Check total days match trip days (flexible mode only)
+    if (dateMode === 'flexible') {
+      const totalDestDays = destinations.reduce((sum, d) => sum + (d.days || 0), 0)
+      const tripDays = parseInt(flexibleDays || '0')
+
+      if (totalDestDays !== tripDays) {
+        return { valid: false, error: `Total destination days (${totalDestDays}) must equal trip days (${tripDays})` }
+      }
+    }
+
+    return { valid: true, error: null }
+  }, [destinations, dateMode, flexibleDays])
+
   const canProceed = () => {
     if (currentStep === 1) {
       const v = form.getValues()
-      const hasValidDestination = !!v.destination && isValidDestination
+      const hasValidDestination = isValidDestination
       const hasDates = dateMode === 'specific' ? !!v.startDate && !!v.endDate : !!v.flexibleDays
-      return hasValidDestination && hasDates && !!v.pacing  // && !!v.budget 
+
+      const destValidation = validateDestinations()
+
+      return hasValidDestination && hasDates && !!v.pacing && destValidation.valid
     }
     return true
   }
@@ -443,14 +551,167 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
     }
   }
 
-  const handleLocationSelect = (location: Location) => {
-    setSelectedLocation(location)
+  const handleAddDestination = (location: Location) => {
+    if (destinations.length >= MAX_DESTINATIONS) {
+      toast.error(`Maximum ${MAX_DESTINATIONS} destinations allowed`)
+      return
+    }
+
+    // Check for duplicates
+    if (destinations.some(d => d.city === location.label)) {
+      toast.error('Destination already added')
+      return
+    }
+
+    const newDestination: Destination = {
+      city: location.label,
+    }
+    setDestinations([...destinations, newDestination])
+    setDestinationSearch('')
+    setDestinationOpen(false)
+
+    // Update form destination field to reflect we have destinations
     form.setValue('destination', location.label, {
       shouldDirty: true,
       shouldValidate: true,
     })
-    setLocationSearch(location.label)
-    setLocationOpen(false)
+  }
+
+  const handleRemoveDestination = (index: number) => {
+    const removedDest = destinations[index]
+    const updated = destinations.filter((_, idx) => idx !== index)
+    setDestinations(updated)
+
+    // Update form destination field
+    if (updated.length === 0) {
+      form.setValue('destination', '', {
+        shouldDirty: true,
+        shouldValidate: true,
+      })
+    }
+
+    // Check if any hotels or mandatory POIs reference this destination
+    const removedCity = removedDest.city.toLowerCase()
+    
+    // Check hotels
+    const invalidHotels = hotels.filter((hotel) => 
+      hotel.poi_name.toLowerCase().includes(removedCity)
+    )
+    
+    // Check mandatory POIs
+    const invalidPOIs = mandatoryPOIs.filter((poi) => 
+      poi.poi_name.toLowerCase().includes(removedCity)
+    )
+
+    if (invalidHotels.length > 0 || invalidPOIs.length > 0) {
+      const messages = []
+      if (invalidHotels.length > 0) {
+        messages.push(`${invalidHotels.length} hotel(s) may be in ${removedDest.city}`)
+      }
+      if (invalidPOIs.length > 0) {
+        messages.push(`${invalidPOIs.length} place(s) may be in ${removedDest.city}`)
+      }
+      toast.error(`Warning: ${messages.join(' and ')}. Please review your selections.`)
+    }
+  }
+
+  const handleOpenDestinationSchedule = (destination: Destination, index: number) => {
+    setScheduleDestinationDialog({ open: true, destination, index })
+  }
+
+  const handleSaveDestinationSchedule = () => {
+    const { destination, index } = scheduleDestinationDialog
+    if (!destination) return
+
+    const oldDestination = destinations[index]
+
+    // Validate dates/days
+    if (dateMode === 'specific') {
+      if (!destination.dates || !destination.dates.start_date || !destination.dates.end_date) {
+        toast.error('Please select both start and end dates')
+        return
+      }
+
+      // Validate dates are within trip range
+      if (startDate && endDate) {
+        const destStart = new Date(destination.dates.start_date)
+        const destEnd = new Date(destination.dates.end_date)
+
+        if (destStart < startDate || destEnd > endDate) {
+          toast.error('Destination dates must be within trip dates')
+          return
+        }
+
+        if (destEnd <= destStart) {
+          toast.error('End date must be after start date')
+          return
+        }
+      }
+    } else {
+      if (!destination.days || destination.days < 1) {
+        toast.error('Please specify number of days (at least 1)')
+        return
+      }
+    }
+
+    // Validate total days match trip days (flexible mode only)
+    const updated = [...destinations]
+    updated[index] = destination
+
+    if (dateMode === 'flexible') {
+      const totalDestDays = updated.reduce((sum, d) => sum + (d.days || 0), 0)
+      const tripDays = parseInt(flexibleDays || '0')
+
+      if (totalDestDays > tripDays) {
+        toast.error(`Total destination days (${totalDestDays}) exceeds trip days (${tripDays})`)
+        return
+      }
+    }
+
+    // Check if dates/days changed - if so, clear hotels and POIs for this destination
+    const datesChanged = dateMode === 'specific'
+      ? oldDestination.dates?.start_date !== destination.dates?.start_date ||
+        oldDestination.dates?.end_date !== destination.dates?.end_date
+      : oldDestination.days !== destination.days
+
+    if (datesChanged) {
+      const cityLower = destination.city.toLowerCase()
+      
+      // Clear hotel dates/days for this destination
+      setHotels((prev) =>
+        prev.map((hotel) => {
+          if (hotel.destination_city?.toLowerCase() === cityLower) {
+            return {
+              ...hotel,
+              check_in_date: undefined,
+              check_out_date: undefined,
+              check_in_day: undefined,
+              check_out_day: undefined,
+            }
+          }
+          return hotel
+        })
+      )
+
+      // Clear POI dates/days for this destination
+      setMandatoryPOIs((prev) =>
+        prev.map((poi) => {
+          if (poi.destination_city?.toLowerCase() === cityLower) {
+            return {
+              ...poi,
+              date: undefined,
+              day: undefined,
+            }
+          }
+          return poi
+        })
+      )
+
+      toast.info(`Cleared schedules for hotels and places in ${destination.city}`)
+    }
+
+    setDestinations(updated)
+    setScheduleDestinationDialog({ open: false, destination: null, index: -1 })
   }
 
   const handleAddHotel = (poi: POI) => {
@@ -674,6 +935,18 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
     const { place, index } = schedulePlaceDialog
     if (!place) return
 
+    // Validate that both start_time and end_time are provided if time_type is 'specific'
+    if (place.time_type === 'specific') {
+      if (!place.start_time || !place.end_time) {
+        toast.error('Please provide both start time and end time')
+        return
+      }
+      if (place.end_time <= place.start_time) {
+        toast.error('End time must be after start time')
+        return
+      }
+    }
+
     const updated = [...mandatoryPOIs]
     updated[index] = place
 
@@ -691,7 +964,7 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
     const wheelchairAccessible = form.watch('wheelchairAccessible')
     const kidFriendly = form.watch('kidFriendly')
     const petFriendly = form.watch('petFriendly')
-    const title = generateTitle(customTitle, destination, dateMode, startDate, endDate, flexibleDays)
+    const title = generateTitle(customTitle, destinations, destination, dateMode, startDate, endDate, flexibleDays)
 
     const hotelPayload = hotels.map((acc) => ({
       poi_id: acc.poi_id,
@@ -708,27 +981,52 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
       images: acc.images,
     }))
 
-    const mandatoryPOIsPayload = mandatoryPOIs.map((poi) => ({
-      poi_id: poi.poi_id,
-      poi_name: poi.poi_name,
-      latitude: poi.latitude,
-      longitude: poi.longitude,
-      date: poi.date ? formatDateToISO(poi.date) : undefined,
-      day: poi.day,
-      time_type: poi.time_type,
-      start_time: poi.time_type === 'specific' ? poi.start_time : undefined,
-      end_time: poi.time_type === 'specific' ? poi.end_time : undefined,
-      themes: poi.themes,
-      role: poi.role,
-      open_hours: poi.openHours,
-      images: poi.images,
-    }))
+    const mandatoryPOIsPayload = mandatoryPOIs.map((poi) => {
+      const payload: any = {
+        poi_id: poi.poi_id,
+        poi_name: poi.poi_name,
+        latitude: poi.latitude,
+        longitude: poi.longitude,
+        date: poi.date ? formatDateToISO(poi.date) : undefined,
+        day: poi.day,
+        themes: poi.themes,
+        role: poi.role,
+        open_hours: poi.openHours,
+        images: poi.images,
+      }
+
+      // Only include time fields if both are provided
+      if (poi.time_type === 'specific' && poi.start_time && poi.end_time) {
+        payload.start_time = poi.start_time
+        payload.end_time = poi.end_time
+      }
+
+      return payload
+    })
+
+    // Prepare destinations payload
+    const destinationsPayload = destinations.map((dest) => {
+      const destPayload: any = {
+        city: dest.city,
+      }
+
+      if (dateMode === 'specific' && dest.dates) {
+        destPayload.dates = {
+          type: 'specific',
+          start_date: dest.dates.start_date,
+          end_date: dest.dates.end_date,
+        }
+      } else if (dateMode === 'flexible' && dest.days) {
+        destPayload.days = dest.days
+      }
+
+      return destPayload
+    })
 
     const dietaryRestrictionsValue = form.watch('dietaryRestrictions')
 
-    const basePayload = {
+    const basePayload: any = {
       title,
-      destination,
       travelers: {
         adults: form.watch('adults'),
         children: form.watch('children'),
@@ -750,13 +1048,20 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
       ...(mandatoryPOIsPayload.length > 0 && { mandatory_pois: mandatoryPOIsPayload }),
     }
 
+    // Add destinations (new multi-city format) or fallback to legacy destination
+    if (destinationsPayload.length > 0) {
+      basePayload.destinations = destinationsPayload
+    } else if (destination) {
+      basePayload.destination = destination
+    }
+
     if (dateMode === 'specific') {
       const startISO = startDate ? formatDateToISO(startDate) : null
       const endISO = endDate ? formatDateToISO(endDate) : null
 
       return {
         ...basePayload,
-        dates: { type: 'specific', startDate: startISO, endDate: endISO },
+        dates: { type: 'specific', start_date: startISO, end_date: endISO },
       }
     }
 
@@ -764,7 +1069,7 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
     const preferredMonth = form.watch('flexibleMonth') || null
     return {
       ...basePayload,
-      dates: { type: 'flexible', days, preferredMonth },
+      dates: { type: 'flexible', days, preferred_month: preferredMonth },
     }
   }
 
@@ -775,8 +1080,7 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
     }
 
     const payload = generateAPIPayload()
-    onOpenChange(false)
-
+    
     const promise = createItinerary(payload as any).then((data) => {
       if (data && data.itin_id) {
         localStorage.setItem('fika:lastChatId', data.itin_id)
@@ -822,6 +1126,30 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
       }
     }
   }, [locationSearch])
+
+  useEffect(() => {
+    if (destinationSearchTimeoutRef.current) {
+      clearTimeout(destinationSearchTimeoutRef.current)
+    }
+
+    if (destinationSearch.length >= LOCATION_SEARCH_MIN_LENGTH) {
+      setIsSearchingDestination(true)
+      destinationSearchTimeoutRef.current = setTimeout(async () => {
+        const results = await searchLocations(destinationSearch)
+        setDestinationLocations(results)
+        setIsSearchingDestination(false)
+      }, LOCATION_SEARCH_DEBOUNCE_MS)
+    } else {
+      setDestinationLocations([])
+      setIsSearchingDestination(false)
+    }
+
+    return () => {
+      if (destinationSearchTimeoutRef.current) {
+        clearTimeout(destinationSearchTimeoutRef.current)
+      }
+    }
+  }, [destinationSearch])
 
   useEffect(() => {
     if (hotelSearchTimeoutRef.current) {
@@ -893,15 +1221,32 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
     }
   }, [placesSearch, destination])
 
-  // RENDER
   return (
     <>
-      <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="overflow-auto">
-          <DialogHeader>
-            <DialogTitle>Create Trip</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
+      <div className="p-6">
+        {/* Stepper */}
+        <div className="mx-auto mb-6 flex w-full max-w-2xl items-center gap-3">
+          {[1, 2, 3].map((s, idx) => (
+            <React.Fragment key={s}>
+              <div className="flex items-center gap-2">
+                <div
+                  className={
+                    'flex h-8 w-8 items-center justify-center rounded-full text-sm ' +
+                    (currentStep === s ? 'bg-black text-white' : s < currentStep ? 'bg-black/70 text-white' : 'border text-muted-foreground')
+                  }
+                >
+                  {s}
+                </div>
+                <span className="hidden text-sm sm:inline">
+                  {s === 1 ? 'Basics' : s === 2 ? 'Preferences' : 'Extras'}
+                </span>
+              </div>
+              {idx < 2 && <div className={`h-0.5 flex-1 rounded ${currentStep > s ? 'bg-black/70' : 'bg-gray-200'}`} />}
+            </React.Fragment>
+          ))}
+        </div>
+
+        <form onSubmit={form.handleSubmit(onSubmit)}>
             {currentStep === 1 && (
               <FieldGroup>
                 <Field>
@@ -911,30 +1256,60 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
 
                 <Field>
                   <FieldLabel>Where</FieldLabel>
-                  <div className="relative">
-                    <SearchableSelect
-                      inputValue={locationSearch}
-                      onInputChange={(val) => {
-                        setLocationSearch(val)
-                        if (!val) {
-                          setSelectedLocation(null)
-                          form.setValue('destination', '', { shouldDirty: true, shouldValidate: true })
-                        }
-                      }}
-                      placeholder="Where are you going?"
-                      minLength={LOCATION_SEARCH_MIN_LENGTH}
-                      open={locationOpen}
-                      onOpenChange={setLocationOpen}
-                      isLoading={isSearching}
-                      items={locations}
-                      getItemKey={(l) => l.id}
-                      getItemLabel={(l) => l.label}
-                      onSelect={handleLocationSelect}
-                    />
-                    {selectedLocation && <Check className="text-primary absolute top-3 right-3 size-4" />}
+                  <SearchableSelect
+                    inputValue={destinationSearch}
+                    onInputChange={setDestinationSearch}
+                    placeholder={
+                      destinations.length >= MAX_DESTINATIONS
+                        ? `Maximum ${MAX_DESTINATIONS} destinations`
+                        : 'Where are you going?'
+                    }
+                    minLength={LOCATION_SEARCH_MIN_LENGTH}
+                    open={destinationOpen}
+                    onOpenChange={setDestinationOpen}
+                    isLoading={isSearchingDestination}
+                    items={destinationLocations}
+                    getItemKey={(l) => l.id}
+                    getItemLabel={(l) => l.label}
+                    onSelect={handleAddDestination}
+                    disabled={destinations.length >= MAX_DESTINATIONS}
+                  />
+
+                  <div className="space-y-2">
+                    {destinations.map((dest, index) => (
+                      <div key={index} className="rounded-xl border p-3 pt-2">
+                        <div className="min-w-0 flex-1 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">{dest.city}</span>
+                            <div className='flex gap-2 items-center justify-end'>
+                            <Input
+                              readOnly
+                              value={
+                                dateMode === 'specific'
+                                  ? dest.dates?.start_date && dest.dates?.end_date
+                                    ? `${format(new Date(dest.dates.start_date), 'MMM d')} - ${format(new Date(dest.dates.end_date), 'MMM d')}`
+                                    : 'Dates'
+                                  : dest.days
+                                    ? `${dest.days} day${dest.days !== 1 ? 's' : ''}`
+                                    : 'Days'
+                              }
+                              onClick={() => handleOpenDestinationSchedule(dest, index)}
+                              className="w-1/4 h-7 cursor-pointer text-muted-foreground text-xs"
+                              placeholder={dateMode === 'specific' ? 'Set dates' : 'Set days'}
+                            />
+                            <Button variant="ghost" size="icon" onClick={() => handleRemoveDestination(index)} className="h-8 w-8">
+                              <X />
+                            </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  {!isValidDestination && destination && <p className="text-destructive mt-1 text-sm">Please select a destination from the list</p>}
-                  <FieldError className="pl-4 text-xs" errors={[form.formState.errors.destination]} />
+
+                  {destinations.length > 0 && !validateDestinations().valid && (
+                    <FieldError>{validateDestinations().error}</FieldError>
+                  )}
                 </Field>
 
                 <Field>
@@ -984,6 +1359,9 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
                   <Button type="button" onClick={handleNext} disabled={!canProceed()} className="w-full">
                     Next
                   </Button>
+                  {!canProceed() && destinations.length > 0 && !validateDestinations().valid && (
+                    <FieldError>{validateDestinations().error}</FieldError>
+                  )}
                 </Field>
               </FieldGroup>
             )}
@@ -1176,8 +1554,7 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
               </FieldGroup>
             )}
           </form>
-        </DialogContent>
-      </Dialog>
+      </div>
 
       <WhenDialog
         open={showDateDialog}
@@ -1253,31 +1630,31 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
           disabledCheckInDayIndices={
             dateMode === 'flexible'
               ? (() => {
-                  const occupied = computeOccupiedFlexible(scheduleHotelDialog.index)
-                  const indices = new Set<number>()
-                  occupied.forEach((d) => indices.add(d))
-                  // still prevent check-in on the very last trip day (no night after)
-                  indices.add(totalDays)
-                  return Array.from(indices)
-                })()
+                const occupied = computeOccupiedFlexible(scheduleHotelDialog.index)
+                const indices = new Set<number>()
+                occupied.forEach((d) => indices.add(d))
+                // still prevent check-in on the very last trip day (no night after)
+                indices.add(totalDays)
+                return Array.from(indices)
+              })()
               : undefined
           }
           disabledCheckOutDayIndices={
             dateMode === 'flexible'
               ? (() => {
-                  const base = new Set<number>()
-                  // cannot check-out on trip start (no night before it)
-                  base.add(1)
-                  const inDay = scheduleHotelDialog.hotel?.check_in_day
-                  if (typeof inDay === 'number') {
-                    // cannot check-out same day as check-in
-                    base.add(inDay)
-                    const occ = computeOccupiedFlexible(scheduleHotelDialog.index)
-                    // disable the in-range occupied days (they belong to other hotels)
-                    occ.forEach((d) => base.add(d))
-                  }
-                  return Array.from(base)
-                })()
+                const base = new Set<number>()
+                // cannot check-out on trip start (no night before it)
+                base.add(1)
+                const inDay = scheduleHotelDialog.hotel?.check_in_day
+                if (typeof inDay === 'number') {
+                  // cannot check-out same day as check-in
+                  base.add(inDay)
+                  const occ = computeOccupiedFlexible(scheduleHotelDialog.index)
+                  // disable the in-range occupied days (they belong to other hotels)
+                  occ.forEach((d) => base.add(d))
+                }
+                return Array.from(base)
+              })()
               : undefined
           }
           defaultMonth={startDate}
@@ -1345,6 +1722,49 @@ const CreateItineraryForm: React.FC<CreateItineraryFormProps> = ({ open, onOpenC
             setSchedulePlaceDialog({ ...schedulePlaceDialog, place: updated })
           }}
           onSave={handleSavePlaceSchedule}
+        />
+      )}
+
+      {scheduleDestinationDialog.destination && (
+        <ScheduleDialog
+          open={scheduleDestinationDialog.open}
+          onOpenChange={(open) => setScheduleDestinationDialog({ open, destination: null, index: -1 })}
+          mode='multi-day'
+          title={`Schedule: ${scheduleDestinationDialog.destination.city}`}
+          isSpecificDates={dateMode === 'specific'}
+          availableDates={
+            dateMode === 'specific' && startDate && endDate
+              ? Array.from({ length: totalDays }, (_, i) => new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000))
+              : Array.from({ length: totalDays }, () => new Date())
+          }
+          disabledDates={(date) => {
+            if (!startDate || !endDate) return true
+            return date < startDate || date > endDate
+          }}
+          defaultMonth={startDate}
+          dateRange={
+            scheduleDestinationDialog.destination.dates?.start_date && scheduleDestinationDialog.destination.dates?.end_date
+              ? {
+                from: new Date(scheduleDestinationDialog.destination.dates.start_date),
+                to: new Date(scheduleDestinationDialog.destination.dates.end_date),
+              }
+              : undefined
+          }
+          onDateRangeChange={(range) => {
+            const updated = { ...scheduleDestinationDialog.destination! }
+            updated.dates = {
+              type: 'specific',
+              start_date: range?.from ? format(range.from, 'yyyy-MM-dd') : undefined,
+              end_date: range?.to ? format(range.to, 'yyyy-MM-dd') : undefined,
+            }
+            setScheduleDestinationDialog({ ...scheduleDestinationDialog, destination: updated })
+          }}
+          selectedDay={scheduleDestinationDialog.destination.days?.toString()}
+          onDayChange={(day) => {
+            const updated = { ...scheduleDestinationDialog.destination!, days: parseInt(day) }
+            setScheduleDestinationDialog({ ...scheduleDestinationDialog, destination: updated })
+          }}
+          onSave={handleSaveDestinationSchedule}
         />
       )}
     </>

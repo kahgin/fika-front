@@ -467,9 +467,15 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
   const rawPacing = data?.meta?.preferences?.pacing as string | undefined
   const pacingLabel = rawPacing && rawPacing in pacingMap ? pacingMap[rawPacing] : 'Balanced'
 
+  // Handle multi-city destinations
+  const destinations = data?.meta?.destinations || []
+  const destinationDisplay = destinations.length > 0
+    ? destinations.map((d: any) => d.city || d.name || d.destination).join(' & ')
+    : data?.meta?.destination || 'Singapore'
+
   const tripData = {
-    title: data?.meta?.title || (data?.meta?.destination ? `${data.meta.destination} Trip` : 'Trip'),
-    destination: data?.meta?.destination || 'Singapore',
+    title: data?.meta?.title || (destinationDisplay ? `${destinationDisplay} Trip` : 'Trip'),
+    destination: destinationDisplay,
     dates:
       typeof data?.meta?.dates === 'object' && data?.meta?.dates?.type === 'specific'
         ? formatDateRange(data?.meta?.dates?.startDate, data?.meta?.dates?.endDate)
@@ -529,7 +535,7 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
             value="destination"
             variant="outline"
             className="rounded-full shadow-none"
-            onClick={() => toast('Changing trip destionation is not allowed.')}
+            onClick={() => toast('Changing trip destination is not allowed.')}
           >
             {tripData.destination}
           </Button>

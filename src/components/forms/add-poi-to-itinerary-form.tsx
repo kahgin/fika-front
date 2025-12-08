@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import type { POI } from '@/services/api'
 import { Button } from '@/components/ui/button'
-import CreateItineraryForm from '@/components/forms/create-itinerary-form'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import LoginForm from '@/components/forms/login-form'
 
@@ -70,8 +69,7 @@ export function AddPOIToItineraryForm({ open, onOpenChange, poi, onSuccess }: Ad
   const [itineraries, setItineraries] = useState<ItinerarySummary[]>([])
   const [loadingItineraries, setLoadingItineraries] = useState(false)
   const [adding, setAdding] = useState(false)
-  const [showCreateItinerary, setShowCreateItinerary] = useState(false)
-  const [showLogin, setShowLogin] = useState(false)
+    const [showLogin, setShowLogin] = useState(false)
 
   const fetchItineraries = async () => {
     setLoadingItineraries(true)
@@ -137,7 +135,7 @@ export function AddPOIToItineraryForm({ open, onOpenChange, poi, onSuccess }: Ad
                   className="flex-1"
                   onClick={() => {
                     onOpenChange(false)
-                    setShowCreateItinerary(true)
+                    window.location.href = '/create'
                   }}
                 >
                   Create Itinerary
@@ -176,7 +174,6 @@ export function AddPOIToItineraryForm({ open, onOpenChange, poi, onSuccess }: Ad
       </Dialog>
 
       {/* Forms controlled by open state */}
-      <CreateItineraryForm open={showCreateItinerary} onOpenChange={setShowCreateItinerary} />
       <LoginForm open={showLogin} onOpenChange={setShowLogin} />
     </>
   )

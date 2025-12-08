@@ -8,15 +8,13 @@ import { BOTTOM_NAV_HEIGHT } from '@/components/bottom-nav'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Tooltip } from '@/components/ui/tooltip'
 import { TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import CreateItineraryForm from '@/components/forms/create-itinerary-form'
 import LoginForm from '@/components/forms/login-form'
 import SignupForm from '@/components/forms/signup-form'
 
 export default function ItineraryPage() {
   const [chats, setChats] = useState<CreatedItinerary[]>([])
   const [loading, setLoading] = useState(true)
-  const [showCreateItinerary, setShowCreateItinerary] = useState(false)
-  const [showLogin, setShowLogin] = useState(false)
+    const [showLogin, setShowLogin] = useState(false)
   const [showSignup, setShowSignup] = useState(false)
   const isMobile = useIsMobile()
 
@@ -80,7 +78,7 @@ export default function ItineraryPage() {
               </EmptyDescription>
             </EmptyHeader>
             <div className="flex gap-2">
-              <Button onClick={() => setShowCreateItinerary(true)}>Create Itinerary</Button>
+              <Button onClick={() => (window.location.href = '/create')}>Create Itinerary</Button>
               <Button variant="outline" onClick={() => setShowLogin(true)}>
                 Login
               </Button>
@@ -124,13 +122,12 @@ export default function ItineraryPage() {
         )}
       </div>
 
-      <CreateItineraryForm open={showCreateItinerary} onOpenChange={setShowCreateItinerary} />
+      {/* Removed dialog usage; create itinerary is now a dedicated page at /create */}
       <LoginForm
         open={showLogin}
         onOpenChange={setShowLogin}
         onSwitchToSignup={() => {
           setShowLogin(false)
-          setShowCreateItinerary(false)
           setShowSignup(true)
         }}
       />
@@ -139,7 +136,6 @@ export default function ItineraryPage() {
         onOpenChange={setShowSignup}
         onSwitchToLogin={() => {
           setShowSignup(false)
-          setShowCreateItinerary(false)
           setShowLogin(true)
         }}
       />

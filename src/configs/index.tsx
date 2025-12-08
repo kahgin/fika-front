@@ -3,20 +3,21 @@ import ChatPage from '@/pages/ChatPage'
 import ItineraryPage from '@/pages/ItineraryPage'
 import SearchPage from '@/pages/SearchPage'
 import SettingPage from '@/pages/SettingPage'
+import CreateItineraryPage from '@/pages/CreateItineraryPage'
 
 // Map navigation routes to elements
-const navigationRoutesWithElements = navigationRoutes
-  .filter((route) => route.id !== 'create')
-  .map((route) => {
-    switch (route.id) {
-      case 'chat':
-        return { ...route, element: <ChatPage /> }
-      case 'itinerary':
-        return { ...route, element: <ItineraryPage /> }
-      case 'search':
-        return { ...route, element: <SearchPage /> }
-    }
-  })
+const navigationRoutesWithElements = navigationRoutes.map((route) => {
+  switch (route.id) {
+    case 'chat':
+      return { ...route, element: <ChatPage /> }
+    case 'itinerary':
+      return { ...route, element: <ItineraryPage /> }
+    case 'search':
+      return { ...route, element: <SearchPage /> }
+    case 'create':
+      return { ...route, element: <CreateItineraryPage /> }
+  }
+})
 
 // Map utility routes to elements
 const utilityRoutesWithElements = utilityRoutes.map((route) => {

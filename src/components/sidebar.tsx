@@ -4,7 +4,6 @@ import { navigationRoutes } from '@/configs'
 import type { NavigationViewType } from '@/configs/routes'
 import Logo from '@/components/logo'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import CreateItineraryForm from '@/components/forms/create-itinerary-form'
 import {
   Sidebar,
   SidebarHeader,
@@ -32,7 +31,6 @@ export function AppSidebar({ user }: { user: any }) {
   const location = useLocation()
   const { state, isMobile } = useSidebar()
   const [isLogoHovered, setIsLogoHovered] = useState(false)
-  const [isCreateOpen, setIsCreateOpen] = useState(false)
 
   const getCurrentView = (): NavigationViewType | string => {
     const path = location.pathname.slice(1) || 'chat'
@@ -40,16 +38,11 @@ export function AppSidebar({ user }: { user: any }) {
   }
 
   const handleViewChange = (view: NavigationViewType, path: string) => {
-    if (view === 'create') {
-      setIsCreateOpen(true)
-      return
-    }
     navigate(view === 'chat' ? '/' : path)
   }
 
   return (
     <Sidebar collapsible="icon" variant="sidebar">
-      <CreateItineraryForm open={isCreateOpen} onOpenChange={setIsCreateOpen} />
 
       {/* Header */}
       <SidebarHeader className="flex h-12 items-center">

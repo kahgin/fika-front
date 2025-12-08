@@ -23,6 +23,23 @@ export interface CreatedItinerary {
   plan: any
 }
 
+// Normalize server response to UI-friendly shape (camelCase dates keys)
+function normalizeItinerary<T extends { meta?: any }>(data: T): T {
+  try {
+    if (data && data.meta && data.meta.dates && typeof data.meta.dates === 'object') {
+      const d = data.meta.dates
+      const normalized = {
+        ...d,
+        startDate: d.startDate ?? d.start_date ?? null,
+        endDate: d.endDate ?? d.end_date ?? null,
+        preferredMonth: d.preferredMonth ?? d.preferred_month ?? null,
+      }
+      data.meta.dates = normalized
+    }
+  } catch {}
+  return data
+}
+
 export interface AddPOIPayload {
   poi_id: string
   day?: number
@@ -75,10 +92,11 @@ export async function createItinerary(payload: CreateItineraryPayload): Promise<
     const resp = await fetch(`${API_BASE_URL}/itinerary/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(payload as any),
     })
     if (!resp.ok) throw new Error('Failed to create itinerary')
-    return await resp.json()
+    const data = await resp.json()
+    return normalizeItinerary(data)
   } catch (e) {
     console.error('createItinerary error', e)
     return null
@@ -92,7 +110,8 @@ export async function getItinerary(chatId: string): Promise<CreatedItinerary | n
       headers: noCacheHeaders,
     })
     if (!resp.ok) throw new Error('Failed to load itinerary')
-    return await resp.json()
+    const data = await resp.json()
+    return normalizeItinerary(data)
   } catch (e) {
     console.error('getItinerary error', e)
     return null
@@ -120,7 +139,8 @@ export async function listItineraries(): Promise<CreatedItinerary[] | null> {
       headers: noCacheHeaders,
     })
     if (!resp.ok) throw new Error('Failed to list itineraries')
-    return await resp.json()
+    const data = await resp.json()
+    return Array.isArray(data) ? data.map((d: any) => normalizeItinerary(d)) : data
   } catch (e) {
     console.error('listItineraries error', e)
     return null
@@ -149,7 +169,8 @@ export async function reorderItineraryStops(chatId: string, dayIndex: number, po
       body: JSON.stringify({ day_index: dayIndex, poi_ids: poiIds }),
     })
     if (!resp.ok) throw new Error('Failed to reorder stops')
-    return await resp.json()
+    const data = await resp.json()
+    return normalizeItinerary(data)
   } catch (e) {
     console.error('reorderItineraryStops error', e)
     return null
@@ -177,7 +198,8 @@ export async function schedulePOI(
       }),
     })
     if (!resp.ok) throw new Error('Failed to schedule POI')
-    return await resp.json()
+    const data = await resp.json()
+    return normalizeItinerary(data)
   } catch (e) {
     console.error('schedulePOI error', e)
     return null
@@ -190,7 +212,8 @@ export async function deletePOIFromItinerary(chatId: string, poiId: string): Pro
       method: 'DELETE',
     })
     if (!resp.ok) throw new Error('Failed to delete POI')
-    return await resp.json()
+    const data = await resp.json()
+    return normalizeItinerary(data)
   } catch (e) {
     console.error('deletePOIFromItinerary error', e)
     return null
@@ -223,7 +246,8 @@ export async function updateItineraryMeta(chatId: string, metaUpdates: Record<st
       return updatedItinerary
     }
 
-    return await resp.json()
+    const data = await resp.json()
+    return normalizeItinerary(data)
   } catch (e) {
     console.error('updateItineraryMeta error', e)
     return null
