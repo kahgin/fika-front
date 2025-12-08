@@ -1,12 +1,6 @@
 import React from 'react'
 import { OptionSelectDialog } from '@/components/dialogs/option-select-dialog'
-
-const DIETARY_OPTIONS = [
-  { value: 'none', label: 'No Restrictions' },
-  { value: 'halal', label: 'Halal' },
-  { value: 'vegan', label: 'Vegan' },
-  { value: 'vegetarian', label: 'Vegetarian' },
-] as const
+import { DIETARY_OPTIONS } from '@/lib/constants'
 
 interface DietaryDialogProps {
   open: boolean

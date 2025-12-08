@@ -37,7 +37,7 @@ export function SearchableSelect<T>({
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild>
+      <PopoverTrigger asChild className='w-full'>
         <div className="relative">
           <Input
             placeholder={placeholder}

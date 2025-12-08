@@ -94,7 +94,6 @@ export const WhenDialog: React.FC<WhenDialogProps> = ({
             </p>
           </TabsContent>
           <TabsContent value="flexible" className="my-4 w-full space-y-4">
-            <Label>How many days?</Label>
             <div className="mt-4 flex items-center justify-center gap-4">
               <Button
                 type="button"

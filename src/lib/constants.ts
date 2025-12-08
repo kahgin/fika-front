@@ -7,8 +7,8 @@ export const PACING_OPTIONS = [
 export const DIETARY_OPTIONS = [
   { value: 'none', label: 'No Restrictions' },
   { value: 'halal', label: 'Halal' },
-  { value: 'vegan', label: 'Vegan' },
   { value: 'vegetarian', label: 'Vegetarian' },
+  { value: 'vegan', label: 'Vegan' },
 ] as const
 
 export const INTEREST_OPTIONS = [

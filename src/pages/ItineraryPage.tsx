@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { formatDateRange } from '@/lib/date-range'
 import { Button } from '@/components/ui/button'
 import { deleteItinerary, listItineraries, type CreatedItinerary } from '@/services/api'
@@ -6,17 +7,17 @@ import { Map, SquareArrowOutUpRight, Trash } from 'lucide-react'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { BOTTOM_NAV_HEIGHT } from '@/components/bottom-nav'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
-import { Tooltip } from '@/components/ui/tooltip'
-import { TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import LoginForm from '@/components/forms/login-form'
 import SignupForm from '@/components/forms/signup-form'
 
 export default function ItineraryPage() {
+  const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const [chats, setChats] = useState<CreatedItinerary[]>([])
   const [loading, setLoading] = useState(true)
-    const [showLogin, setShowLogin] = useState(false)
+  const [showLogin, setShowLogin] = useState(false)
   const [showSignup, setShowSignup] = useState(false)
-  const isMobile = useIsMobile()
 
   useEffect(() => {
     const loadItineraries = async () => {
@@ -45,7 +46,11 @@ export default function ItineraryPage() {
 
   const handleOpen = (chatId: string) => {
     localStorage.setItem('fika:lastChatId', chatId)
-    window.location.href = '/chat'
+    navigate('/chat')
+  }
+
+  const handleCreateItinerary = () => {
+    navigate('/create')
   }
 
   const handleDelete = async (chatId: string) => {
@@ -78,7 +83,7 @@ export default function ItineraryPage() {
               </EmptyDescription>
             </EmptyHeader>
             <div className="flex gap-2">
-              <Button onClick={() => (window.location.href = '/create')}>Create Itinerary</Button>
+              <Button onClick={handleCreateItinerary}>Create Itinerary</Button>
               <Button variant="outline" onClick={() => setShowLogin(true)}>
                 Login
               </Button>
@@ -122,7 +127,6 @@ export default function ItineraryPage() {
         )}
       </div>
 
-      {/* Removed dialog usage; create itinerary is now a dedicated page at /create */}
       <LoginForm
         open={showLogin}
         onOpenChange={setShowLogin}

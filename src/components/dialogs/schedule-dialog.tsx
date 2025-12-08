@@ -220,7 +220,7 @@ export function ScheduleDialog({
                     disabled={disabledDates}
                   />
                   {dateRange?.from && dateRange?.to && isSameDay(dateRange.from, dateRange.to) && (
-                    <p className="text-destructive mt-2 text-xs">Check-out must be at least the next day.</p>
+                    <p className="text-destructive mt-2 text-xs">Check-out cannot be the same day as check-in.</p>
                   )}
                 </div>
               ) : (

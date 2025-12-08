@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import type { POI } from '@/services/api'
 import { Button } from '@/components/ui/button'
@@ -66,10 +67,11 @@ async function fetchItinerariesFromStorageOrAPI(): Promise<ItinerarySummary[]> {
 }
 
 export function AddPOIToItineraryForm({ open, onOpenChange, poi, onSuccess }: AddPOIToItineraryFormProps) {
+  const navigate = useNavigate()
   const [itineraries, setItineraries] = useState<ItinerarySummary[]>([])
   const [loadingItineraries, setLoadingItineraries] = useState(false)
   const [adding, setAdding] = useState(false)
-    const [showLogin, setShowLogin] = useState(false)
+  const [showLogin, setShowLogin] = useState(false)
 
   const fetchItineraries = async () => {
     setLoadingItineraries(true)
@@ -135,7 +137,7 @@ export function AddPOIToItineraryForm({ open, onOpenChange, poi, onSuccess }: Ad
                   className="flex-1"
                   onClick={() => {
                     onOpenChange(false)
-                    window.location.href = '/create'
+                    navigate('/create')
                   }}
                 >
                   Create Itinerary
