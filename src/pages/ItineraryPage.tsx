@@ -97,7 +97,7 @@ export default function ItineraryPage() {
                   <div className="font-medium">{c.meta?.title}</div>
                   <div className="text-muted-foreground text-sm">
                     {c?.meta?.dates?.type === 'specific'
-                      ? formatDateRange(c?.meta?.dates?.startDate, c?.meta?.dates?.endDate)
+                      ? formatDateRange(c?.meta?.dates?.start_date, c?.meta?.dates?.end_date)
                       : c?.meta?.dates?.days
                         ? `${c?.meta?.dates?.days} days`
                         : ''}

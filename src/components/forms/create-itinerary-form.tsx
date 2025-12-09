@@ -814,7 +814,7 @@ const CreateItineraryForm: React.FC = () => {
     const targetDestination = selectedHotelDestination || destinations[0]?.city
 
     // Check if destination already has a hotel
-    const destinationHasHotel = hotels.some(h => h.destination_city === targetDestination)
+    const destinationHasHotel = hotels.some((h) => h.destination_city === targetDestination)
     if (destinationHasHotel) {
       toast.error('Only one hotel per destination allowed')
       return
@@ -939,7 +939,7 @@ const CreateItineraryForm: React.FC = () => {
       destination_city: selectedPlacesDestination || destinations[0]?.city,
       themes: poi.themes,
       role: poi.role,
-      openHours: poi.openHours,
+      openHours: poi.openHours || (poi as any).open_hours,
       images: poi.images,
     }
     setMandatoryPOIs([...mandatoryPOIs, newPlace])
@@ -1220,7 +1220,7 @@ const CreateItineraryForm: React.FC = () => {
         check_out_day: checkOutDay,
         themes: acc.themes,
         role: acc.role,
-        open_hours: acc.openHours,
+        // open_hours: acc.openHours,
         images: acc.images,
       }
     })
@@ -1234,9 +1234,10 @@ const CreateItineraryForm: React.FC = () => {
         longitude: poi.longitude,
         date: poi.date ? formatDateToISO(poi.date) : undefined,
         day: poi.day,
+        time_type: poi.time_type || 'any_time',
         themes: poi.themes,
         role: poi.role,
-        open_hours: poi.openHours,
+        // open_hours: poi.openHours,
         images: poi.images,
       }
 
@@ -1361,24 +1362,32 @@ const CreateItineraryForm: React.FC = () => {
 
     const payload = generateAPIPayload()
 
-    const promise = createItinerary(payload as any).then((data) => {
-      if (data && data.itin_id) {
-        localStorage.setItem('fika:lastChatId', data.itin_id)
-        localStorage.setItem(`fika:chat:${data.itin_id}`, JSON.stringify(data))
+    const promise = createItinerary(payload as any)
+      .then((data) => {
+        if (data && data.itin_id) {
+          localStorage.setItem('fika:lastChatId', data.itin_id)
+          localStorage.setItem(`fika:chat:${data.itin_id}`, JSON.stringify(data))
 
-        setTimeout(() => {
-          navigate('/chat')
-        }, 1000)
+          setTimeout(() => {
+            navigate('/chat')
+          }, 1000)
 
-        return data
-      }
-      throw new Error('Invalid response')
-    })
+          return data
+        }
+        throw new Error('Invalid response')
+      })
+      .catch((error) => {
+        console.error('Create itinerary error:', error)
+        throw error
+      })
 
     toast.promise(promise, {
       loading: 'Creating your itinerary...',
       success: 'Itinerary created! Redirecting...',
-      error: 'Failed to create itinerary. Please try again.',
+      error: (err) => {
+        const message = err?.message || 'Failed to create itinerary. Please try again.'
+        return message
+      },
     })
   }
 
@@ -1512,17 +1521,21 @@ const CreateItineraryForm: React.FC = () => {
         if (parsed.dateMode) setDateMode(parsed.dateMode)
         if (parsed.destinations) setDestinations(parsed.destinations)
         if (parsed.hotels) {
-          setHotels(parsed.hotels.map((h: any) => ({
-            ...h,
-            check_in_date: h.check_in_date ? new Date(h.check_in_date) : undefined,
-            check_out_date: h.check_out_date ? new Date(h.check_out_date) : undefined,
-          })))
+          setHotels(
+            parsed.hotels.map((h: any) => ({
+              ...h,
+              check_in_date: h.check_in_date ? new Date(h.check_in_date) : undefined,
+              check_out_date: h.check_out_date ? new Date(h.check_out_date) : undefined,
+            }))
+          )
         }
         if (parsed.mandatoryPOIs) {
-          setMandatoryPOIs(parsed.mandatoryPOIs.map((p: any) => ({
-            ...p,
-            date: p.date ? new Date(p.date) : undefined,
-          })))
+          setMandatoryPOIs(
+            parsed.mandatoryPOIs.map((p: any) => ({
+              ...p,
+              date: p.date ? new Date(p.date) : undefined,
+            }))
+          )
         }
         if (parsed.selectedHotelDestination) setSelectedHotelDestination(parsed.selectedHotelDestination)
         if (parsed.selectedPlacesDestination) setSelectedPlacesDestination(parsed.selectedPlacesDestination)
@@ -1574,17 +1587,7 @@ const CreateItineraryForm: React.FC = () => {
     } catch (error) {
       console.error('Failed to save form state:', error)
     }
-  }, [
-    form.watch(),
-    currentStep,
-    dateMode,
-    destinations,
-    hotels,
-    mandatoryPOIs,
-    selectedHotelDestination,
-    selectedPlacesDestination,
-    dateRange,
-  ])
+  }, [form.watch(), currentStep, dateMode, destinations, hotels, mandatoryPOIs, selectedHotelDestination, selectedPlacesDestination, dateRange])
 
   return (
     <>
@@ -1794,7 +1797,7 @@ const CreateItineraryForm: React.FC = () => {
                       inputValue={hotelSearch}
                       onInputChange={setHotelSearch}
                       placeholder={
-                        hotels.some(h => h.destination_city === (selectedHotelDestination || destinations[0]?.city))
+                        hotels.some((h) => h.destination_city === (selectedHotelDestination || destinations[0]?.city))
                           ? 'Only one hotel per destination'
                           : 'Search for hotels, hostels...'
                       }
@@ -1802,7 +1805,7 @@ const CreateItineraryForm: React.FC = () => {
                       open={hotelOpen}
                       onOpenChange={(open) => {
                         const targetDest = selectedHotelDestination || destinations[0]?.city
-                        const destHasHotel = hotels.some(h => h.destination_city === targetDest)
+                        const destHasHotel = hotels.some((h) => h.destination_city === targetDest)
                         if (destHasHotel && open) {
                           toast.error('Only one hotel per destination allowed')
                           return false
@@ -1817,46 +1820,30 @@ const CreateItineraryForm: React.FC = () => {
                       onSelect={(poi) => {
                         handleAddHotel(poi)
                       }}
-                      disabled={hotels.some(h => h.destination_city === (selectedHotelDestination || destinations[0]?.city))}
+                      disabled={hotels.some((h) => h.destination_city === (selectedHotelDestination || destinations[0]?.city))}
                     />
                   </div>
 
                   <div className="space-y-2">
                     {hotels.map((acc, index) => (
-                      <div key={index} className="rounded-xl border p-3 pt-2">
-                        <div className="min-w-0 flex-1 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-end gap-2">
-                              <span className="text-sm font-medium">{acc.poi_name}</span>
-                              {acc.destination_city && <span className="text-muted-foreground text-xs">{acc.destination_city.split(',')[0]}</span>}
+                      <div key={index} className="rounded-xl border p-3">
+                        <div className="flex items-center gap-3">
+                          {acc.images?.[0] ? (
+                            <img src={acc.images[0]} alt={acc.poi_name} className="size-12 flex-shrink-0 rounded-lg object-cover" />
+                          ) : (
+                            <div className="flex size-12 flex-shrink-0 items-center justify-center rounded-lg bg-muted" />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex flex-col">
+                                <span className="truncate text-sm font-medium">{acc.poi_name}</span>
+                                {acc.destination_city && <span className="text-muted-foreground text-xs">{acc.destination_city.split(',')[0]}</span>}
+                              </div>
+                              <Button variant="ghost" size="icon" onClick={() => handleRemoveHotel(index)} className="h-8 w-8 flex-shrink-0">
+                                <X />
+                              </Button>
                             </div>
-                            <Button variant="ghost" size="icon" onClick={() => handleRemoveHotel(index)} className="h-8 w-8">
-                              <X />
-                            </Button>
                           </div>
-                          {/* Hotel check-in/check-out dates are automatically set to match destination dates */}
-                          {/* <div className="flex gap-4">
-                            <div className="flex w-full flex-col items-center">
-                              <Label className="text-muted-foreground/60 text-xs">Check-in</Label>
-                              <Input
-                                readOnly
-                                value={dateMode === 'specific' ? formatDateDisplay(acc.check_in_date) : formatDayDisplay(acc.check_in_day)}
-                                onClick={() => handleOpenHotelSchedule(acc, index)}
-                                className="h-8 w-full cursor-pointer text-xs"
-                                placeholder="Check-in"
-                              />
-                            </div>
-                            <div className="flex w-full flex-col items-center">
-                              <Label className="text-muted-foreground/60 text-xs">Check-out</Label>
-                              <Input
-                                readOnly
-                                value={dateMode === 'specific' ? formatDateDisplay(acc.check_out_date) : formatDayDisplay(acc.check_out_day)}
-                                onClick={() => handleOpenHotelSchedule(acc, index)}
-                                className="h-8 w-full cursor-pointer text-xs"
-                                placeholder="Check-out"
-                              />
-                            </div>
-                          </div> */}
                           {acc.validationError && <FieldError className="text-center">{acc.validationError}</FieldError>}
                         </div>
                       </div>
@@ -1900,50 +1887,57 @@ const CreateItineraryForm: React.FC = () => {
 
                 <div className="space-y-2">
                   {mandatoryPOIs.map((place, index) => (
-                    <div key={index} className="rounded-xl border p-3 pt-2">
-                      <div className="min-w-0 flex-1 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-end gap-2">
-                            <span className="text-sm font-medium">{place.poi_name}</span>
-                            {place.destination_city && destinations.length > 1 && (
-                              <span className="text-muted-foreground text-xs">{place.destination_city.split(',')[0]}</span>
-                            )}
+                    <div key={index} className="rounded-xl border p-3">
+                      <div className="flex items-start gap-3">
+                        {place.images?.[0] ? (
+                          <img src={place.images[0]} alt={place.poi_name} className="size-16 flex-shrink-0 rounded-lg object-cover" />
+                        ) : (
+                          <div className="flex size-16 flex-shrink-0 items-center justify-center rounded-lg bg-muted" />
+                        )}
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="flex items-start justify-between">
+                            <div className="flex flex-col">
+                              <span className="font-medium leading-tight">{place.poi_name}</span>
+                              {place.destination_city && destinations.length > 1 && (
+                                <span className="text-muted-foreground text-xs">{place.destination_city.split(',')[0]}</span>
+                              )}
+                            </div>
+                            <Button variant="ghost" size="icon" onClick={() => handleRemovePlace(index)} className="h-8 w-8 flex-shrink-0">
+                              <X />
+                            </Button>
                           </div>
-                          <Button variant="ghost" size="icon" onClick={() => handleRemovePlace(index)} className="h-8 w-8">
-                            <X />
-                          </Button>
+                          <div className="flex gap-2">
+                            <div className="flex w-full flex-col items-center">
+                              <Label className="text-muted-foreground/60 text-xs">{dateMode === 'specific' ? 'Date' : 'Day'}</Label>
+                              <Input
+                                readOnly
+                                value={dateMode === 'specific' ? formatDateDisplay(place.date) : formatDayDisplay(place.day)}
+                                onClick={() => handleOpenPlaceSchedule(place, index)}
+                                className="h-8 cursor-pointer text-center text-xs"
+                                placeholder="Date"
+                              />
+                            </div>
+                            <div className="flex w-full flex-col items-center">
+                              <Label className="text-muted-foreground/60 text-xs">Time</Label>
+                              <Input
+                                readOnly
+                                value={
+                                  place.time_type === 'all_day'
+                                    ? 'All day'
+                                    : place.time_type === 'any_time'
+                                      ? 'Any time'
+                                      : place.start_time && place.end_time
+                                        ? `${place.start_time} - ${place.end_time}`
+                                        : 'Set time'
+                                }
+                                onClick={() => handleOpenPlaceSchedule(place, index)}
+                                className="h-8 cursor-pointer text-center text-xs"
+                                placeholder="Time"
+                              />
+                            </div>
+                          </div>
+                          {place.validationError && <FieldError className="mt-1 text-center">{place.validationError}</FieldError>}
                         </div>
-                        <div className="flex gap-4">
-                          <div className="flex w-full flex-col items-center">
-                            <Label className="text-muted-foreground/60 text-xs">{dateMode === 'specific' ? 'Date' : 'Day'}</Label>
-                            <Input
-                              readOnly
-                              value={dateMode === 'specific' ? formatDateDisplay(place.date) : formatDayDisplay(place.day)}
-                              onClick={() => handleOpenPlaceSchedule(place, index)}
-                              className="h-8 cursor-pointer text-xs"
-                              placeholder="Date"
-                            />
-                          </div>
-                          <div className="flex w-full flex-col items-center">
-                            <Label className="text-muted-foreground/60 text-xs">Time</Label>
-                            <Input
-                              readOnly
-                              value={
-                                place.time_type === 'all_day'
-                                  ? 'All day'
-                                  : place.time_type === 'any_time'
-                                    ? 'Any time'
-                                    : place.start_time && place.end_time
-                                      ? `${place.start_time} - ${place.end_time}`
-                                      : 'Set time'
-                              }
-                              onClick={() => handleOpenPlaceSchedule(place, index)}
-                              className="h-8 cursor-pointer text-xs"
-                              placeholder="Time"
-                            />
-                          </div>
-                        </div>
-                        {place.validationError && <FieldError className="text-center">{place.validationError}</FieldError>}
                       </div>
                     </div>
                   ))}

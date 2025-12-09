@@ -8,9 +8,9 @@ export interface CreateItineraryPayload {
   dates: {
     type: 'specific' | 'flexible'
     days?: number
-    preferredMonth?: string | null
-    startDate?: string | null
-    endDate?: string | null
+    preferred_month?: string | null
+    start_date?: string | null
+    end_date?: string | null
   }
   travelers: { adults: number; children: number; pets: number }
   preferences: { budget: string; pacing: string; interests: string[] }
@@ -23,7 +23,7 @@ export interface CreatedItinerary {
   plan: any
 }
 
-// Normalize server response to UI-friendly shape (camelCase dates keys)
+// Normalize server response to UI-friendly shape
 function normalizeItinerary<T extends { meta?: any }>(data: T): T {
   try {
     if (data && data.meta && data.meta.dates && typeof data.meta.dates === 'object') {
@@ -94,12 +94,16 @@ export async function createItinerary(payload: CreateItineraryPayload): Promise<
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload as any),
     })
-    if (!resp.ok) throw new Error('Failed to create itinerary')
+    if (!resp.ok) {
+      const errorData = await resp.json().catch(() => ({ detail: 'Failed to create itinerary' }))
+      const errorMessage = typeof errorData.detail === 'string' ? errorData.detail : JSON.stringify(errorData.detail)
+      throw new Error(errorMessage)
+    }
     const data = await resp.json()
     return normalizeItinerary(data)
   } catch (e) {
     console.error('createItinerary error', e)
-    return null
+    throw e
   }
 }
 
