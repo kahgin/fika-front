@@ -1,40 +1,45 @@
-import { useState, useEffect } from 'react'
-import { format, startOfMonth } from 'date-fns'
+import { BOTTOM_NAV_HEIGHT } from '@/components/bottom-nav'
+import { PacingDialog, WhenDialog, WhoDialog } from '@/components/dialogs'
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
+import { Button } from '@/components/ui/button'
+import { ButtonGroup } from '@/components/ui/button-group'
+import { Calendar } from '@/components/ui/calendar'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { formatDateRange } from '@/lib/date-range'
-import type { DateRange } from 'react-day-picker'
+import { POIIcon } from '@/lib/poi-icons'
+import { cn } from '@/lib/utils'
+import { deletePOIFromItinerary, reorderItineraryStops, schedulePOI, updateItineraryMeta } from '@/services/api'
 import {
-  DndContext,
   closestCenter,
+  defaultDropAnimationSideEffects,
+  DndContext,
+  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
-  DragOverlay,
-  defaultDropAnimationSideEffects,
   type DropAnimation,
 } from '@dnd-kit/core'
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { useSortable } from '@dnd-kit/sortable'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
-import { Button } from '@/components/ui/button'
-import { ButtonGroup } from '@/components/ui/button-group'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Calendar } from '@/components/ui/calendar'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { format, startOfMonth } from 'date-fns'
 import { Clock, Trash2 } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { reorderItineraryStops, schedulePOI, deletePOIFromItinerary, updateItineraryMeta } from '@/services/api'
-import { useIsMobile } from '@/hooks/use-mobile'
-import { BOTTOM_NAV_HEIGHT } from '@/components/bottom-nav'
-import { Separator } from '@/components/ui/separator'
+import { useEffect, useState } from 'react'
+import type { DateRange } from 'react-day-picker'
 import { toast } from 'sonner'
-import { POIIcon } from '@/lib/poi-icons'
-import { WhenDialog, WhoDialog, PacingDialog } from '@/components/dialogs'
 
 interface Stop {
   poi_id: string
@@ -134,21 +139,21 @@ function SortableStop({
         }
       }}
     >
-      <div className="min-w-0 flex-1 space-y-1">
-        <div className="flex items-center gap-2">
-          <POIIcon role={stop.role} themes={stop.themes} className="size-3.5 flex-shrink-0" />
-          <h6 className="font-medium">{stop.name}</h6>
+      <div className='min-w-0 flex-1 space-y-1'>
+        <div className='flex items-center gap-2'>
+          <POIIcon role={stop.role} themes={stop.themes} className='size-3.5 flex-shrink-0' />
+          <h6 className='font-medium'>{stop.name}</h6>
         </div>
         {stop.arrival && onScheduleClick && (
           <div
-            className="hover:text-primary text-muted-foreground flex w-fit cursor-pointer items-center gap-2 text-sm"
+            className='hover:text-primary text-muted-foreground flex w-fit cursor-pointer items-center gap-2 text-sm'
             onClick={(e) => {
               e.stopPropagation()
               onScheduleClick(stop)
             }}
-            role="button"
+            role='button'
           >
-            <Clock className="size-3" />
+            <Clock className='size-3' />
             <span>
               {formatTime12h(stop.arrival)} - {formatTime12h(stop.depart || stop.arrival)}
             </span>
@@ -156,25 +161,25 @@ function SortableStop({
         )}
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className='flex items-center gap-2'>
         {onDelete && isHovered && (
           <Button
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground h-8 cursor-pointer px-2 hover:text-black"
+            variant='ghost'
+            size='sm'
+            className='text-muted-foreground h-8 cursor-pointer px-2 hover:text-black'
             onClick={(e) => {
               e.stopPropagation()
               onDelete(stop)
             }}
           >
-            <Trash2 className="size-4" />
+            <Trash2 className='size-4' />
           </Button>
         )}
         {onDetails && (
           <Button
-            variant="outline"
-            size="sm"
-            className="cursor-pointer rounded-full text-xs"
+            variant='outline'
+            size='sm'
+            className='cursor-pointer rounded-full text-xs'
             onClick={(e) => {
               e.stopPropagation()
               onDetails(stop)
@@ -190,12 +195,12 @@ function SortableStop({
 
 function StopOverlay({ stop }: { stop: Stop }) {
   return (
-    <div className="flex items-start gap-3 rounded-lg bg-white p-3 shadow-lg">
-      <div className="min-w-0 flex-1">
-        <h6 className="mb-1 font-medium">{stop.name}</h6>
+    <div className='flex items-start gap-3 rounded-lg bg-white p-3 shadow-lg'>
+      <div className='min-w-0 flex-1'>
+        <h6 className='mb-1 font-medium'>{stop.name}</h6>
         {stop.arrival && (
-          <div className="text-muted-foreground flex w-fit items-center gap-1 text-sm">
-            <Clock className="size-3" />
+          <div className='text-muted-foreground flex w-fit items-center gap-1 text-sm'>
+            <Clock className='size-3' />
             <span>
               {stop.arrival} - {stop.depart}
             </span>
@@ -206,7 +211,12 @@ function StopOverlay({ stop }: { stop: Stop }) {
   )
 }
 
-export default function ItineraryPanel({ className = '', data, onOpenDetails, onItineraryUpdate }: ItineraryPanelProps) {
+export default function ItineraryPanel({
+  className = '',
+  data,
+  onOpenDetails,
+  onItineraryUpdate,
+}: ItineraryPanelProps) {
   const isMobile = useIsMobile()
   const [days, setDays] = useState<Day[]>(data?.plan?.days || [])
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -336,7 +346,8 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
 
       if (targetStop && targetStop.arrival && targetStop.depart) {
         // Place before target stop - use 1 hour before target
-        const targetMinutes = parseInt(targetStop.arrival.split(':')[0]) * 60 + parseInt(targetStop.arrival.split(':')[1])
+        const targetMinutes =
+          parseInt(targetStop.arrival.split(':')[0]) * 60 + parseInt(targetStop.arrival.split(':')[1])
         const newStartMinutes = Math.max(0, targetMinutes - 60)
         const newEndMinutes = targetMinutes
         newStartTime = `${String(Math.floor(newStartMinutes / 60)).padStart(2, '0')}:${String(newStartMinutes % 60).padStart(2, '0')}`
@@ -348,7 +359,14 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
 
       // Call backend to move POI to different day with new time
       if (itinId) {
-        const result = await schedulePOI(itinId, movedStop.poi_id, targetDayIndex, newStartTime, newEndTime, !newStartTime)
+        const result = await schedulePOI(
+          itinId,
+          movedStop.poi_id,
+          targetDayIndex,
+          newStartTime,
+          newEndTime,
+          !newStartTime
+        )
         if (result) {
           setDays(result.plan?.days || [])
           if (onItineraryUpdate) {
@@ -459,7 +477,9 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
   // Handle multi-city destinations
   const destinations = data?.meta?.destinations || []
   const destinationDisplay =
-    destinations.length > 0 ? destinations.map((d: any) => d.city || d.name || d.destination).join(' & ') : data?.meta?.destination || 'Singapore'
+    destinations.length > 0
+      ? destinations.map((d: any) => d.city || d.name || d.destination).join(' & ')
+      : data?.meta?.destination || 'Singapore'
 
   const tripData = {
     title: data?.meta?.title || (destinationDisplay ? `${destinationDisplay} Trip` : 'Trip'),
@@ -470,7 +490,9 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
         : data?.meta?.dates?.days
           ? `${data?.meta?.dates?.days} days`
           : '5 days',
-    travelers: data?.meta?.travelers ? `${(data.meta.travelers.adults || 0) + (data.meta.travelers.children || 0)} travelers` : '2 travelers',
+    travelers: data?.meta?.travelers
+      ? `${(data.meta.travelers.adults || 0) + (data.meta.travelers.children || 0)} travelers`
+      : '2 travelers',
     pacing: pacingLabel,
   }
 
@@ -512,59 +534,82 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
 
   return (
     <div className={`flex h-full flex-col ${className}`}>
-      <div className="sticky top-0 z-10 border-b bg-white p-6">
-        <div className="mb-4">
-          <h1 className="font-semibold">{tripData.title}</h1>
+      <div className='sticky top-0 z-10 border-b bg-white p-6'>
+        <div className='mb-4'>
+          <h1 className='font-semibold'>{tripData.title}</h1>
         </div>
 
-        <ButtonGroup className="hidden sm:flex">
-          <Button value="destination" variant="outline" className="rounded-full shadow-none" onClick={() => toast('Changing trip destination is not allowed.')}>
+        <ButtonGroup className='hidden sm:flex'>
+          <Button
+            value='destination'
+            variant='outline'
+            className='rounded-full shadow-none'
+            onClick={() => toast('Changing trip destination is not allowed.')}
+          >
             {tripData.destination}
           </Button>
-          <Button value="dates" variant="outline" className="rounded-full shadow-none" onClick={() => setShowWhenDialog(true)}>
+          <Button
+            value='dates'
+            variant='outline'
+            className='rounded-full shadow-none'
+            onClick={() => setShowWhenDialog(true)}
+          >
             {tripData.dates}
           </Button>
-          <Button value="travelers" variant="outline" className="rounded-full shadow-none" onClick={() => setShowWhoDialog(true)}>
+          <Button
+            value='travelers'
+            variant='outline'
+            className='rounded-full shadow-none'
+            onClick={() => setShowWhoDialog(true)}
+          >
             {tripData.travelers}
           </Button>
           {/* <Button value="budget" variant="outline" className="rounded-full shadow-none" onClick={() => setShowBudgetDialog(true)}>
             {tripData.budget}
           </Button> */}
-          <Button value="pacing" variant="outline" className="rounded-full shadow-none" onClick={() => setShowPacingDialog(true)}>
+          <Button
+            value='pacing'
+            variant='outline'
+            className='rounded-full shadow-none'
+            onClick={() => setShowPacingDialog(true)}
+          >
             {tripData.pacing}
           </Button>
         </ButtonGroup>
       </div>
 
-      <div className="flex-1 overflow-auto p-6" style={isMobile ? { paddingBottom: `${BOTTOM_NAV_HEIGHT}px` } : undefined}>
+      <div
+        className='flex-1 overflow-auto p-6'
+        style={isMobile ? { paddingBottom: `${BOTTOM_NAV_HEIGHT}px` } : undefined}
+      >
         {ideasItems.length > 0 && (
-          <div className="mb-8">
-            <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Ideas</h2>
+          <div className='mb-8'>
+            <div className='mb-6 flex items-center justify-between'>
+              <h2 className='text-lg font-semibold'>Ideas</h2>
             </div>
-            <div className="space-y-4">
+            <div className='space-y-4'>
               {ideasItems.map((item: any) => (
-                <div key={item.id} className="flex items-start gap-4">
-                  <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-gray-200">
+                <div key={item.id} className='flex items-start gap-4'>
+                  <div className='h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-gray-200'>
                     {item.image ? (
                       <img
-                        referrerPolicy="no-referrer"
+                        referrerPolicy='no-referrer'
                         src={`https://picsum.photos/seed/${item.name}/300/300`}
                         // src={item.image}
                         alt={item.name}
-                        className="h-full w-full object-cover"
+                        className='h-full w-full object-cover'
                       />
                     ) : (
-                      <div className="h-full w-full bg-gray-200" />
+                      <div className='h-full w-full bg-gray-200' />
                     )}
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <h6 className="mb-1 font-medium">{item.name}</h6>
+                  <div className='min-w-0 flex-1'>
+                    <h6 className='mb-1 font-medium'>{item.name}</h6>
                   </div>
                   <Button
-                    variant="outline"
-                    size="sm"
-                    className="rounded-full text-xs shadow-none"
+                    variant='outline'
+                    size='sm'
+                    className='rounded-full text-xs shadow-none'
                     onClick={() => onOpenDetails && onOpenDetails({ id: item.id, name: item.name })}
                   >
                     Details
@@ -576,31 +621,40 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
         )}
 
         <div>
-          <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Itinerary</h2>
+          <div className='mb-6 flex items-center justify-between'>
+            <h2 className='text-lg font-semibold'>Itinerary</h2>
           </div>
 
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-            <Accordion type="multiple" defaultValue={days.map((_, idx) => `day-${idx}`)} className="space-y-4">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <Accordion type='multiple' defaultValue={days.map((_, idx) => `day-${idx}`)} className='space-y-4'>
               {days.map((day, dayIndex) => (
-                <AccordionItem key={dayIndex} value={`day-${dayIndex}`} className="group overflow-hidden rounded-xl">
-                  <AccordionTrigger className="hover:bg-muted-foreground/5 rounded-xl p-3 hover:no-underline">
-                    <div className="flex items-center gap-3">
-                      <div className="text-left">
-                        <h5 className="font-medium">{formatDayHeader(day)}</h5>
+                <AccordionItem key={dayIndex} value={`day-${dayIndex}`} className='group overflow-hidden rounded-xl'>
+                  <AccordionTrigger className='hover:bg-muted-foreground/5 rounded-xl p-3 hover:no-underline'>
+                    <div className='flex items-center gap-3'>
+                      <div className='text-left'>
+                        <h5 className='font-medium'>{formatDayHeader(day)}</h5>
                         {/* {day.total_distance && <p className="text-muted-foreground/90 text-sm">{day.total_distance}km</p>} */}
                       </div>
                     </div>
                   </AccordionTrigger>
-                  <AccordionContent className="px-1 pb-0">
+                  <AccordionContent className='px-1 pb-0'>
                     <SortableContext items={day.stops.map((s) => s.poi_id)} strategy={verticalListSortingStrategy}>
-                      <div className="space-y-2 divide-y">
+                      <div className='space-y-2 divide-y'>
                         {day.stops.map((stop) => (
                           <SortableStop
                             key={stop.poi_id}
                             stop={stop}
                             dayIndex={dayIndex}
-                            onDetails={onOpenDetails ? () => onOpenDetails({ id: stripDaySuffix(stop.poi_id), name: stop.name }) : undefined}
+                            onDetails={
+                              onOpenDetails
+                                ? () => onOpenDetails({ id: stripDaySuffix(stop.poi_id), name: stop.name })
+                                : undefined
+                            }
                             onScheduleClick={(s) => handleScheduleClick(s, dayIndex)}
                             onDelete={handleDelete}
                             // className="rounded-xl"
@@ -612,7 +666,9 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
                 </AccordionItem>
               ))}
             </Accordion>
-            <DragOverlay dropAnimation={dropAnimationConfig}>{activeStop ? <StopOverlay stop={activeStop} /> : null}</DragOverlay>
+            <DragOverlay dropAnimation={dropAnimationConfig}>
+              {activeStop ? <StopOverlay stop={activeStop} /> : null}
+            </DragOverlay>
           </DndContext>
         </div>
       </div>
@@ -624,15 +680,15 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
             <DialogTitle>Schedule: {scheduleDialog.stop?.name}</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <div className='space-y-4'>
             {isSpecificDates ? (
-              <div className="place-items-center">
+              <div className='place-items-center'>
                 <Calendar
-                  mode="single"
+                  mode='single'
                   selected={scheduleDate}
                   onSelect={setScheduleDate}
                   numberOfMonths={isMobile ? 1 : 2}
-                  className="p-0"
+                  className='p-0'
                   defaultMonth={getCalendarDefaultMonth()}
                   disabled={(date) => {
                     const startDate = new Date(data?.meta?.dates?.startDate || '')
@@ -642,15 +698,15 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
                 />
               </div>
             ) : (
-              <div className="place-items-center space-y-2">
-                <Label className="text-sm">Which day?</Label>
+              <div className='place-items-center space-y-2'>
+                <Label className='text-sm'>Which day?</Label>
                 <Select value={scheduleDay} onValueChange={setScheduleDay}>
-                  <SelectTrigger className="gap-12 rounded-full">
-                    <SelectValue placeholder="Select day" />
+                  <SelectTrigger className='gap-12 rounded-full'>
+                    <SelectValue placeholder='Select day' />
                   </SelectTrigger>
-                  <SelectContent className="rounded-xl">
+                  <SelectContent className='rounded-xl'>
                     {days.map((_, idx) => (
-                      <SelectItem key={idx} value={String(idx + 1)} className="rounded-lg">
+                      <SelectItem key={idx} value={String(idx + 1)} className='rounded-lg'>
                         Day {idx + 1}
                       </SelectItem>
                     ))}
@@ -660,41 +716,45 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
             )}
             <Separator />
 
-            <Tabs value={scheduleTab} onValueChange={(v) => setScheduleTab(v as 'time' | 'allday')} className="items-center">
+            <Tabs
+              value={scheduleTab}
+              onValueChange={(v) => setScheduleTab(v as 'time' | 'allday')}
+              className='items-center'
+            >
               <TabsList>
-                <TabsTrigger value="time">Time</TabsTrigger>
-                <TabsTrigger value="allday">All day</TabsTrigger>
+                <TabsTrigger value='time'>Time</TabsTrigger>
+                <TabsTrigger value='allday'>All day</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="time" className="space-y-4">
-                <div className="flex justify-between gap-8">
-                  <div className="flex w-full gap-2">
+              <TabsContent value='time' className='space-y-4'>
+                <div className='flex justify-between gap-8'>
+                  <div className='flex w-full gap-2'>
                     <Label>Start</Label>
                     <Input
-                      type="time"
+                      type='time'
                       value={scheduleStartTime}
                       onChange={(e) => setScheduleStartTime(e.target.value)}
-                      className="rounded-full [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+                      className='rounded-full [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none'
                     />
                   </div>
-                  <div className="flex w-full gap-2">
+                  <div className='flex w-full gap-2'>
                     <Label>End</Label>
                     <Input
-                      type="time"
+                      type='time'
                       value={scheduleEndTime}
                       onChange={(e) => setScheduleEndTime(e.target.value)}
-                      className="rounded-full [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+                      className='rounded-full [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none'
                     />
                   </div>
                 </div>
               </TabsContent>
 
-              <TabsContent value="allday" />
+              <TabsContent value='allday' />
             </Tabs>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setScheduleDialog({ open: false, stop: null, dayIndex: -1 })}>
+            <Button variant='outline' onClick={() => setScheduleDialog({ open: false, stop: null, dayIndex: -1 })}>
               Cancel
             </Button>
             <Button onClick={handleScheduleSave}>Save</Button>
@@ -726,7 +786,8 @@ export default function ItineraryPanel({ className = '', data, onOpenDetails, on
           if (dateMode === 'specific' && dateRange?.from && dateRange?.to) {
             metaUpdates.dates.startDate = format(dateRange.from, 'yyyy-MM-dd')
             metaUpdates.dates.endDate = format(dateRange.to, 'yyyy-MM-dd')
-            metaUpdates.dates.days = Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)) + 1
+            metaUpdates.dates.days =
+              Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)) + 1
           } else if (dateMode === 'flexible') {
             metaUpdates.dates.days = parseInt(flexibleDays) || 1
             metaUpdates.dates.preferredMonth = flexibleMonth

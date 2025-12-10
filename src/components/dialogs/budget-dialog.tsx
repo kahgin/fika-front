@@ -1,5 +1,5 @@
-import React from 'react'
 import { OptionSelectDialog } from '@/components/dialogs/option-select-dialog'
+import React from 'react'
 
 const BUDGET_OPTIONS = [
   { value: 'any', label: 'Any budget' },
@@ -7,7 +7,7 @@ const BUDGET_OPTIONS = [
     value: 'tight',
     label: (
       <>
-        <span className="mr-2">$</span>On a budget
+        <span className='mr-2'>$</span>On a budget
       </>
     ),
   },
@@ -15,7 +15,7 @@ const BUDGET_OPTIONS = [
     value: 'sensible',
     label: (
       <>
-        <span className="mr-2">$</span>Sensibly priced
+        <span className='mr-2'>$</span>Sensibly priced
       </>
     ),
   },
@@ -23,7 +23,7 @@ const BUDGET_OPTIONS = [
     value: 'upscale',
     label: (
       <>
-        <span className="mr-2">$$</span>Upscale
+        <span className='mr-2'>$$</span>Upscale
       </>
     ),
   },
@@ -31,7 +31,7 @@ const BUDGET_OPTIONS = [
     value: 'luxury',
     label: (
       <>
-        <span className="mr-2">$$</span>Luxury
+        <span className='mr-2'>$$</span>Luxury
       </>
     ),
   },
@@ -50,7 +50,7 @@ export const BudgetDialog: React.FC<BudgetDialogProps> = ({ open, onOpenChange, 
     <OptionSelectDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Budget"
+      title='Budget'
       options={BUDGET_OPTIONS}
       value={budget}
       onValueChange={onBudgetChange}

@@ -1,14 +1,14 @@
+import { Button } from '@/components/ui/button'
+import { Calendar } from '@/components/ui/calendar'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { MONTHS } from '@/lib/constants'
+import { calculateDaysBetween } from '@/lib/date-range'
+import { CalendarIcon, Minus, Plus } from 'lucide-react'
 import React from 'react'
 import type { DateRange } from 'react-day-picker'
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
-import { Calendar } from '@/components/ui/calendar'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { CalendarIcon, Plus, Minus } from 'lucide-react'
-import { useIsMobile } from '@/hooks/use-mobile'
-import { calculateDaysBetween } from '@/lib/date-range'
-import { MONTHS } from '@/lib/constants'
 
 export type DateMode = 'specific' | 'flexible'
 
@@ -50,14 +50,14 @@ export const WhenDialog: React.FC<WhenDialogProps> = ({
         <DialogHeader>
           <DialogTitle>When</DialogTitle>
         </DialogHeader>
-        <Tabs value={dateMode} onValueChange={(v) => onDateModeChange(v as DateMode)} className="items-center">
-          <TabsList className="grid grid-cols-2">
-            <TabsTrigger value="specific">Dates</TabsTrigger>
-            <TabsTrigger value="flexible">Flexible</TabsTrigger>
+        <Tabs value={dateMode} onValueChange={(v) => onDateModeChange(v as DateMode)} className='items-center'>
+          <TabsList className='grid grid-cols-2'>
+            <TabsTrigger value='specific'>Dates</TabsTrigger>
+            <TabsTrigger value='flexible'>Flexible</TabsTrigger>
           </TabsList>
-          <TabsContent value="specific" className={isMobile ? 'my-4 space-y-4' : 'my-4 w-full space-y-4'}>
+          <TabsContent value='specific' className={isMobile ? 'my-4 space-y-4' : 'my-4 w-full space-y-4'}>
             <Calendar
-              mode="range"
+              mode='range'
               selected={dateRange}
               onSelect={(range) => {
                 if (range?.from) {
@@ -86,28 +86,25 @@ export const WhenDialog: React.FC<WhenDialogProps> = ({
               max={MAX_TRIP_DAYS - 1}
               numberOfMonths={isMobile ? 1 : 2}
               disabled={(d) => d < new Date()}
-              className="p-0"
+              className='p-0'
             />
-            <p className="text-muted-foreground text-center text-xs">
-              The trip must be between {MIN_TRIP_DAYS} and {MAX_TRIP_DAYS} days
-            </p>
           </TabsContent>
-          <TabsContent value="flexible" className="my-4 w-full space-y-4">
-            <div className="mt-4 flex items-center justify-center gap-4">
+          <TabsContent value='flexible' className='my-4 w-full space-y-4'>
+            <div className='mt-4 flex items-center justify-center gap-4'>
               <Button
-                type="button"
-                variant="outline"
-                size="icon"
+                type='button'
+                variant='outline'
+                size='icon'
                 disabled={parseInt(flexibleDays || '1') <= MIN_TRIP_DAYS}
                 onClick={() => onFlexibleDaysChange(String(Math.max(MIN_TRIP_DAYS, parseInt(flexibleDays || '1') - 1)))}
               >
                 <Minus />
               </Button>
-              <span className="w-12 text-center text-2xl font-semibold">{flexibleDays}</span>
+              <span className='w-12 text-center text-2xl font-semibold'>{flexibleDays}</span>
               <Button
-                type="button"
-                variant="outline"
-                size="icon"
+                type='button'
+                variant='outline'
+                size='icon'
                 disabled={parseInt(flexibleDays || '1') >= MAX_TRIP_DAYS}
                 onClick={() => onFlexibleDaysChange(String(Math.min(MAX_TRIP_DAYS, parseInt(flexibleDays || '1') + 1)))}
               >
@@ -115,11 +112,11 @@ export const WhenDialog: React.FC<WhenDialogProps> = ({
               </Button>
             </div>
             <Label>Travel anytime</Label>
-            <div className="mt-4 grid grid-cols-4 gap-2">
+            <div className='mt-4 grid grid-cols-4 gap-2'>
               {MONTHS.map((m) => (
                 <Button
                   key={m.value}
-                  type="button"
+                  type='button'
                   variant={flexibleMonth === m.value ? 'default' : 'outline'}
                   onClick={() => {
                     if (flexibleMonth === m.value) {
@@ -128,14 +125,17 @@ export const WhenDialog: React.FC<WhenDialogProps> = ({
                       onFlexibleMonthChange(m.value)
                     }
                   }}
-                  className="flex h-20 flex-col shadow-none"
+                  className='flex h-20 flex-col shadow-none'
                 >
-                  <CalendarIcon className="size-6" />
+                  <CalendarIcon className='size-6' />
                   {m.label}
                 </Button>
               ))}
             </div>
           </TabsContent>
+          <p className='text-muted-foreground text-center text-xs'>
+            We currently support trips of up to {MAX_TRIP_DAYS} days.
+          </p>
         </Tabs>
         <DialogFooter>
           <Button onClick={onSave}>Update</Button>

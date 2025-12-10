@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from 'react'
-import type { POI } from '@/services/api'
-import { parseOpenHours } from '@/lib/utils'
+import { AddPOIToItineraryForm } from '@/components/forms/add-poi-to-itinerary-form'
 import { Button } from '@/components/ui/button'
 import { ImageGrid } from '@/components/ui/image-grid'
-import { AddPOIToItineraryForm } from '@/components/forms/add-poi-to-itinerary-form'
-import { Star, Plus, X, ArrowLeftToLine, ArrowRightToLine, ExternalLink, MapPin, Phone, Clock } from 'lucide-react'
+import { parseOpenHours } from '@/lib/utils'
+import type { POI } from '@/services/api'
+import { ArrowLeftToLine, ArrowRightToLine, Clock, ExternalLink, MapPin, Phone, Plus, Star, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 
 interface POIPanelProps {
   poi: POI
@@ -15,7 +15,14 @@ interface POIPanelProps {
   showToggleFullWidth?: boolean
 }
 
-export default function POIPanel({ poi, size = 'half', onClose, onToggleFullWidth, showAddToTrip = true, showToggleFullWidth = true }: POIPanelProps) {
+export default function POIPanel({
+  poi,
+  size = 'half',
+  onClose,
+  onToggleFullWidth,
+  showAddToTrip = true,
+  showToggleFullWidth = true,
+}: POIPanelProps) {
   const [showNameDrawer, setShowNameDrawer] = useState(false)
   const [activeSection, setActiveSection] = useState('overview')
   const [addDialogOpen, setAddDialogOpen] = useState(false)
@@ -36,7 +43,7 @@ export default function POIPanel({ poi, size = 'half', onClose, onToggleFullWidt
     }
   }
 
-  const parsedHours = poi.openHours ? parseOpenHours(poi.openHours) : null
+  const parsedHours = poi.open_hours ? parseOpenHours(poi.open_hours) : null
 
   useEffect(() => {
     const handleScroll = () => {
@@ -71,50 +78,57 @@ export default function POIPanel({ poi, size = 'half', onClose, onToggleFullWidt
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className='flex h-full flex-col'>
       {/* Header */}
-      <div className="sticky top-0 z-10 flex items-center justify-between border-b py-2 pr-6 pl-3">
-        <div className="flex gap-1">
-          <Button variant="ghost" size="icon" onClick={onClose}>
+      <div className='sticky top-0 z-10 flex items-center justify-between border-b py-2 pr-6 pl-3'>
+        <div className='flex gap-1'>
+          <Button variant='ghost' size='icon' onClick={onClose}>
             <X />
           </Button>
           {showToggleFullWidth && onToggleFullWidth && (
-            <Button variant="ghost" size="icon" onClick={onToggleFullWidth}>
+            <Button variant='ghost' size='icon' onClick={onToggleFullWidth}>
               {size === 'full' ? <ArrowRightToLine /> : <ArrowLeftToLine />}
             </Button>
           )}
         </div>
         {showAddToTrip && (
-          <Button variant="outline" size="sm" className="rounded-full shadow-none" onClick={() => setAddDialogOpen(true)}>
+          <Button
+            variant='outline'
+            size='sm'
+            className='rounded-full shadow-none'
+            onClick={() => setAddDialogOpen(true)}
+          >
             <Plus /> Add to trip
           </Button>
         )}
       </div>
 
-      <div ref={contentRef} className="flex-1 overflow-y-auto">
+      <div ref={contentRef} className='flex-1 overflow-y-auto'>
         <div
           className={`sticky top-0 z-10 h-12 place-content-center border-b bg-white px-6 transition-all duration-200 ${
             showNameDrawer ? 'opacity-100' : 'pointer-events-none opacity-0'
           }`}
         >
-          <h3 className="truncate text-sm font-medium">{poi.name}</h3>
+          <h3 className='truncate text-sm font-medium'>{poi.name}</h3>
         </div>
 
-        <div className="space-y-6 px-6 pb-6">
-          <div ref={headerRef} className="space-y-2">
-            <h2 className="text-2xl font-bold">{poi.name}</h2>
-            <div className="flex flex-wrap items-center gap-1 text-sm">
-              <div className="flex items-center gap-1">
-                <Star className="size-3.5 fill-current" />
+        <div className='space-y-6 px-6 pb-6'>
+          <div ref={headerRef} className='space-y-2'>
+            <h2 className='text-2xl font-bold'>{poi.name}</h2>
+            <div className='flex flex-wrap items-center gap-1 text-sm'>
+              <div className='flex items-center gap-1'>
+                <Star className='size-3.5 fill-current' />
                 <span>{poi.rating}</span>
               </div>
-              <span className="text-muted-foreground">∙</span>
-              <span className="text-muted-foreground">{poi.reviewCount > 1000 ? `${(poi.reviewCount / 1000).toFixed(1)}k` : poi.reviewCount} reviews</span>
-              <span className="text-muted-foreground">∙</span>
-              <span className="text-muted-foreground">{poi.location}</span>
+              <span className='text-muted-foreground'>∙</span>
+              <span className='text-muted-foreground'>
+                {poi.reviewCount > 1000 ? `${(poi.reviewCount / 1000).toFixed(1)}k` : poi.reviewCount} reviews
+              </span>
+              <span className='text-muted-foreground'>∙</span>
+              <span className='text-muted-foreground'>{poi.location}</span>
             </div>
-            <div className="flex flex-wrap items-center gap-1 text-sm">
-              <span className="text-muted-foreground">
+            <div className='flex flex-wrap items-center gap-1 text-sm'>
+              <span className='text-muted-foreground'>
                 {poi.category
                   .split('_')
                   .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
@@ -122,19 +136,21 @@ export default function POIPanel({ poi, size = 'half', onClose, onToggleFullWidt
               </span>
               {poi.priceLevel && (
                 <>
-                  <span className="text-muted-foreground">∙</span>
-                  <span className="text-muted-foreground">{'$'.repeat(Number(poi.priceLevel))}</span>
+                  <span className='text-muted-foreground'>∙</span>
+                  <span className='text-muted-foreground'>{'$'.repeat(Number(poi.priceLevel))}</span>
                 </>
               )}
             </div>
           </div>
 
           <ImageGrid images={poi.images || []} title={poi.name} maxImages={5} />
-          <div className="sticky top-12 z-10 -mx-6 flex gap-6 border-b bg-white px-6">
+          <div className='sticky top-12 z-10 -mx-6 flex gap-6 border-b bg-white px-6'>
             <button
               onClick={() => scrollToSection('overview')}
               className={`border-b-2 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
-                activeSection === 'overview' ? 'border-primary text-primary' : 'text-muted-foreground hover:text-primary/80 border-transparent'
+                activeSection === 'overview'
+                  ? 'border-primary text-primary'
+                  : 'text-muted-foreground hover:text-primary/80 border-transparent'
               }`}
             >
               Overview
@@ -142,28 +158,30 @@ export default function POIPanel({ poi, size = 'half', onClose, onToggleFullWidt
             <button
               onClick={() => scrollToSection('location')}
               className={`border-b-2 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
-                activeSection === 'location' ? 'border-primary text-primary' : 'text-muted-foreground hover:text-primary/80 border-transparent'
+                activeSection === 'location'
+                  ? 'border-primary text-primary'
+                  : 'text-muted-foreground hover:text-primary/80 border-transparent'
               }`}
             >
               Location
             </button>
           </div>
 
-          <div className="space-y-12">
+          <div className='space-y-12'>
             <section ref={overviewRef}>
-              {poi.description && <p className="mb-6 border-b pb-6 text-sm leading-relaxed">{poi.description}</p>}
+              {poi.description && <p className='mb-6 border-b pb-6 text-sm leading-relaxed'>{poi.description}</p>}
 
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <div className='grid grid-cols-1 gap-6 sm:grid-cols-2'>
                 {(poi.address || poi.website || poi.phone) && (
-                  <div className="space-y-6">
+                  <div className='space-y-6'>
                     {poi.address && (
-                      <div className="flex gap-2">
-                        <MapPin className="mt-1 size-4 flex-shrink-0" />
-                        <div className="flex flex-col gap-1">
-                          <span className="font-medium">Address</span>
+                      <div className='flex gap-2'>
+                        <MapPin className='mt-1 size-4 flex-shrink-0' />
+                        <div className='flex flex-col gap-1'>
+                          <span className='font-medium'>Address</span>
                           <a
                             onClick={() => poi.address && navigator.clipboard.writeText(poi.address)}
-                            className="block cursor-pointer text-sm underline-offset-4 hover:underline"
+                            className='block cursor-pointer text-sm underline-offset-4 hover:underline'
                           >
                             {poi.address}
                           </a>
@@ -172,11 +190,16 @@ export default function POIPanel({ poi, size = 'half', onClose, onToggleFullWidt
                     )}
 
                     {poi.website && (
-                      <div className="flex gap-2">
-                        <ExternalLink className="mt-1 size-4 flex-shrink-0" />
-                        <div className="flex flex-col gap-1">
-                          <span className="font-medium">Website</span>
-                          <a href={poi.website} target="_blank" rel="noopener noreferrer" className="block text-sm underline-offset-4 hover:underline">
+                      <div className='flex gap-2'>
+                        <ExternalLink className='mt-1 size-4 flex-shrink-0' />
+                        <div className='flex flex-col gap-1'>
+                          <span className='font-medium'>Website</span>
+                          <a
+                            href={poi.website}
+                            target='_blank'
+                            rel='noopener noreferrer'
+                            className='block text-sm underline-offset-4 hover:underline'
+                          >
                             {new URL(poi.website).hostname}
                           </a>
                         </div>
@@ -184,11 +207,11 @@ export default function POIPanel({ poi, size = 'half', onClose, onToggleFullWidt
                     )}
 
                     {poi.phone && (
-                      <div className="flex gap-2">
-                        <Phone className="mt-1 size-4 flex-shrink-0" />
-                        <div className="flex flex-col gap-1">
-                          <span className="font-medium">Phone</span>
-                          <a href={`tel:${poi.phone}`} className="block text-sm underline-offset-4 hover:underline">
+                      <div className='flex gap-2'>
+                        <Phone className='mt-1 size-4 flex-shrink-0' />
+                        <div className='flex flex-col gap-1'>
+                          <span className='font-medium'>Phone</span>
+                          <a href={`tel:${poi.phone}`} className='block text-sm underline-offset-4 hover:underline'>
                             {poi.phone}
                           </a>
                         </div>
@@ -198,20 +221,22 @@ export default function POIPanel({ poi, size = 'half', onClose, onToggleFullWidt
                 )}
 
                 {parsedHours && (
-                  <div className="flex gap-2">
-                    <Clock className="mt-1 size-4 flex-shrink-0" />
-                    <div className="flex flex-col gap-1">
-                      <span className="font-medium">Hours of operation</span>
-                      <div className="space-y-1.5">
-                        <p className={`mb-2 text-sm font-semibold ${parsedHours.status === 'open' ? 'text-green-600' : 'text-red-600'}`}>
+                  <div className='flex gap-2'>
+                    <Clock className='mt-1 size-4 flex-shrink-0' />
+                    <div className='flex flex-col gap-1'>
+                      <span className='font-medium'>Hours of operation</span>
+                      <div className='space-y-1.5'>
+                        <p
+                          className={`mb-2 text-sm font-semibold ${parsedHours.status === 'open' ? 'text-green-600' : 'text-red-600'}`}
+                        >
                           {parsedHours.currentStatus}
                         </p>
 
-                        <div className="space-y-1 text-sm">
+                        <div className='space-y-1 text-sm'>
                           {parsedHours.openHours.map((dayHour) => (
-                            <div key={dayHour.day} className="flex justify-between gap-4">
+                            <div key={dayHour.day} className='flex justify-between gap-4'>
                               <span>{dayHour.day.slice(0, 3)}</span>
-                              <span className="text-right">{dayHour.time}</span>
+                              <span className='text-right'>{dayHour.time}</span>
                             </div>
                           ))}
                         </div>
@@ -223,19 +248,25 @@ export default function POIPanel({ poi, size = 'half', onClose, onToggleFullWidt
             </section>
 
             <section ref={locationRef}>
-              <h3 className="mb-4 text-lg font-semibold">Location</h3>
+              <h3 className='mb-4 text-lg font-semibold'>Location</h3>
 
-              <div className="relative overflow-hidden rounded-lg border border-gray-200">
-                <iframe width="100%" height="360" src={transformGoogleMapsUrl(poi.googleMapsUrl as string)} loading="lazy" title={`Map of ${poi.name}`} />
+              <div className='relative overflow-hidden rounded-lg border border-gray-200'>
+                <iframe
+                  width='100%'
+                  height='360'
+                  src={transformGoogleMapsUrl(poi.googleMapsUrl as string)}
+                  loading='lazy'
+                  title={`Map of ${poi.name}`}
+                />
 
                 {poi.googleMapsUrl && (
                   <Button
-                    variant="ghost"
-                    className="absolute top-4 right-4 inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-white/90 text-sm shadow-md hover:bg-white"
+                    variant='ghost'
+                    className='absolute top-4 right-4 inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-white/90 text-sm shadow-md hover:bg-white'
                     onClick={() => window.open(poi.googleMapsUrl, '_blank', 'noopener,noreferrer')}
                   >
                     Get directions
-                    <ExternalLink className="size-4" />
+                    <ExternalLink className='size-4' />
                   </Button>
                 )}
               </div>

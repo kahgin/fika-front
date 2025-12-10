@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
 import { AlertCircle } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 interface ImageGridProps {
   images: string[]
@@ -29,10 +29,10 @@ export function ImageGrid({ images, title, maxImages = 5 }: ImageGridProps) {
 
   if (displayImages.length === 0) {
     return (
-      <div className="flex aspect-video w-full items-center justify-center rounded-2xl bg-gray-100">
-        <div className="text-muted-foreground flex items-center gap-2">
-          <AlertCircle className="size-4" />
-          <span className="text-sm">No images available</span>
+      <div className='flex aspect-video w-full items-center justify-center rounded-2xl bg-gray-100'>
+        <div className='text-muted-foreground flex items-center gap-2'>
+          <AlertCircle className='size-4' />
+          <span className='text-sm'>No images available</span>
         </div>
       </div>
     )
@@ -41,7 +41,7 @@ export function ImageGrid({ images, title, maxImages = 5 }: ImageGridProps) {
   // Single image
   if (displayImages.length === 1) {
     return (
-      <div className="aspect-2/1 w-full overflow-hidden rounded-2xl">
+      <div className='aspect-2/1 w-full overflow-hidden rounded-2xl'>
         <ImageItem
           src={displayImages[0]}
           alt={title}
@@ -57,8 +57,8 @@ export function ImageGrid({ images, title, maxImages = 5 }: ImageGridProps) {
   // Two images
   if (displayImages.length === 2) {
     return (
-      <div className="w-full overflow-hidden rounded-2xl">
-        <div className="grid h-full w-full grid-cols-2 grid-rows-1 gap-2">
+      <div className='w-full overflow-hidden rounded-2xl'>
+        <div className='grid h-full w-full grid-cols-2 grid-rows-1 gap-2'>
           <div>
             <ImageItem
               src={displayImages[0]}
@@ -69,7 +69,7 @@ export function ImageGrid({ images, title, maxImages = 5 }: ImageGridProps) {
               onError={() => handleImageError(displayImages[0])}
             />
           </div>
-          <div className="col-span-1">
+          <div className='col-span-1'>
             <ImageItem
               src={displayImages[1]}
               alt={`${title} 2`}
@@ -87,9 +87,9 @@ export function ImageGrid({ images, title, maxImages = 5 }: ImageGridProps) {
   // Three images
   if (displayImages.length === 3) {
     return (
-      <div className="w-full overflow-hidden rounded-2xl">
-        <div className="grid aspect-2/1 h-full w-full grid-cols-2 grid-rows-2 gap-2">
-          <div className="row-span-2">
+      <div className='w-full overflow-hidden rounded-2xl'>
+        <div className='grid aspect-2/1 h-full w-full grid-cols-2 grid-rows-2 gap-2'>
+          <div className='row-span-2'>
             <ImageItem
               src={displayImages[0]}
               alt={`${title} 1`}
@@ -127,8 +127,8 @@ export function ImageGrid({ images, title, maxImages = 5 }: ImageGridProps) {
   // Four images
   if (displayImages.length === 4) {
     return (
-      <div className="w-full overflow-hidden rounded-2xl">
-        <div className="grid aspect-2/1 w-full grid-cols-2 grid-rows-2 gap-2">
+      <div className='w-full overflow-hidden rounded-2xl'>
+        <div className='grid aspect-2/1 w-full grid-cols-2 grid-rows-2 gap-2'>
           <div>
             <ImageItem
               src={displayImages[0]}
@@ -176,9 +176,9 @@ export function ImageGrid({ images, title, maxImages = 5 }: ImageGridProps) {
 
   // Five images - left large (2x2), right 4 in 2x2 grid
   return (
-    <div className="w-full overflow-hidden rounded-2xl">
-      <div className="grid h-full w-full auto-rows-fr grid-cols-4 gap-2">
-        <div className="col-span-2 row-span-2">
+    <div className='w-full overflow-hidden rounded-2xl'>
+      <div className='grid h-full w-full auto-rows-fr grid-cols-4 gap-2'>
+        <div className='col-span-2 row-span-2'>
           <ImageItem
             src={displayImages[0]}
             alt={`${title} 1`}
@@ -188,7 +188,7 @@ export function ImageGrid({ images, title, maxImages = 5 }: ImageGridProps) {
             onError={() => handleImageError(displayImages[0])}
           />
         </div>
-        <div className="col-span-1 row-span-1">
+        <div className='col-span-1 row-span-1'>
           <ImageItem
             src={displayImages[1]}
             alt={`${title} 2`}
@@ -198,7 +198,7 @@ export function ImageGrid({ images, title, maxImages = 5 }: ImageGridProps) {
             onError={() => handleImageError(displayImages[1])}
           />
         </div>
-        <div className="col-span-1 row-span-1">
+        <div className='col-span-1 row-span-1'>
           <ImageItem
             src={displayImages[2]}
             alt={`${title} 3`}
@@ -208,7 +208,7 @@ export function ImageGrid({ images, title, maxImages = 5 }: ImageGridProps) {
             onError={() => handleImageError(displayImages[2])}
           />
         </div>
-        <div className="col-span-1 row-span-1">
+        <div className='col-span-1 row-span-1'>
           <ImageItem
             src={displayImages[3]}
             alt={`${title} 4`}
@@ -218,7 +218,7 @@ export function ImageGrid({ images, title, maxImages = 5 }: ImageGridProps) {
             onError={() => handleImageError(displayImages[3])}
           />
         </div>
-        <div className="col-span-1 row-span-1">
+        <div className='col-span-1 row-span-1'>
           <ImageItem
             src={displayImages[4]}
             alt={`${title} 5`}
@@ -244,21 +244,21 @@ interface ImageItemProps {
 
 function ImageItem({ src, alt, isError, onLoad, onError }: ImageItemProps) {
   return (
-    <div className="relative h-full w-full overflow-hidden bg-gray-100">
+    <div className='relative h-full w-full overflow-hidden bg-gray-100'>
       {isError && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-300">
-          <AlertCircle className="text-muted-foreground size-5" />
+        <div className='absolute inset-0 flex items-center justify-center bg-gray-300'>
+          <AlertCircle className='text-muted-foreground size-5' />
         </div>
       )}
 
       <img
-        referrerPolicy="no-referrer"
+        referrerPolicy='no-referrer'
         // src={`https://picsum.photos/seed/${alt}/1500/1500`}
         src={`${src}=s1500`}
         alt={alt}
         onLoad={onLoad}
         onError={onError}
-        className="aspect-square h-full w-full object-cover"
+        className='aspect-square h-full w-full object-cover'
       />
     </div>
   )

@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react'
-import { Input } from '@/components/ui/input'
+import { BOTTOM_NAV_HEIGHT } from '@/components/bottom-nav'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import { useAuth } from '@/contexts/AuthContext'
 import { useIsMobile } from '@/hooks/use-mobile'
-import { BOTTOM_NAV_HEIGHT } from '@/components/bottom-nav'
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
+import { useEffect, useState } from 'react'
 
 export default function SettingsPage() {
   const { user, setUser } = useAuth()
@@ -41,28 +41,33 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex h-12 items-center border-b px-6">
+    <div className='flex h-full flex-col'>
+      <div className='flex h-12 items-center border-b px-6'>
         <h6>Settings</h6>
       </div>
 
-      <div className="flex-1 overflow-auto" style={isMobile ? { paddingBottom: `${BOTTOM_NAV_HEIGHT}px` } : undefined}>
-        <div className="space-y-6 p-6">
+      <div className='flex-1 overflow-auto' style={isMobile ? { paddingBottom: `${BOTTOM_NAV_HEIGHT}px` } : undefined}>
+        <div className='space-y-6 p-6'>
           {/* User Info Section */}
-          <form onSubmit={handleSubmit} className="space-y-6 rounded-xl border p-6">
+          <form onSubmit={handleSubmit} className='space-y-6 rounded-xl border p-6'>
             <h4>User Information</h4>
 
             {/* Profile Picture */}
-            <div className="flex items-center gap-4">
+            <div className='flex items-center gap-4'>
               {user?.avatar && (
-                <Avatar className="h-12 w-12">
+                <Avatar className='h-12 w-12'>
                   <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback className="text-xs">{user.name.charAt(0).toUpperCase()}</AvatarFallback>
+                  <AvatarFallback className='text-xs'>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
               )}
               <div>
                 <h6>@{user?.username || 'guest'}</h6>
-                <a href="#" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary text-sm hover:no-underline">
+                <a
+                  href='#'
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  className='text-muted-foreground hover:text-primary text-sm hover:no-underline'
+                >
                   Change profile photo
                 </a>
               </div>
@@ -70,54 +75,56 @@ export default function SettingsPage() {
 
             {/* Name Field */}
             <div>
-              <label className="mb-2 block text-sm font-medium">Full Name</label>
-              <Input name="name" type="text" value={formValues.name} onChange={handleChange} />
+              <label className='mb-2 block text-sm font-medium'>Full Name</label>
+              <Input name='name' type='text' value={formValues.name} onChange={handleChange} />
             </div>
 
             {/* Email Field */}
             <div>
-              <label className="mb-2 block text-sm font-medium">Email Address</label>
-              <Input name="email" type="email" value={formValues.email} onChange={handleChange} />
+              <label className='mb-2 block text-sm font-medium'>Email Address</label>
+              <Input name='email' type='email' value={formValues.email} onChange={handleChange} />
             </div>
 
             {/* Username Field */}
             <div>
-              <label className="mb-2 block text-sm font-medium">Username</label>
-              <Input name="username" type="username" value={`@${user?.username}`} readOnly />
+              <label className='mb-2 block text-sm font-medium'>Username</label>
+              <Input name='username' type='username' value={`@${user?.username}`} readOnly />
             </div>
 
             {/* Password */}
             <div>
-              <label className="mb-2 block text-sm font-medium">Password</label>
-              <div className="flex items-center gap-2">
-                <Input type="password" value={`password`} className="select-none" readOnly />
-                <Button variant="outline" onClick={() => setShowPasswordModal(true)}>
+              <label className='mb-2 block text-sm font-medium'>Password</label>
+              <div className='flex items-center gap-2'>
+                <Input type='password' value={`password`} className='select-none' readOnly />
+                <Button variant='outline' onClick={() => setShowPasswordModal(true)}>
                   Change
                 </Button>
               </div>
             </div>
 
             {/* Save/Cancel */}
-            <div className="flex pt-4">
-              <Button type="submit" variant="default">
+            <div className='flex pt-4'>
+              <Button type='submit' variant='default'>
                 Save Changes
               </Button>
             </div>
           </form>
 
           {/* Settings Section */}
-          <div className="rounded-lg border">
-            <div className="p-6">
-              <h2 className="text-lg font-semibold">Account Settings</h2>
+          <div className='rounded-lg border'>
+            <div className='p-6'>
+              <h2 className='text-lg font-semibold'>Account Settings</h2>
             </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
+            <div className='p-6'>
+              <div className='space-y-4'>
+                <div className='flex items-center justify-between'>
                   <div>
-                    <p className="font-medium">Delete Account</p>
-                    <p className="text-muted-foreground text-sm">Permanently delete your account and all associated data.</p>
+                    <p className='font-medium'>Delete Account</p>
+                    <p className='text-muted-foreground text-sm'>
+                      Permanently delete your account and all associated data.
+                    </p>
                   </div>
-                  <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}>
+                  <Button variant='destructive' onClick={() => setShowDeleteConfirm(true)}>
                     Delete Account
                   </Button>
                 </div>
@@ -133,13 +140,13 @@ export default function SettingsPage() {
           <DialogHeader>
             <DialogTitle>Change Password</DialogTitle>
           </DialogHeader>
-          <form className="space-y-4">
-            <Input type="password" placeholder="Current password" required />
-            <Input type="password" placeholder="New password" required />
-            <Input type="password" placeholder="Confirm new password" required />
+          <form className='space-y-4'>
+            <Input type='password' placeholder='Current password' required />
+            <Input type='password' placeholder='New password' required />
+            <Input type='password' placeholder='Confirm new password' required />
             <DialogFooter>
               <Button
-                type="submit"
+                type='submit'
                 onClick={(e) => {
                   e.preventDefault()
                   setShowPasswordModal(false)
@@ -158,13 +165,16 @@ export default function SettingsPage() {
           <DialogHeader>
             <DialogTitle>Delete Account</DialogTitle>
           </DialogHeader>
-          <p>Are you sure you want to delete your account? This action cannot be undone and will permanently remove all your data.</p>
+          <p>
+            Are you sure you want to delete your account? This action cannot be undone and will permanently remove all
+            your data.
+          </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
+            <Button variant='outline' onClick={() => setShowDeleteConfirm(false)}>
               Cancel
             </Button>
             <Button
-              className="bg-red-600 hover:bg-red-700"
+              className='bg-red-600 hover:bg-red-700'
               onClick={() => {
                 setShowDeleteConfirm(false)
               }}

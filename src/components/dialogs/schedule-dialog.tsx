@@ -1,13 +1,13 @@
-import type { DateRange } from 'react-day-picker'
-import { useIsMobile } from '@/hooks/use-mobile'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { useIsMobile } from '@/hooks/use-mobile'
+import type { DateRange } from 'react-day-picker'
 
 type ScheduleMode = 'single-day' | 'multi-day'
 export type TimeType = 'specific' | 'all_day' | 'any_time'
@@ -129,32 +129,37 @@ export function ScheduleDialog({
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className='space-y-4'>
           {mode === 'single-day' && (
             <>
               {/* Date Selection */}
               {isSpecificDates ? (
-                <div className="place-items-center">
+                <div className='place-items-center'>
                   <Calendar
-                    mode="single"
+                    mode='single'
                     selected={selectedDate}
                     onSelect={onDateChange}
                     numberOfMonths={isMobile ? 1 : 2}
-                    className="p-0"
+                    className='p-0'
                     defaultMonth={defaultMonth}
                     disabled={disabledDates}
                   />
                 </div>
               ) : (
-                <div className="place-items-center space-y-2">
-                  <Label className="text-sm">Which day?</Label>
+                <div className='place-items-center space-y-2'>
+                  <Label className='text-sm'>Which day?</Label>
                   <Select value={selectedDay} onValueChange={onDayChange}>
-                    <SelectTrigger className="gap-12 rounded-full">
-                      <SelectValue placeholder="Select day" />
+                    <SelectTrigger className='gap-12 rounded-full'>
+                      <SelectValue placeholder='Select day' />
                     </SelectTrigger>
-                    <SelectContent className="rounded-xl">
+                    <SelectContent className='rounded-xl'>
                       {availableDates?.map((_, idx) => (
-                        <SelectItem key={idx} value={String(idx + 1)} className="rounded-lg" disabled={disabledCheckInDayIndices?.includes(idx + 1)}>
+                        <SelectItem
+                          key={idx}
+                          value={String(idx + 1)}
+                          className='rounded-lg'
+                          disabled={disabledCheckInDayIndices?.includes(idx + 1)}
+                        >
                           Day {idx + 1}
                         </SelectItem>
                       ))}
@@ -165,38 +170,38 @@ export function ScheduleDialog({
               <Separator />
 
               {/* Time Selection */}
-              <Tabs value={timeType} onValueChange={(v) => onTimeTypeChange?.(v as TimeType)} className="items-center">
+              <Tabs value={timeType} onValueChange={(v) => onTimeTypeChange?.(v as TimeType)} className='items-center'>
                 <TabsList>
-                  <TabsTrigger value="any_time">Any time</TabsTrigger>
-                  <TabsTrigger value="specific">Time</TabsTrigger>
-                  <TabsTrigger value="all_day">All day</TabsTrigger>
+                  <TabsTrigger value='any_time'>Any time</TabsTrigger>
+                  <TabsTrigger value='specific'>Time</TabsTrigger>
+                  <TabsTrigger value='all_day'>All day</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="specific" className="space-y-4">
-                  <div className="flex justify-between gap-8">
-                    <div className="flex w-full gap-2">
+                <TabsContent value='specific' className='space-y-4'>
+                  <div className='flex justify-between gap-8'>
+                    <div className='flex w-full gap-2'>
                       <Label>Start</Label>
                       <Input
-                        type="time"
+                        type='time'
                         value={startTime}
                         onChange={(e) => onStartTimeChange?.(e.target.value)}
-                        className="rounded-full [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+                        className='rounded-full [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none'
                       />
                     </div>
-                    <div className="flex w-full gap-2">
+                    <div className='flex w-full gap-2'>
                       <Label>End</Label>
                       <Input
-                        type="time"
+                        type='time'
                         value={endTime}
                         onChange={(e) => onEndTimeChange?.(e.target.value)}
-                        className="rounded-full [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+                        className='rounded-full [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none'
                       />
                     </div>
                   </div>
                 </TabsContent>
 
-                <TabsContent value="any_time" />
-                <TabsContent value="all_day" />
+                <TabsContent value='any_time' />
+                <TabsContent value='all_day' />
               </Tabs>
             </>
           )}
@@ -204,31 +209,39 @@ export function ScheduleDialog({
           {mode === 'multi-day' && (
             <>
               {isSpecificDates ? (
-                <div className="place-items-center">
+                <div className='place-items-center'>
                   <Calendar
-                    mode="range"
+                    mode='range'
                     selected={dateRange as any}
                     onSelect={handleRangeSelect as any}
                     numberOfMonths={isMobile ? 1 : 2}
-                    className="p-0"
+                    className='p-0'
                     defaultMonth={defaultMonth}
                     disabled={disabledDates}
                   />
                   {dateRange?.from && dateRange?.to && isSameDay(dateRange.from, dateRange.to) && (
-                    <p className="text-destructive mt-2 text-xs">Check-out cannot be the same day as check-in.</p>
+                    <p className='text-destructive mt-2 text-xs'>Check-out cannot be the same day as check-in.</p>
                   )}
                 </div>
               ) : (
-                <div className="flex justify-around gap-4">
-                  <div className="place-items-center space-y-2">
-                    <Label className="text-sm">Check-in Day</Label>
-                    <Select value={checkInDay ?? selectedDay} onValueChange={(v) => (onCheckInDayChange ? onCheckInDayChange(v) : onDayChange?.(v))}>
-                      <SelectTrigger className="gap-12 rounded-full">
-                        <SelectValue placeholder="Select day" />
+                <div className='flex justify-around gap-4'>
+                  <div className='place-items-center space-y-2'>
+                    <Label className='text-sm'>Check-in Day</Label>
+                    <Select
+                      value={checkInDay ?? selectedDay}
+                      onValueChange={(v) => (onCheckInDayChange ? onCheckInDayChange(v) : onDayChange?.(v))}
+                    >
+                      <SelectTrigger className='gap-12 rounded-full'>
+                        <SelectValue placeholder='Select day' />
                       </SelectTrigger>
-                      <SelectContent className="rounded-xl">
+                      <SelectContent className='rounded-xl'>
                         {availableDates?.map((_, idx) => (
-                          <SelectItem key={idx} value={String(idx + 1)} className="rounded-lg" disabled={disabledCheckInDayIndices?.includes(idx + 1)}>
+                          <SelectItem
+                            key={idx}
+                            value={String(idx + 1)}
+                            className='rounded-lg'
+                            disabled={disabledCheckInDayIndices?.includes(idx + 1)}
+                          >
                             Day {idx + 1}
                           </SelectItem>
                         ))}
@@ -236,15 +249,23 @@ export function ScheduleDialog({
                     </Select>
                   </div>
 
-                  <div className="place-items-center space-y-2">
-                    <Label className="text-sm">Check-out Day</Label>
-                    <Select value={checkOutDay ?? selectedDay} onValueChange={(v) => (onCheckOutDayChange ? onCheckOutDayChange(v) : onDayChange?.(v))}>
-                      <SelectTrigger className="gap-12 rounded-full">
-                        <SelectValue placeholder="Select day" />
+                  <div className='place-items-center space-y-2'>
+                    <Label className='text-sm'>Check-out Day</Label>
+                    <Select
+                      value={checkOutDay ?? selectedDay}
+                      onValueChange={(v) => (onCheckOutDayChange ? onCheckOutDayChange(v) : onDayChange?.(v))}
+                    >
+                      <SelectTrigger className='gap-12 rounded-full'>
+                        <SelectValue placeholder='Select day' />
                       </SelectTrigger>
-                      <SelectContent className="rounded-xl">
+                      <SelectContent className='rounded-xl'>
                         {availableDates?.map((_, idx) => (
-                          <SelectItem key={idx} value={String(idx + 1)} className="rounded-lg" disabled={disabledCheckOutDayIndices?.includes(idx + 1)}>
+                          <SelectItem
+                            key={idx}
+                            value={String(idx + 1)}
+                            className='rounded-lg'
+                            disabled={disabledCheckOutDayIndices?.includes(idx + 1)}
+                          >
                             Day {idx + 1}
                           </SelectItem>
                         ))}
@@ -258,7 +279,7 @@ export function ScheduleDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleCancel}>
+          <Button variant='outline' onClick={handleCancel}>
             Cancel
           </Button>
           <Button onClick={handleSave}>Save</Button>

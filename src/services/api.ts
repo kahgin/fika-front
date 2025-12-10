@@ -65,7 +65,7 @@ export interface POI {
   googleMapsUrl?: string
   address?: string
   phone?: string
-  openHours?: any
+  open_hours?: any
   priceLevel?: string
 }
 
@@ -165,7 +165,11 @@ export async function addPOIToItinerary(chatId: string, payload: AddPOIPayload):
   }
 }
 
-export async function reorderItineraryStops(chatId: string, dayIndex: number, poiIds: string[]): Promise<CreatedItinerary | null> {
+export async function reorderItineraryStops(
+  chatId: string,
+  dayIndex: number,
+  poiIds: string[]
+): Promise<CreatedItinerary | null> {
   try {
     const resp = await fetch(`${API_BASE_URL}/itinerary/${chatId}/reorder`, {
       method: 'POST',
@@ -224,7 +228,10 @@ export async function deletePOIFromItinerary(chatId: string, poiId: string): Pro
   }
 }
 
-export async function updateItineraryMeta(chatId: string, metaUpdates: Record<string, any>): Promise<CreatedItinerary | null> {
+export async function updateItineraryMeta(
+  chatId: string,
+  metaUpdates: Record<string, any>
+): Promise<CreatedItinerary | null> {
   try {
     const currentItinerary = await getItinerary(chatId)
     if (!currentItinerary) throw new Error('Failed to load current itinerary')
@@ -258,10 +265,21 @@ export async function updateItineraryMeta(chatId: string, metaUpdates: Record<st
   }
 }
 
-export async function fetchPOIs(page: number = 1, limit: number = DEFAULT_LIMIT): Promise<PaginatedResponse> {
+export async function fetchPOIs(
+  page: number = 1,
+  limit: number = DEFAULT_LIMIT,
+  destination?: string | null
+): Promise<PaginatedResponse> {
   try {
     const offset = (page - 1) * limit
-    const response = await fetch(`${API_BASE_URL}/pois?limit=${limit}&offset=${offset}`)
+    const params = new URLSearchParams({
+      limit: limit.toString(),
+      offset: offset.toString(),
+    })
+    if (destination) {
+      params.append('destination', destination)
+    }
+    const response = await fetch(`${API_BASE_URL}/pois?${params}`)
     if (!response.ok) throw new Error('Failed to fetch POIs')
     const data: ApiResponse<POI[]> = await response.json()
     return {
@@ -274,14 +292,31 @@ export async function fetchPOIs(page: number = 1, limit: number = DEFAULT_LIMIT)
   }
 }
 
-export async function searchPOIs(query: string, page: number = 1, limit: number = DEFAULT_LIMIT): Promise<PaginatedResponse> {
+export async function searchPOIs(
+  query: string,
+  page: number = 1,
+  limit: number = DEFAULT_LIMIT,
+  destination?: string | null,
+  role?: string | null
+): Promise<PaginatedResponse> {
   if (!query.trim()) {
-    return fetchPOIs(page, limit)
+    return fetchPOIs(page, limit, destination)
   }
 
   try {
     const offset = (page - 1) * limit
-    const response = await fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}&limit=${limit}&offset=${offset}`)
+    const params = new URLSearchParams({
+      q: query,
+      limit: limit.toString(),
+      offset: offset.toString(),
+    })
+    if (destination) {
+      params.append('destination', destination)
+    }
+    if (role) {
+      params.append('role', role)
+    }
+    const response = await fetch(`${API_BASE_URL}/search?${params}`)
     if (!response.ok) throw new Error('Failed to search POIs')
     const data: ApiResponse<POI[]> = await response.json()
     return {
@@ -294,10 +329,23 @@ export async function searchPOIs(query: string, page: number = 1, limit: number 
   }
 }
 
-export async function fetchPOIsByRole(role: string, page: number = 1, limit: number = DEFAULT_LIMIT): Promise<PaginatedResponse> {
+export async function fetchPOIsByRole(
+  role: string,
+  page: number = 1,
+  limit: number = DEFAULT_LIMIT,
+  destination?: string | null
+): Promise<PaginatedResponse> {
   try {
     const offset = (page - 1) * limit
-    const response = await fetch(`${API_BASE_URL}/pois?role=${encodeURIComponent(role)}&limit=${limit}&offset=${offset}`)
+    const params = new URLSearchParams({
+      role: role,
+      limit: limit.toString(),
+      offset: offset.toString(),
+    })
+    if (destination) {
+      params.append('destination', destination)
+    }
+    const response = await fetch(`${API_BASE_URL}/pois?${params}`)
     if (!response.ok) throw new Error('Failed to fetch POIs by role')
     const data: ApiResponse<POI[]> = await response.json()
     return {
@@ -477,7 +525,12 @@ export async function searchLocations(query: string): Promise<Location[]> {
   }
 }
 
-export async function searchPOIsByDestinationAndRole(destination: string, roles: string[], query?: string, limit: number = 5): Promise<POI[]> {
+export async function searchPOIsByDestinationAndRole(
+  destination: string,
+  roles: string[],
+  query?: string,
+  limit: number = 5
+): Promise<POI[]> {
   if (!destination || roles.length === 0) return []
 
   try {
@@ -488,7 +541,7 @@ export async function searchPOIsByDestinationAndRole(destination: string, roles:
     })
     if (query) params.append('q', query)
 
-    const response = await fetch(`${API_BASE_URL}/pois/search-by-destination?${params}`)
+    const response = await fetch(`${API_BASE_URL}/pois/search-minimal?${params}`)
     if (!response.ok) throw new Error('Failed to search POIs by destination')
     const data: ApiResponse<POI[]> = await response.json()
     return data.data || []

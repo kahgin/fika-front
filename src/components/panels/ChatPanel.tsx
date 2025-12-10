@@ -1,9 +1,9 @@
-import { useState } from 'react'
-import { Send } from 'lucide-react'
+import { BOTTOM_NAV_HEIGHT } from '@/components/bottom-nav'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useIsMobile } from '@/hooks/use-mobile'
-import { BOTTOM_NAV_HEIGHT } from '@/components/bottom-nav'
+import { Send } from 'lucide-react'
+import { useState } from 'react'
 
 export default function ChatPanel() {
   const [message, setMessage] = useState('')
@@ -29,28 +29,31 @@ export default function ChatPanel() {
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex-1 overflow-y-auto p-4" style={isMobile ? { paddingBottom: `${BOTTOM_NAV_HEIGHT}px` } : undefined}>
+    <div className='flex h-full flex-col'>
+      <div
+        className='flex-1 overflow-y-auto p-4'
+        style={isMobile ? { paddingBottom: `${BOTTOM_NAV_HEIGHT}px` } : undefined}
+      >
         {messages.length === 0 ? (
-          <div className="flex h-full items-center justify-center">
-            <div className="space-y-2 text-center">
-              <h1 className="font-secondary text-foreground font-bold">Plan without hassle</h1>
-              <p className="text-muted-foreground">Start a conversation to plan your perfect journey</p>
+          <div className='flex h-full items-center justify-center'>
+            <div className='space-y-2 text-center'>
+              <h1 className='font-secondary text-foreground font-bold'>Plan without hassle</h1>
+              <p className='text-muted-foreground'>Start a conversation to plan your perfect journey</p>
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className='space-y-4'>
             {messages.map((msg, index) =>
               msg.role === 'user' ? (
-                <div key={index} className="flex">
-                  <div className="bg-primary rounded-xl px-4 py-2">
-                    <p className="text-primary-foreground text-sm leading-relaxed text-pretty">{msg.content}</p>
+                <div key={index} className='flex'>
+                  <div className='bg-primary rounded-xl px-4 py-2'>
+                    <p className='text-primary-foreground text-sm leading-relaxed text-pretty'>{msg.content}</p>
                   </div>
                 </div>
               ) : (
-                <div key={index} className="flex">
-                  <div className="w-full">
-                    <p className="text-sm leading-relaxed text-pretty">{msg.content}</p>
+                <div key={index} className='flex'>
+                  <div className='w-full'>
+                    <p className='text-sm leading-relaxed text-pretty'>{msg.content}</p>
                   </div>
                 </div>
               )
@@ -60,7 +63,7 @@ export default function ChatPanel() {
       </div>
 
       <div
-        className="z-50 border-t bg-white p-4"
+        className='z-50 border-t bg-white p-4'
         style={
           isMobile
             ? {
@@ -72,16 +75,16 @@ export default function ChatPanel() {
             : undefined
         }
       >
-        <div className="flex gap-2">
+        <div className='flex gap-2'>
           <Input
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Ask me anything about your trip..."
+            placeholder='Ask me anything about your trip...'
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            className="flex-1"
+            className='flex-1'
           />
-          <Button onClick={handleSend} size="icon">
-            <Send className="h-4 w-4" />
+          <Button onClick={handleSend} size='icon'>
+            <Send className='h-4 w-4' />
           </Button>
         </div>
       </div>

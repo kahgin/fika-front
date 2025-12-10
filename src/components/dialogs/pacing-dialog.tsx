@@ -1,5 +1,5 @@
-import React from 'react'
 import { OptionSelectDialog } from '@/components/dialogs/option-select-dialog'
+import React from 'react'
 
 const PACING_OPTIONS = [
   { value: 'relaxed', label: 'Relaxed' },
@@ -20,7 +20,7 @@ export const PacingDialog: React.FC<PacingDialogProps> = ({ open, onOpenChange, 
     <OptionSelectDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Pacing"
+      title='Pacing'
       options={PACING_OPTIONS}
       value={pacing}
       onValueChange={onPacingChange}

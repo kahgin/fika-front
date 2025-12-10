@@ -1,15 +1,15 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { formatDateRange } from '@/lib/date-range'
-import { Button } from '@/components/ui/button'
-import { deleteItinerary, listItineraries, type CreatedItinerary } from '@/services/api'
-import { Map, SquareArrowOutUpRight, Trash } from 'lucide-react'
-import { useIsMobile } from '@/hooks/use-mobile'
 import { BOTTOM_NAV_HEIGHT } from '@/components/bottom-nav'
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import LoginForm from '@/components/forms/login-form'
 import SignupForm from '@/components/forms/signup-form'
+import { Button } from '@/components/ui/button'
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { formatDateRange } from '@/lib/date-range'
+import { deleteItinerary, listItineraries, type CreatedItinerary } from '@/services/api'
+import { Map, SquareArrowOutUpRight, Trash } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 export default function ItineraryPage() {
   const navigate = useNavigate()
@@ -63,16 +63,16 @@ export default function ItineraryPage() {
 
   return (
     <>
-      <div className="flex h-12 items-center border-b px-6">
+      <div className='flex h-12 items-center border-b px-6'>
         <h6>Itineraries</h6>
       </div>
-      <div className="p-6" style={isMobile ? { paddingBottom: `${BOTTOM_NAV_HEIGHT + 24}px` } : undefined}>
+      <div className='p-6' style={isMobile ? { paddingBottom: `${BOTTOM_NAV_HEIGHT + 24}px` } : undefined}>
         {loading ? (
-          <div className="text-muted-foreground text-sm">Loading itineraries...</div>
+          <div className='text-muted-foreground text-sm'>Loading itineraries...</div>
         ) : chats.length === 0 ? (
           <Empty>
             <EmptyHeader>
-              <EmptyMedia variant="icon">
+              <EmptyMedia variant='icon'>
                 <Map />
               </EmptyMedia>
               <EmptyTitle>No Itineraries Found</EmptyTitle>
@@ -82,20 +82,20 @@ export default function ItineraryPage() {
                 Get started by creating one.
               </EmptyDescription>
             </EmptyHeader>
-            <div className="flex gap-2">
+            <div className='flex gap-2'>
               <Button onClick={handleCreateItinerary}>Create Itinerary</Button>
-              <Button variant="outline" onClick={() => setShowLogin(true)}>
+              <Button variant='outline' onClick={() => setShowLogin(true)}>
                 Login
               </Button>
             </div>
           </Empty>
         ) : (
-          <div className="space-y-2">
+          <div className='space-y-2'>
             {chats.map((c) => (
-              <div key={c.itin_id} className="flex items-center justify-between rounded-lg border p-3">
+              <div key={c.itin_id} className='flex items-center justify-between rounded-lg border p-3'>
                 <div>
-                  <div className="font-medium">{c.meta?.title}</div>
-                  <div className="text-muted-foreground text-sm">
+                  <div className='font-medium'>{c.meta?.title}</div>
+                  <div className='text-muted-foreground text-sm'>
                     {c?.meta?.dates?.type === 'specific'
                       ? formatDateRange(c?.meta?.dates?.start_date, c?.meta?.dates?.end_date)
                       : c?.meta?.dates?.days
@@ -103,19 +103,19 @@ export default function ItineraryPage() {
                         : ''}
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className='flex gap-2'>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button size="icon" onClick={() => handleOpen(c.itin_id)}>
-                        <SquareArrowOutUpRight className="size-4.5" />
+                      <Button size='icon' onClick={() => handleOpen(c.itin_id)}>
+                        <SquareArrowOutUpRight className='size-4.5' />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>Open</TooltipContent>
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button size="icon" variant="outline" onClick={() => handleDelete(c.itin_id)}>
-                        <Trash className="size-4.5" />
+                      <Button size='icon' variant='outline' onClick={() => handleDelete(c.itin_id)}>
+                        <Trash className='size-4.5' />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>Delete</TooltipContent>

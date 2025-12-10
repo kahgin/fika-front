@@ -1,28 +1,34 @@
-import { z } from 'zod'
-import { toast } from 'sonner'
-import { format } from 'date-fns'
-import { useForm } from 'react-hook-form'
-import { useNavigate } from 'react-router-dom'
-import type { DateRange } from 'react-day-picker'
-import { formatDateRange, calculateDaysBetween, formatDateToISO, formatDateDisplay, formatDayDisplay } from '@/lib/date-range'
-import { zodResolver } from '@hookform/resolvers/zod'
-import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react'
-import { Input } from '@/components/ui/input'
+import { DietaryDialog, PacingDialog, ScheduleDialog, WhenDialog, WhoDialog } from '@/components/dialogs'
+import type { TimeType } from '@/components/dialogs/schedule-dialog'
+import type { DateMode } from '@/components/dialogs/when-dialog'
 import { Button } from '@/components/ui/button'
+import { Calendar } from '@/components/ui/calendar'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Field, FieldLabel, FieldError, FieldGroup } from '@/components/ui/field'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Calendar } from '@/components/ui/calendar'
-import { WhenDialog, WhoDialog, PacingDialog, DietaryDialog, ScheduleDialog } from '@/components/dialogs'
-import type { DateMode } from '@/components/dialogs/when-dialog'
-import type { TimeType } from '@/components/dialogs/schedule-dialog'
-import { PACING_OPTIONS, DIETARY_OPTIONS, INTEREST_OPTIONS, MONTHS } from '@/lib/constants'
-import { ChevronLeft, X, ChevronRight, Minus, Plus, Info } from 'lucide-react'
 import { useIsMobile } from '@/hooks/use-mobile'
-import { searchLocations, type Location, createItinerary, searchPOIsByDestinationAndRole } from '@/services/api'
+import { DIETARY_OPTIONS, INTEREST_OPTIONS, MONTHS, PACING_OPTIONS } from '@/lib/constants'
+import {
+  calculateDaysBetween,
+  formatDateDisplay,
+  formatDateRange,
+  formatDateToISO,
+  formatDayDisplay,
+} from '@/lib/date-range'
+import { createItinerary, searchLocations, searchPOIsByDestinationAndRole, type Location } from '@/services/api'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { format } from 'date-fns'
+import { ChevronLeft, ChevronRight, Info, Minus, Plus, X } from 'lucide-react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { DateRange } from 'react-day-picker'
+import { useForm } from 'react-hook-form'
+import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
+import { z } from 'zod'
 
 // Types & Interfaces
 
@@ -49,7 +55,7 @@ interface Hotel {
   destination_city?: string
   themes?: string[]
   role?: string
-  openHours?: any
+  open_hours?: any
   images?: string[]
   validationError?: string
 }
@@ -67,7 +73,7 @@ interface MandatoryPOI {
   end_time?: string
   themes?: string[]
   role?: string
-  openHours?: any
+  open_hours?: any
   images?: string[]
   validationError?: string
 }
@@ -79,7 +85,7 @@ interface POI {
   latitude: number
   longitude: number
   themes?: string[]
-  openHours?: any
+  open_hours?: any
   images?: string[]
   coordinates?: {
     lat: number
@@ -254,7 +260,15 @@ const CreateItineraryForm: React.FC = () => {
   }, [dateMode, startDate, endDate, flexibleDays])
 
   const generateTitle = useCallback(
-    (customTitle?: string, dests?: Destination[], dest?: string, mode?: DateMode, start?: Date, end?: Date, flexDays?: string) => {
+    (
+      customTitle?: string,
+      dests?: Destination[],
+      dest?: string,
+      mode?: DateMode,
+      start?: Date,
+      end?: Date,
+      flexDays?: string
+    ) => {
       if (customTitle && customTitle.trim()) {
         return customTitle.trim()
       }
@@ -428,7 +442,9 @@ const CreateItineraryForm: React.FC = () => {
 
     setTimeout(() => {
       const newTripDays =
-        dateMode === 'specific' && dateRange?.from && dateRange?.to ? calculateDaysBetween(dateRange.from, dateRange.to) : parseInt(flexibleDays || '1')
+        dateMode === 'specific' && dateRange?.from && dateRange?.to
+          ? calculateDaysBetween(dateRange.from, dateRange.to)
+          : parseInt(flexibleDays || '1')
 
       if (dateMode === 'specific' && dateRange?.from && dateRange?.to) {
         const newStart = dateRange.from
@@ -714,7 +730,11 @@ const CreateItineraryForm: React.FC = () => {
         return
       }
 
-      const newStart = new Date(destDateRange.from.getFullYear(), destDateRange.from.getMonth(), destDateRange.from.getDate())
+      const newStart = new Date(
+        destDateRange.from.getFullYear(),
+        destDateRange.from.getMonth(),
+        destDateRange.from.getDate()
+      )
       const newEnd = new Date(destDateRange.to.getFullYear(), destDateRange.to.getMonth(), destDateRange.to.getDate())
 
       // Check for overlap with other destinations
@@ -769,7 +789,8 @@ const CreateItineraryForm: React.FC = () => {
 
     const datesChanged =
       dateMode === 'specific'
-        ? oldDestination.dates?.start_date !== updated.dates?.start_date || oldDestination.dates?.end_date !== updated.dates?.end_date
+        ? oldDestination.dates?.start_date !== updated.dates?.start_date ||
+          oldDestination.dates?.end_date !== updated.dates?.end_date
         : oldDestination.days !== updated.days
 
     if (datesChanged) {
@@ -802,8 +823,6 @@ const CreateItineraryForm: React.FC = () => {
           return poi
         })
       )
-
-      toast.info(`Cleared schedules for hotels and places in ${destination.city}`)
     }
 
     setDestinations(updatedDestinations)
@@ -828,7 +847,7 @@ const CreateItineraryForm: React.FC = () => {
       destination_city: targetDestination,
       themes: poi.themes,
       role: poi.role,
-      openHours: poi.openHours,
+      open_hours: poi.open_hours,
       images: poi.images,
     }
     setHotels([...hotels, newHotel])
@@ -850,16 +869,32 @@ const CreateItineraryForm: React.FC = () => {
         return
       }
 
-      const inDate = new Date(hotel.check_in_date.getFullYear(), hotel.check_in_date.getMonth(), hotel.check_in_date.getDate())
-      const outDate = new Date(hotel.check_out_date.getFullYear(), hotel.check_out_date.getMonth(), hotel.check_out_date.getDate())
+      const inDate = new Date(
+        hotel.check_in_date.getFullYear(),
+        hotel.check_in_date.getMonth(),
+        hotel.check_in_date.getDate()
+      )
+      const outDate = new Date(
+        hotel.check_out_date.getFullYear(),
+        hotel.check_out_date.getMonth(),
+        hotel.check_out_date.getDate()
+      )
 
       // Check overlap with other hotels using half-open interval [check_in, check_out)
       const hasOverlap = hotels.some((h, i) => {
         if (i === index) return false
         if (!h.check_in_date || !h.check_out_date) return false
 
-        const existingIn = new Date(h.check_in_date.getFullYear(), h.check_in_date.getMonth(), h.check_in_date.getDate())
-        const existingOut = new Date(h.check_out_date.getFullYear(), h.check_out_date.getMonth(), h.check_out_date.getDate())
+        const existingIn = new Date(
+          h.check_in_date.getFullYear(),
+          h.check_in_date.getMonth(),
+          h.check_in_date.getDate()
+        )
+        const existingOut = new Date(
+          h.check_out_date.getFullYear(),
+          h.check_out_date.getMonth(),
+          h.check_out_date.getDate()
+        )
 
         // Overlap if: new_check_in < existing_check_out AND new_check_out > existing_check_in
         return inDate < existingOut && outDate > existingIn
@@ -939,7 +974,7 @@ const CreateItineraryForm: React.FC = () => {
       destination_city: selectedPlacesDestination || destinations[0]?.city,
       themes: poi.themes,
       role: poi.role,
-      openHours: poi.openHours || (poi as any).open_hours,
+      open_hours: poi.open_hours || (poi as any).open_hours,
       images: poi.images,
     }
     setMandatoryPOIs([...mandatoryPOIs, newPlace])
@@ -984,7 +1019,11 @@ const CreateItineraryForm: React.FC = () => {
 
   // Validation helper: Check if hotel booking overlaps with existing bookings
   const isHotelAvailable = useCallback(
-    (checkIn: Date | number, checkOut: Date | number, existingBookings: Array<{ checkIn: Date | number; checkOut: Date | number }>) => {
+    (
+      checkIn: Date | number,
+      checkOut: Date | number,
+      existingBookings: Array<{ checkIn: Date | number; checkOut: Date | number }>
+    ) => {
       // Convert to comparable format
       const newCheckIn = typeof checkIn === 'number' ? checkIn : checkIn.getTime()
       const newCheckOut = typeof checkOut === 'number' ? checkOut : checkOut.getTime()
@@ -1013,7 +1052,9 @@ const CreateItineraryForm: React.FC = () => {
       let error = ''
 
       // Check if destination exists
-      const hotelDestExists = destinations.some((dest) => dest.city.toLowerCase() === hotel.destination_city?.toLowerCase())
+      const hotelDestExists = destinations.some(
+        (dest) => dest.city.toLowerCase() === hotel.destination_city?.toLowerCase()
+      )
 
       if (!hotelDestExists) {
         error = `${hotel.destination_city} not found in selected destinations`
@@ -1023,14 +1064,18 @@ const CreateItineraryForm: React.FC = () => {
       if (dateMode === 'specific') {
         if (hotel.check_in_date && hotel.check_out_date) {
           // Check if dates are within destination date range
-          const destForHotel = destinations.find((dest) => dest.city.toLowerCase() === hotel.destination_city?.toLowerCase())
+          const destForHotel = destinations.find(
+            (dest) => dest.city.toLowerCase() === hotel.destination_city?.toLowerCase()
+          )
 
           if (destForHotel?.dates?.start_date && destForHotel?.dates?.end_date) {
             const destStart = new Date(destForHotel.dates.start_date)
             const destEnd = new Date(destForHotel.dates.end_date)
 
             if (hotel.check_in_date < destStart || hotel.check_out_date > destEnd) {
-              error = error || `Hotel dates must be within destination dates (${format(destStart, 'MMM d')} - ${format(destEnd, 'MMM d')})`
+              error =
+                error ||
+                `Hotel dates must be within destination dates (${format(destStart, 'MMM d')} - ${format(destEnd, 'MMM d')})`
             }
           }
 
@@ -1077,14 +1122,18 @@ const CreateItineraryForm: React.FC = () => {
       if (dateMode === 'specific') {
         if (poi.date) {
           // Check if date is within destination date range
-          const destForPOI = destinations.find((dest) => dest.city.toLowerCase() === poi.destination_city?.toLowerCase())
+          const destForPOI = destinations.find(
+            (dest) => dest.city.toLowerCase() === poi.destination_city?.toLowerCase()
+          )
 
           if (destForPOI?.dates?.start_date && destForPOI?.dates?.end_date) {
             const destStart = new Date(destForPOI.dates.start_date)
             const destEnd = new Date(destForPOI.dates.end_date)
 
             if (poi.date < destStart || poi.date > destEnd) {
-              error = error || `Date must be within destination dates (${format(destStart, 'MMM d')} - ${format(destEnd, 'MMM d')})`
+              error =
+                error ||
+                `Date must be within destination dates (${format(destStart, 'MMM d')} - ${format(destEnd, 'MMM d')})`
             }
           }
 
@@ -1220,7 +1269,7 @@ const CreateItineraryForm: React.FC = () => {
         check_out_day: checkOutDay,
         themes: acc.themes,
         role: acc.role,
-        // open_hours: acc.openHours,
+        open_hours: acc.open_hours,
         images: acc.images,
       }
     })
@@ -1237,7 +1286,7 @@ const CreateItineraryForm: React.FC = () => {
         time_type: poi.time_type || 'any_time',
         themes: poi.themes,
         role: poi.role,
-        // open_hours: poi.openHours,
+        open_hours: poi.open_hours,
         images: poi.images,
       }
 
@@ -1288,7 +1337,8 @@ const CreateItineraryForm: React.FC = () => {
         ...(kidFriendly && { kids_friendly: true }),
         ...(petFriendly && { pets_friendly: true }),
       },
-      ...(dietaryRestrictionsValue && dietaryRestrictionsValue !== 'none' && { dietary_restrictions: dietaryRestrictionsValue }),
+      ...(dietaryRestrictionsValue &&
+        dietaryRestrictionsValue !== 'none' && { dietary_restrictions: dietaryRestrictionsValue }),
       ...(hotelPayload.length > 0 && { hotels: hotelPayload }),
       ...(mandatoryPOIsPayload.length > 0 && { mandatory_pois: mandatoryPOIsPayload }),
     }
@@ -1443,7 +1493,7 @@ const CreateItineraryForm: React.FC = () => {
             latitude: poi.coordinates?.lat || 0,
             longitude: poi.coordinates?.lng || 0,
             themes: poi.themes || [],
-            openHours: poi.openHours,
+            open_hours: poi.open_hours,
             images: poi.images || [],
           }))
         )
@@ -1479,7 +1529,7 @@ const CreateItineraryForm: React.FC = () => {
             latitude: poi.coordinates?.lat || 0,
             longitude: poi.coordinates?.lng || 0,
             themes: poi.themes || [],
-            openHours: poi.openHours,
+            open_hours: poi.open_hours,
             images: poi.images || [],
           }))
         )
@@ -1497,10 +1547,10 @@ const CreateItineraryForm: React.FC = () => {
     }
   }, [placesSearch, selectedPlacesDestination, destinations])
 
-  // Load form state from localStorage on mount
+  // Load form state from sessionStorage on mount
   useEffect(() => {
     try {
-      const savedState = localStorage.getItem(FORM_STATE_KEY)
+      const savedState = sessionStorage.getItem(FORM_STATE_KEY)
       if (savedState) {
         const parsed = JSON.parse(savedState)
 
@@ -1551,7 +1601,7 @@ const CreateItineraryForm: React.FC = () => {
     }
   }, [])
 
-  // Save form state to localStorage whenever it changes
+  // Save form state to sessionStorage whenever it changes
   useEffect(() => {
     try {
       const formValues = form.getValues()
@@ -1583,29 +1633,45 @@ const CreateItineraryForm: React.FC = () => {
         },
       }
 
-      localStorage.setItem(FORM_STATE_KEY, JSON.stringify(stateToSave))
+      sessionStorage.setItem(FORM_STATE_KEY, JSON.stringify(stateToSave))
     } catch (error) {
       console.error('Failed to save form state:', error)
     }
-  }, [form.watch(), currentStep, dateMode, destinations, hotels, mandatoryPOIs, selectedHotelDestination, selectedPlacesDestination, dateRange])
+  }, [
+    form.watch(),
+    currentStep,
+    dateMode,
+    destinations,
+    hotels,
+    mandatoryPOIs,
+    selectedHotelDestination,
+    selectedPlacesDestination,
+    dateRange,
+  ])
 
   return (
     <>
-      <div className="p-6">
+      <div className='p-6'>
         {/* Stepper */}
-        <div className="mx-auto mb-6 flex w-full max-w-2xl items-center gap-3">
+        <div className='mx-auto mb-6 flex w-full max-w-2xl items-center gap-3'>
           {[1, 2, 3].map((s, idx) => (
             <React.Fragment key={s}>
-              <div className="flex items-center gap-2">
+              <div className='flex items-center gap-2'>
                 <div
                   className={
                     'flex h-8 w-8 items-center justify-center rounded-full text-sm ' +
-                    (currentStep === s ? 'bg-black text-white' : s < currentStep ? 'bg-black/70 text-white' : 'text-muted-foreground border')
+                    (currentStep === s
+                      ? 'bg-black text-white'
+                      : s < currentStep
+                        ? 'bg-black/70 text-white'
+                        : 'text-muted-foreground border')
                   }
                 >
                   {s}
                 </div>
-                <span className="hidden text-sm sm:inline">{s === 1 ? 'Basics' : s === 2 ? 'Preferences' : 'Extras'}</span>
+                <span className='hidden text-sm sm:inline'>
+                  {s === 1 ? 'Basics' : s === 2 ? 'Preferences' : 'Extras'}
+                </span>
               </div>
               {idx < 2 && <div className={`h-0.5 flex-1 rounded ${currentStep > s ? 'bg-black/70' : 'bg-gray-200'}`} />}
             </React.Fragment>
@@ -1617,15 +1683,19 @@ const CreateItineraryForm: React.FC = () => {
             <FieldGroup>
               <Field>
                 <FieldLabel>Name</FieldLabel>
-                <Input placeholder={generatedTitle || 'Enter trip name'} value={title || ''} onChange={(e) => form.setValue('title', e.target.value)} />
+                <Input
+                  placeholder={generatedTitle || 'Enter trip name'}
+                  value={title || ''}
+                  onChange={(e) => form.setValue('title', e.target.value)}
+                />
               </Field>
 
               <Field>
-                <div className="flex items-center gap-2">
+                <div className='flex items-center gap-2'>
                   <FieldLabel>Where</FieldLabel>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Info className="text-muted-foreground size-3.5" />
+                      <Info className='text-muted-foreground size-3.5' />
                     </TooltipTrigger>
                     <TooltipContent>Only Johor and Singapore are supported</TooltipContent>
                   </Tooltip>
@@ -1648,16 +1718,19 @@ const CreateItineraryForm: React.FC = () => {
                   getItemKey={(l) => l.id}
                   getItemLabel={(l) => l.label}
                   onSelect={handleAddDestination}
-                  disabled={destinations.length >= MAX_DESTINATIONS || destinations.length >= (canAddMultipleDestinations ? MAX_DESTINATIONS : 1)}
+                  disabled={
+                    destinations.length >= MAX_DESTINATIONS ||
+                    destinations.length >= (canAddMultipleDestinations ? MAX_DESTINATIONS : 1)
+                  }
                 />
 
-                <div className="space-y-2">
+                <div className='space-y-2'>
                   {destinations.map((dest, index) => (
-                    <div key={index} className="rounded-xl border p-3 pt-2">
-                      <div className="min-w-0 flex-1 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">{dest.city}</span>
-                          <div className="flex items-center justify-end gap-2">
+                    <div key={index} className='rounded-xl border p-3 pt-2'>
+                      <div className='min-w-0 flex-1 space-y-2'>
+                        <div className='flex items-center justify-between'>
+                          <span className='text-sm font-medium'>{dest.city}</span>
+                          <div className='flex items-center justify-end gap-2'>
                             <Input
                               readOnly
                               value={
@@ -1670,10 +1743,15 @@ const CreateItineraryForm: React.FC = () => {
                                     : 'Days'
                               }
                               onClick={() => handleOpenDestinationSchedule(dest, index)}
-                              className="text-muted-foreground h-8 cursor-pointer text-center text-xs"
+                              className='text-muted-foreground h-8 cursor-pointer text-center text-xs'
                               placeholder={dateMode === 'specific' ? 'Set dates' : 'Set days'}
                             />
-                            <Button variant="ghost" size="icon" onClick={() => handleRemoveDestination(index)} className="h-8 w-8">
+                            <Button
+                              variant='ghost'
+                              size='icon'
+                              onClick={() => handleRemoveDestination(index)}
+                              className='h-8 w-8'
+                            >
                               <X />
                             </Button>
                           </div>
@@ -1683,17 +1761,31 @@ const CreateItineraryForm: React.FC = () => {
                   ))}
                 </div>
 
-                {destinations.length > 0 && !validateDestinations().valid && <FieldError className="text-center">{validateDestinations().error}</FieldError>}
+                {destinations.length > 0 && !validateDestinations().valid && (
+                  <FieldError className='text-center'>{validateDestinations().error}</FieldError>
+                )}
               </Field>
 
               <Field>
                 <FieldLabel>When</FieldLabel>
-                <Input readOnly value={dateDisplay} onClick={() => setShowDateDialog(true)} className="cursor-pointer" placeholder="Select dates" />
+                <Input
+                  readOnly
+                  value={dateDisplay}
+                  onClick={() => setShowDateDialog(true)}
+                  className='cursor-pointer'
+                  placeholder='Select dates'
+                />
               </Field>
 
               <Field>
                 <FieldLabel>Who</FieldLabel>
-                <Input readOnly value={whoDisplay} onClick={() => setShowWhoDialog(true)} className="cursor-pointer" placeholder="Select travelers" />
+                <Input
+                  readOnly
+                  value={whoDisplay}
+                  onClick={() => setShowWhoDialog(true)}
+                  className='cursor-pointer'
+                  placeholder='Select travelers'
+                />
               </Field>
 
               {/* <Field>
@@ -1713,8 +1805,8 @@ const CreateItineraryForm: React.FC = () => {
                   readOnly
                   value={PACING_OPTIONS.find((p) => p.value === pacing)?.label || ''}
                   onClick={() => setShowPacingDialog(true)}
-                  className="cursor-pointer"
-                  placeholder="Select pacing"
+                  className='cursor-pointer'
+                  placeholder='Select pacing'
                 />
               </Field>
 
@@ -1724,12 +1816,12 @@ const CreateItineraryForm: React.FC = () => {
                   readOnly
                   value={DIETARY_OPTIONS.find((d) => d.value === dietaryRestrictions)?.label || ''}
                   onClick={() => setShowDietaryDialog(true)}
-                  className="cursor-pointer"
-                  placeholder="Select dietary restrictions"
+                  className='cursor-pointer'
+                  placeholder='Select dietary restrictions'
                 />
               </Field>
               <Field>
-                <Button type="button" onClick={handleNext} disabled={!canProceed()} className="w-full">
+                <Button type='button' onClick={handleNext} disabled={!canProceed()} className='w-full'>
                   Next
                 </Button>
               </Field>
@@ -1740,31 +1832,33 @@ const CreateItineraryForm: React.FC = () => {
             <FieldGroup>
               <Field>
                 <FieldLabel>Interests</FieldLabel>
-                <div className="mt-2 grid grid-cols-2 gap-3">
+                <div className='mt-2 grid grid-cols-2 gap-3'>
                   {INTEREST_OPTIONS.map((i) => (
                     <Button
                       key={i.value}
-                      type="button"
+                      type='button'
                       variant={watchInterests.includes(i.value) ? 'default' : 'outline'}
                       onClick={() => toggleInterest(i.value)}
-                      className={watchInterests.includes(i.value) ? 'from-gray to-gray bg-linear-to-r/longer via-gray-700' : ''}
+                      className={
+                        watchInterests.includes(i.value) ? 'from-gray to-gray bg-linear-to-r/longer via-gray-700' : ''
+                      }
                     >
                       {i.label}
                     </Button>
                   ))}
                 </div>
               </Field>
-              <Field orientation="horizontal">
-                <Button type="button" variant="outline" size="icon" onClick={handlePrevious} aria-label="Previous step">
-                  <ChevronLeft className="size-5" />
+              <Field orientation='horizontal'>
+                <Button type='button' variant='outline' size='icon' onClick={handlePrevious} aria-label='Previous step'>
+                  <ChevronLeft className='size-5' />
                 </Button>
-                <Button type="submit" className="flex flex-1">
+                <Button type='submit' className='flex flex-1'>
                   Create Itinerary
                 </Button>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button type="button" variant="outline" size="icon" onClick={handleNext} aria-label="Next step">
-                      <ChevronRight className="size-5" />
+                    <Button type='button' variant='outline' size='icon' onClick={handleNext} aria-label='Next step'>
+                      <ChevronRight className='size-5' />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>Additional settings</TooltipContent>
@@ -1778,11 +1872,11 @@ const CreateItineraryForm: React.FC = () => {
               {totalDays > 1 && (
                 <Field>
                   <FieldLabel>Hotel</FieldLabel>
-                  <div className="flex w-full gap-2">
+                  <div className='flex w-full gap-2'>
                     {destinations.length > 1 && (
                       <Select value={selectedHotelDestination} onValueChange={setSelectedHotelDestination}>
-                        <SelectTrigger className="w-40 rounded-full">
-                          <SelectValue placeholder="Destination" />
+                        <SelectTrigger className='w-40 rounded-full'>
+                          <SelectValue placeholder='Destination' />
                         </SelectTrigger>
                         <SelectContent>
                           {destinations.map((dest) => (
@@ -1820,31 +1914,48 @@ const CreateItineraryForm: React.FC = () => {
                       onSelect={(poi) => {
                         handleAddHotel(poi)
                       }}
-                      disabled={hotels.some((h) => h.destination_city === (selectedHotelDestination || destinations[0]?.city))}
+                      disabled={hotels.some(
+                        (h) => h.destination_city === (selectedHotelDestination || destinations[0]?.city)
+                      )}
                     />
                   </div>
 
-                  <div className="space-y-2">
+                  <div className='space-y-2'>
                     {hotels.map((acc, index) => (
-                      <div key={index} className="rounded-xl border p-3">
-                        <div className="flex items-center gap-3">
+                      <div key={index} className='rounded-xl border p-3'>
+                        <div className='flex items-center gap-3'>
                           {acc.images?.[0] ? (
-                            <img src={acc.images[0]} alt={acc.poi_name} className="size-12 flex-shrink-0 rounded-lg object-cover" />
+                            <img
+                              src={acc.images[0]}
+                              alt={`${acc.poi_name}=s300`}
+                              className='size-12 flex-shrink-0 rounded-lg object-cover'
+                            />
                           ) : (
-                            <div className="flex size-12 flex-shrink-0 items-center justify-center rounded-lg bg-muted" />
+                            <div className='bg-muted flex size-12 flex-shrink-0 items-center justify-center rounded-lg' />
                           )}
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex flex-col">
-                                <span className="truncate text-sm font-medium">{acc.poi_name}</span>
-                                {acc.destination_city && <span className="text-muted-foreground text-xs">{acc.destination_city.split(',')[0]}</span>}
+                          <div className='min-w-0 flex-1'>
+                            <div className='flex items-start justify-between gap-2'>
+                              <div className='flex flex-col'>
+                                <span className='truncate text-sm font-medium'>{acc.poi_name}</span>
+                                {acc.destination_city && (
+                                  <span className='text-muted-foreground text-xs'>
+                                    {acc.destination_city.split(',')[0]}
+                                  </span>
+                                )}
                               </div>
-                              <Button variant="ghost" size="icon" onClick={() => handleRemoveHotel(index)} className="h-8 w-8 flex-shrink-0">
+                              <Button
+                                variant='ghost'
+                                size='icon'
+                                onClick={() => handleRemoveHotel(index)}
+                                className='h-8 w-8 flex-shrink-0'
+                              >
                                 <X />
                               </Button>
                             </div>
                           </div>
-                          {acc.validationError && <FieldError className="text-center">{acc.validationError}</FieldError>}
+                          {acc.validationError && (
+                            <FieldError className='text-center'>{acc.validationError}</FieldError>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -1854,11 +1965,11 @@ const CreateItineraryForm: React.FC = () => {
 
               <Field>
                 <FieldLabel>Places to Visit</FieldLabel>
-                <div className="flex gap-2">
+                <div className='flex gap-2'>
                   {destinations.length > 1 && (
                     <Select value={selectedPlacesDestination} onValueChange={setSelectedPlacesDestination}>
-                      <SelectTrigger className="w-40 rounded-full">
-                        <SelectValue placeholder="Destination" />
+                      <SelectTrigger className='w-40 rounded-full'>
+                        <SelectValue placeholder='Destination' />
                       </SelectTrigger>
                       <SelectContent>
                         {destinations.map((dest) => (
@@ -1872,7 +1983,7 @@ const CreateItineraryForm: React.FC = () => {
                   <SearchableSelect
                     inputValue={placesSearch}
                     onInputChange={setPlacesSearch}
-                    placeholder="Search for attractions, restaurants..."
+                    placeholder='Search for attractions, restaurants...'
                     minLength={3}
                     open={placesOpen}
                     onOpenChange={setPlacesOpen}
@@ -1885,40 +1996,56 @@ const CreateItineraryForm: React.FC = () => {
                   />
                 </div>
 
-                <div className="space-y-2">
+                <div className='space-y-2'>
                   {mandatoryPOIs.map((place, index) => (
-                    <div key={index} className="rounded-xl border p-3">
-                      <div className="flex items-start gap-3">
+                    <div key={index} className='rounded-xl border p-3'>
+                      <div className='flex items-start gap-3'>
                         {place.images?.[0] ? (
-                          <img src={place.images[0]} alt={place.poi_name} className="size-16 flex-shrink-0 rounded-lg object-cover" />
+                          <img
+                            src={place.images[0]}
+                            alt={place.poi_name}
+                            className='size-16 flex-shrink-0 rounded-lg object-cover'
+                          />
                         ) : (
-                          <div className="flex size-16 flex-shrink-0 items-center justify-center rounded-lg bg-muted" />
+                          <div className='bg-muted flex size-16 flex-shrink-0 items-center justify-center rounded-lg' />
                         )}
-                        <div className="min-w-0 flex-1 space-y-1">
-                          <div className="flex items-start justify-between">
-                            <div className="flex flex-col">
-                              <span className="font-medium leading-tight">{place.poi_name}</span>
+                        <div className='min-w-0 flex-1 space-y-1'>
+                          <div className='flex items-start justify-between'>
+                            <div className='flex flex-col'>
+                              <span className='leading-tight font-medium'>{place.poi_name}</span>
                               {place.destination_city && destinations.length > 1 && (
-                                <span className="text-muted-foreground text-xs">{place.destination_city.split(',')[0]}</span>
+                                <span className='text-muted-foreground text-xs'>
+                                  {place.destination_city.split(',')[0]}
+                                </span>
                               )}
                             </div>
-                            <Button variant="ghost" size="icon" onClick={() => handleRemovePlace(index)} className="h-8 w-8 flex-shrink-0">
+                            <Button
+                              type='button'
+                              variant='ghost'
+                              size='icon'
+                              onClick={() => handleRemovePlace(index)}
+                              className='h-8 w-8 flex-shrink-0'
+                            >
                               <X />
                             </Button>
                           </div>
-                          <div className="flex gap-2">
-                            <div className="flex w-full flex-col items-center">
-                              <Label className="text-muted-foreground/60 text-xs">{dateMode === 'specific' ? 'Date' : 'Day'}</Label>
+                          <div className='flex gap-2'>
+                            <div className='flex w-full flex-col items-center'>
+                              <Label className='text-muted-foreground/60 text-xs'>
+                                {dateMode === 'specific' ? 'Date' : 'Day'}
+                              </Label>
                               <Input
                                 readOnly
-                                value={dateMode === 'specific' ? formatDateDisplay(place.date) : formatDayDisplay(place.day)}
+                                value={
+                                  dateMode === 'specific' ? formatDateDisplay(place.date) : formatDayDisplay(place.day)
+                                }
                                 onClick={() => handleOpenPlaceSchedule(place, index)}
-                                className="h-8 cursor-pointer text-center text-xs"
-                                placeholder="Date"
+                                className='h-8 cursor-pointer text-center text-xs'
+                                placeholder='Date'
                               />
                             </div>
-                            <div className="flex w-full flex-col items-center">
-                              <Label className="text-muted-foreground/60 text-xs">Time</Label>
+                            <div className='flex w-full flex-col items-center'>
+                              <Label className='text-muted-foreground/60 text-xs'>Time</Label>
                               <Input
                                 readOnly
                                 value={
@@ -1931,12 +2058,14 @@ const CreateItineraryForm: React.FC = () => {
                                         : 'Set time'
                                 }
                                 onClick={() => handleOpenPlaceSchedule(place, index)}
-                                className="h-8 cursor-pointer text-center text-xs"
-                                placeholder="Time"
+                                className='h-8 cursor-pointer text-center text-xs'
+                                placeholder='Time'
                               />
                             </div>
                           </div>
-                          {place.validationError && <FieldError className="mt-1 text-center">{place.validationError}</FieldError>}
+                          {place.validationError && (
+                            <FieldError className='mt-1 text-center'>{place.validationError}</FieldError>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1944,11 +2073,11 @@ const CreateItineraryForm: React.FC = () => {
                 </div>
               </Field>
 
-              <Field orientation="horizontal">
-                <Button type="button" variant="outline" size="icon" onClick={handlePrevious} aria-label="Previous step">
-                  <ChevronLeft className="size-5" />
+              <Field orientation='horizontal'>
+                <Button type='button' variant='outline' size='icon' onClick={handlePrevious} aria-label='Previous step'>
+                  <ChevronLeft className='size-5' />
                 </Button>
-                <Button type="submit" className="flex flex-1">
+                <Button type='submit' className='flex flex-1'>
                   Create Itinerary
                 </Button>
               </Field>
@@ -2019,7 +2148,7 @@ const CreateItineraryForm: React.FC = () => {
         <ScheduleDialog
           open={scheduleHotelDialog.open}
           onOpenChange={(open) => setScheduleHotelDialog({ open, hotel: null, index: -1 })}
-          mode="multi-day"
+          mode='multi-day'
           title={`Schedule: ${scheduleHotelDialog.hotel.poi_name}`}
           isSpecificDates={dateMode === 'specific'}
           availableDates={
@@ -2031,31 +2160,31 @@ const CreateItineraryForm: React.FC = () => {
           disabledCheckInDayIndices={
             dateMode === 'flexible'
               ? (() => {
-                const occupied = computeOccupiedFlexible(scheduleHotelDialog.index)
-                const indices = new Set<number>()
-                occupied.forEach((d) => indices.add(d))
-                // still prevent check-in on the very last trip day (no night after)
-                indices.add(totalDays)
-                return Array.from(indices)
-              })()
+                  const occupied = computeOccupiedFlexible(scheduleHotelDialog.index)
+                  const indices = new Set<number>()
+                  occupied.forEach((d) => indices.add(d))
+                  // still prevent check-in on the very last trip day (no night after)
+                  indices.add(totalDays)
+                  return Array.from(indices)
+                })()
               : undefined
           }
           disabledCheckOutDayIndices={
             dateMode === 'flexible'
               ? (() => {
-                const base = new Set<number>()
-                // cannot check-out on first trip day (no night before it)
-                base.add(1)
-                const inDay = scheduleHotelDialog.hotel?.check_in_day
-                if (typeof inDay === 'number') {
-                  // cannot check-out same day as check-in
-                  base.add(inDay)
-                  const occ = computeOccupiedFlexible(scheduleHotelDialog.index)
-                  // disable the in-range occupied days (they belong to other hotels)
-                  occ.forEach((d) => base.add(d))
-                }
-                return Array.from(base)
-              })()
+                  const base = new Set<number>()
+                  // cannot check-out on first trip day (no night before it)
+                  base.add(1)
+                  const inDay = scheduleHotelDialog.hotel?.check_in_day
+                  if (typeof inDay === 'number') {
+                    // cannot check-out same day as check-in
+                    base.add(inDay)
+                    const occ = computeOccupiedFlexible(scheduleHotelDialog.index)
+                    // disable the in-range occupied days (they belong to other hotels)
+                    occ.forEach((d) => base.add(d))
+                  }
+                  return Array.from(base)
+                })()
               : undefined
           }
           defaultMonth={startDate}
@@ -2084,7 +2213,7 @@ const CreateItineraryForm: React.FC = () => {
         <ScheduleDialog
           open={schedulePlaceDialog.open}
           onOpenChange={(open) => setSchedulePlaceDialog({ open, place: null, index: -1 })}
-          mode="single-day"
+          mode='single-day'
           title={`Schedule: ${schedulePlaceDialog.place.poi_name}`}
           isSpecificDates={dateMode === 'specific'}
           availableDates={
@@ -2127,22 +2256,25 @@ const CreateItineraryForm: React.FC = () => {
       )}
 
       {destinationWhenDialog.destination && (
-        <Dialog open={destinationWhenDialog.open} onOpenChange={(open) => setDestinationWhenDialog({ open, destination: null, index: -1 })}>
+        <Dialog
+          open={destinationWhenDialog.open}
+          onOpenChange={(open) => setDestinationWhenDialog({ open, destination: null, index: -1 })}
+        >
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{destinationWhenDialog.destination.city}</DialogTitle>
             </DialogHeader>
 
             {dateMode === 'specific' ? (
-              <div className="space-y-4">
+              <div className='space-y-4'>
                 <Calendar
-                  mode="range"
+                  mode='range'
                   selected={destDateRange}
                   onSelect={(range) => {
                     setDestDateRange(range)
                   }}
                   numberOfMonths={isMobile ? 1 : 2}
-                  className="p-0"
+                  className='p-0'
                   disabled={(date) => {
                     if (!startDate || !endDate) return true
 
@@ -2172,22 +2304,22 @@ const CreateItineraryForm: React.FC = () => {
                 />
               </div>
             ) : (
-              <div className="space-y-4">
-                <div className="mt-4 flex items-center justify-center gap-4">
+              <div className='space-y-4'>
+                <div className='mt-4 flex items-center justify-center gap-4'>
                   <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
+                    type='button'
+                    variant='outline'
+                    size='icon'
                     disabled={parseInt(destFlexibleDays || '1') <= 1}
                     onClick={() => setDestFlexibleDays(String(Math.max(1, parseInt(destFlexibleDays || '1') - 1)))}
                   >
                     <Minus />
                   </Button>
-                  <span className="w-12 text-center text-2xl font-semibold">{destFlexibleDays}</span>
+                  <span className='w-12 text-center text-2xl font-semibold'>{destFlexibleDays}</span>
                   <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
+                    type='button'
+                    variant='outline'
+                    size='icon'
                     disabled={(() => {
                       const currentDays = parseInt(destFlexibleDays || '1')
                       const otherDestDays = destinations.reduce((sum, dest, idx) => {
@@ -2212,7 +2344,7 @@ const CreateItineraryForm: React.FC = () => {
                     <Plus />
                   </Button>
                 </div>
-                <p className="text-muted-foreground text-center text-xs">
+                <p className='text-muted-foreground text-center text-xs'>
                   {(() => {
                     const otherDestDays = destinations.reduce((sum, dest, idx) => {
                       if (idx === destinationWhenDialog.index) return sum
@@ -2227,7 +2359,10 @@ const CreateItineraryForm: React.FC = () => {
             )}
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setDestinationWhenDialog({ open: false, destination: null, index: -1 })}>
+              <Button
+                variant='outline'
+                onClick={() => setDestinationWhenDialog({ open: false, destination: null, index: -1 })}
+              >
                 Cancel
               </Button>
               <Button onClick={handleSaveDestinationSchedule}>Save</Button>

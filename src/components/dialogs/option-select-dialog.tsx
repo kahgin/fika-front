@@ -1,7 +1,7 @@
-import React from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import React from 'react'
 
 export interface OptionItem {
   value: string
@@ -18,18 +18,26 @@ interface OptionSelectDialogProps {
   onSave: () => void
 }
 
-export const OptionSelectDialog: React.FC<OptionSelectDialogProps> = ({ open, onOpenChange, title, options, value, onValueChange, onSave }) => {
+export const OptionSelectDialog: React.FC<OptionSelectDialogProps> = ({
+  open,
+  onOpenChange,
+  title,
+  options,
+  value,
+  onValueChange,
+  onSave,
+}) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!max-w-sm">
+      <DialogContent className='!max-w-sm'>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         <RadioGroup value={value} onValueChange={onValueChange}>
           {options.map((opt) => (
-            <div key={opt.value} className="flex items-center space-x-3">
+            <div key={opt.value} className='flex items-center space-x-3'>
               <RadioGroupItem value={opt.value} id={opt.value} />
-              <label className="text-sm" htmlFor={opt.value}>
+              <label className='text-sm' htmlFor={opt.value}>
                 {opt.label}
               </label>
             </div>

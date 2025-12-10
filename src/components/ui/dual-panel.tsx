@@ -14,7 +14,13 @@ interface DualPanelLayoutProps {
  * - Supports split and full-width modes without imposing page logic
  * - Mobile behavior is left to the consumer for now to avoid breaking existing UX
  */
-export function DualPanelLayout({ left, right, rightVisible = true, fullWidth = null, className = '' }: DualPanelLayoutProps) {
+export function DualPanelLayout({
+  left,
+  right,
+  rightVisible = true,
+  fullWidth = null,
+  className = '',
+}: DualPanelLayoutProps) {
   // Determine widths for desktop
   const leftClasses = ['transition-[width,opacity] duration-300 ease-in-out min-w-0 overflow-y-auto border-r']
   const rightClasses = ['transition-[width,opacity] duration-300 ease-in-out min-w-0 overflow-y-auto']

@@ -1,6 +1,6 @@
-import React from 'react'
 import { OptionSelectDialog } from '@/components/dialogs/option-select-dialog'
 import { DIETARY_OPTIONS } from '@/lib/constants'
+import React from 'react'
 
 interface DietaryDialogProps {
   open: boolean
@@ -10,12 +10,18 @@ interface DietaryDialogProps {
   onSave: () => void
 }
 
-export const DietaryDialog: React.FC<DietaryDialogProps> = ({ open, onOpenChange, dietaryRestrictions, onDietaryRestrictionsChange, onSave }) => {
+export const DietaryDialog: React.FC<DietaryDialogProps> = ({
+  open,
+  onOpenChange,
+  dietaryRestrictions,
+  onDietaryRestrictionsChange,
+  onSave,
+}) => {
   return (
     <OptionSelectDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Dietary Restrictions"
+      title='Dietary Restrictions'
       options={DIETARY_OPTIONS}
       value={dietaryRestrictions}
       onValueChange={onDietaryRestrictionsChange}

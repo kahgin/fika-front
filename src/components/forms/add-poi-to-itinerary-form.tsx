@@ -1,10 +1,10 @@
+import LoginForm from '@/components/forms/login-form'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import type { POI } from '@/services/api'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import type { POI } from '@/services/api'
-import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import LoginForm from '@/components/forms/login-form'
 
 interface AddPOIToItineraryFormProps {
   open: boolean
@@ -126,15 +126,17 @@ export function AddPOIToItineraryForm({ open, onOpenChange, poi, onSuccess }: Ad
             <DialogTitle>Add to itinerary</DialogTitle>
           </DialogHeader>
           {!poi ? (
-            <p className="text-muted-foreground text-sm">No place selected.</p>
+            <p className='text-muted-foreground text-sm'>No place selected.</p>
           ) : loadingItineraries ? (
-            <p className="text-muted-foreground text-sm">Loading itineraries…</p>
+            <p className='text-muted-foreground text-sm'>Loading itineraries…</p>
           ) : itineraries.length === 0 ? (
-            <div className="space-y-4">
-              <p className="text-muted-foreground text-sm">No itineraries found. Create a trip first, then add places.</p>
-              <div className="flex gap-2">
+            <div className='space-y-4'>
+              <p className='text-muted-foreground text-sm'>
+                No itineraries found. Create a trip first, then add places.
+              </p>
+              <div className='flex gap-2'>
                 <Button
-                  className="flex-1"
+                  className='flex-1'
                   onClick={() => {
                     onOpenChange(false)
                     navigate('/create')
@@ -143,8 +145,8 @@ export function AddPOIToItineraryForm({ open, onOpenChange, poi, onSuccess }: Ad
                   Create Itinerary
                 </Button>
                 <Button
-                  variant="outline"
-                  className="flex-1"
+                  variant='outline'
+                  className='flex-1'
                   onClick={() => {
                     onOpenChange(false)
                     setShowLogin(true)
@@ -155,18 +157,18 @@ export function AddPOIToItineraryForm({ open, onOpenChange, poi, onSuccess }: Ad
               </div>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className='space-y-2'>
               {itineraries.map((it) => (
                 <Button
                   key={it.id}
-                  variant="ghost"
-                  className="h-auto w-full justify-start px-4 py-3"
+                  variant='ghost'
+                  className='h-auto w-full justify-start px-4 py-3'
                   onClick={() => handleAddToItinerary(it.id)}
                   disabled={adding}
                 >
-                  <div className="w-full text-left">
-                    <p className="font-medium">{it.title}</p>
-                    {it.dates && <p className="text-muted-foreground text-xs">{it.dates}</p>}
+                  <div className='w-full text-left'>
+                    <p className='font-medium'>{it.title}</p>
+                    {it.dates && <p className='text-muted-foreground text-xs'>{it.dates}</p>}
                   </div>
                 </Button>
               ))}

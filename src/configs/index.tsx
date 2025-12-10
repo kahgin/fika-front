@@ -1,9 +1,9 @@
 import { navigationRoutes, utilityRoutes } from '@/configs/routes'
 import ChatPage from '@/pages/ChatPage'
+import CreateItineraryPage from '@/pages/CreateItineraryPage'
 import ItineraryPage from '@/pages/ItineraryPage'
 import SearchPage from '@/pages/SearchPage'
 import SettingPage from '@/pages/SettingPage'
-import CreateItineraryPage from '@/pages/CreateItineraryPage'
 
 // Map navigation routes to elements
 const navigationRoutesWithElements = navigationRoutes.map((route) => {
