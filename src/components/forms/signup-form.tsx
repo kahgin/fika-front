@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { signup } from '@/services/api'
+import { useAuth } from '@/contexts/AuthContext'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
@@ -13,6 +13,7 @@ interface SignupFormProps {
 }
 
 export default function SignupForm({ open, onOpenChange, onSwitchToLogin }: SignupFormProps) {
+  const { signup } = useAuth()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -23,30 +24,26 @@ export default function SignupForm({ open, onOpenChange, onSwitchToLogin }: Sign
     e.preventDefault()
 
     if (password !== confirmPassword) {
-      toast('Passwords do not match')
+      toast.error('Passwords do not match')
       return
     }
 
     if (password.length < 8) {
-      toast('Password must be at least 8 characters')
+      toast.error('Password must be at least 8 characters')
       return
     }
 
     setLoading(true)
 
     try {
-      const result = await signup({ name, email, password })
-
-      if (result.success) {
-        toast(`Welcome, ${result.user?.name || 'User'}!`)
-        onOpenChange(false)
-        // Refresh page after signup
-        window.location.reload()
-      } else {
-        toast(result.message || 'Signup failed. Please try again.')
-      }
+      await signup({ email, password, name })
+      toast.success('Account created successfully!')
+      onOpenChange(false)
+      // Refresh page after signup
+      window.location.reload()
     } catch (error) {
-      toast('Signup failed. Please try again.')
+      const message = error instanceof Error ? error.message : 'Signup failed. Please try again.'
+      toast.error(message)
     } finally {
       setLoading(false)
     }

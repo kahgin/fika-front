@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { login } from '@/services/api'
+import { useAuth } from '@/contexts/AuthContext'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
@@ -13,6 +13,7 @@ interface LoginFormProps {
 }
 
 export default function LoginForm({ open, onOpenChange, onSwitchToSignup }: LoginFormProps) {
+  const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -22,18 +23,14 @@ export default function LoginForm({ open, onOpenChange, onSwitchToSignup }: Logi
     setLoading(true)
 
     try {
-      const result = await login({ email, password })
-
-      if (result.success) {
-        toast(`Welcome back, ${result.user?.name || 'User'}!`)
-        onOpenChange(false)
-        // Refresh itineraries after login
-        window.location.reload()
-      } else {
-        toast(result.message || 'Login failed. Please try again.')
-      }
+      await login({ email, password })
+      toast.success('Welcome back!')
+      onOpenChange(false)
+      // Refresh the page to reload itineraries with auth
+      window.location.reload()
     } catch (error) {
-      toast('Login failed. Please try again.')
+      const message = error instanceof Error ? error.message : 'Login failed. Please try again.'
+      toast.error(message)
     } finally {
       setLoading(false)
     }

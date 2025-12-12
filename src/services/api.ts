@@ -8,40 +8,23 @@ export interface CreateItineraryPayload {
   dates: {
     type: 'specific' | 'flexible'
     days?: number
-    preferred_month?: string | null
-    start_date?: string | null
-    end_date?: string | null
+    preferredMonth?: string | null
+    startDate?: string | null
+    endDate?: string | null
   }
   travelers: { adults: number; children: number; pets: number }
   preferences: { budget: string; pacing: string; interests: string[] }
 }
 
 export interface CreatedItinerary {
-  itin_id: string
+  itinId: string
   status: string
   meta: CreateItineraryPayload & { [k: string]: any }
   plan: any
 }
 
-// Normalize server response to UI-friendly shape
-function normalizeItinerary<T extends { meta?: any }>(data: T): T {
-  try {
-    if (data && data.meta && data.meta.dates && typeof data.meta.dates === 'object') {
-      const d = data.meta.dates
-      const normalized = {
-        ...d,
-        startDate: d.startDate ?? d.start_date ?? null,
-        endDate: d.endDate ?? d.end_date ?? null,
-        preferredMonth: d.preferredMonth ?? d.preferred_month ?? null,
-      }
-      data.meta.dates = normalized
-    }
-  } catch {}
-  return data
-}
-
 export interface AddPOIPayload {
-  poi_id: string
+  poiId: string
   day?: number
 }
 
@@ -54,7 +37,7 @@ export interface POI {
   location: string
   images: string[]
   role?: string
-  poiRoles?: string[]
+  roles?: string[]
   themes?: string[]
   description?: string
   coordinates?: {
@@ -65,7 +48,7 @@ export interface POI {
   googleMapsUrl?: string
   address?: string
   phone?: string
-  open_hours?: any
+  openHours?: any
   priceLevel?: string
 }
 
@@ -87,11 +70,159 @@ const noCacheHeaders = {
   'Cache-Control': 'no-cache',
 }
 
+// Auth token management
+const AUTH_TOKEN_KEY = 'fika_auth_token'
+
+export function getAuthToken(): string | null {
+  return localStorage.getItem(AUTH_TOKEN_KEY)
+}
+
+export function setAuthToken(token: string): void {
+  localStorage.setItem(AUTH_TOKEN_KEY, token)
+}
+
+export function clearAuthToken(): void {
+  localStorage.removeItem(AUTH_TOKEN_KEY)
+}
+
+function getAuthHeaders(): Record<string, string> {
+  const token = getAuthToken()
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
+// Auth types
+export interface SignupPayload {
+  email: string
+  password: string
+  username?: string
+  name?: string
+}
+
+export interface LoginPayload {
+  email: string
+  password: string
+}
+
+export interface User {
+  id: string
+  email: string
+  username: string | null
+  name: string | null
+  avatar: string | null
+  createdAt: string
+}
+
+export interface AuthResponse {
+  status: string
+  token: string
+  user: User
+}
+
+// Auth API functions
+export async function signup(payload: SignupPayload): Promise<AuthResponse> {
+  const resp = await fetch(`${API_BASE_URL}/auth/signup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!resp.ok) {
+    const errorData = await resp.json().catch(() => ({ detail: 'Signup failed' }))
+    throw new Error(typeof errorData.detail === 'string' ? errorData.detail : JSON.stringify(errorData.detail))
+  }
+  const data = await resp.json()
+  if (data.token) {
+    setAuthToken(data.token)
+  }
+  return data
+}
+
+export async function login(payload: LoginPayload): Promise<AuthResponse> {
+  const resp = await fetch(`${API_BASE_URL}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!resp.ok) {
+    const errorData = await resp.json().catch(() => ({ detail: 'Login failed' }))
+    throw new Error(typeof errorData.detail === 'string' ? errorData.detail : JSON.stringify(errorData.detail))
+  }
+  const data = await resp.json()
+  if (data.token) {
+    setAuthToken(data.token)
+  }
+  return data
+}
+
+export async function logout(): Promise<void> {
+  const token = getAuthToken()
+  if (token) {
+    try {
+      await fetch(`${API_BASE_URL}/auth/logout`, {
+        method: 'POST',
+        headers: { ...getAuthHeaders() },
+      })
+    } catch (e) {
+      console.error('logout error', e)
+    }
+  }
+  clearAuthToken()
+}
+
+export async function getMe(): Promise<User | null> {
+  const token = getAuthToken()
+  if (!token) return null
+
+  try {
+    const resp = await fetch(`${API_BASE_URL}/auth/me`, {
+      headers: { ...getAuthHeaders() },
+    })
+    if (!resp.ok) {
+      if (resp.status === 401) {
+        clearAuthToken()
+      }
+      return null
+    }
+    return await resp.json()
+  } catch (e) {
+    console.error('getMe error', e)
+    return null
+  }
+}
+
+export async function updateProfile(updates: { name?: string; avatar?: string }): Promise<User | null> {
+  try {
+    const resp = await fetch(`${API_BASE_URL}/auth/me`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify(updates),
+    })
+    if (!resp.ok) throw new Error('Failed to update profile')
+    return await resp.json()
+  } catch (e) {
+    console.error('updateProfile error', e)
+    return null
+  }
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<boolean> {
+  try {
+    const resp = await fetch(`${API_BASE_URL}/auth/change-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    })
+    return resp.ok
+  } catch (e) {
+    console.error('changePassword error', e)
+    return false
+  }
+}
+
 export async function createItinerary(payload: CreateItineraryPayload): Promise<CreatedItinerary | null> {
   try {
     const resp = await fetch(`${API_BASE_URL}/itinerary/create`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(payload as any),
     })
     if (!resp.ok) {
@@ -100,7 +231,7 @@ export async function createItinerary(payload: CreateItineraryPayload): Promise<
       throw new Error(errorMessage)
     }
     const data = await resp.json()
-    return normalizeItinerary(data)
+    return data
   } catch (e) {
     console.error('createItinerary error', e)
     throw e
@@ -111,11 +242,11 @@ export async function getItinerary(chatId: string): Promise<CreatedItinerary | n
   try {
     const resp = await fetch(addCacheBuster(`${API_BASE_URL}/itinerary/${chatId}`), {
       cache: 'no-store',
-      headers: noCacheHeaders,
+      headers: { ...noCacheHeaders, ...getAuthHeaders() },
     })
     if (!resp.ok) throw new Error('Failed to load itinerary')
     const data = await resp.json()
-    return normalizeItinerary(data)
+    return data
   } catch (e) {
     console.error('getItinerary error', e)
     return null
@@ -127,7 +258,7 @@ export async function deleteItinerary(chatId: string): Promise<boolean> {
     const resp = await fetch(addCacheBuster(`${API_BASE_URL}/itinerary/${chatId}`), {
       method: 'DELETE',
       cache: 'no-store',
-      headers: noCacheHeaders,
+      headers: { ...noCacheHeaders, ...getAuthHeaders() },
     })
     return resp.ok
   } catch (e) {
@@ -140,11 +271,11 @@ export async function listItineraries(): Promise<CreatedItinerary[] | null> {
   try {
     const resp = await fetch(addCacheBuster(`${API_BASE_URL}/itineraries`), {
       cache: 'no-store',
-      headers: noCacheHeaders,
+      headers: { ...noCacheHeaders, ...getAuthHeaders() },
     })
     if (!resp.ok) throw new Error('Failed to list itineraries')
     const data = await resp.json()
-    return Array.isArray(data) ? data.map((d: any) => normalizeItinerary(d)) : data
+    return Array.isArray(data) ? data : data
   } catch (e) {
     console.error('listItineraries error', e)
     return null
@@ -155,7 +286,7 @@ export async function addPOIToItinerary(chatId: string, payload: AddPOIPayload):
   try {
     const resp = await fetch(`${API_BASE_URL}/itinerary/${chatId}/add-poi`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(payload),
     })
     return resp.ok
@@ -173,12 +304,12 @@ export async function reorderItineraryStops(
   try {
     const resp = await fetch(`${API_BASE_URL}/itinerary/${chatId}/reorder`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ day_index: dayIndex, poi_ids: poiIds }),
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({ dayIndex: dayIndex, poiIds: poiIds }),
     })
     if (!resp.ok) throw new Error('Failed to reorder stops')
     const data = await resp.json()
-    return normalizeItinerary(data)
+    return data
   } catch (e) {
     console.error('reorderItineraryStops error', e)
     return null
@@ -196,18 +327,18 @@ export async function schedulePOI(
   try {
     const resp = await fetch(`${API_BASE_URL}/itinerary/${chatId}/schedule-poi`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({
-        poi_id: poiId,
-        day_index: dayIndex,
-        start_time: startTime,
-        end_time: endTime,
-        all_day: allDay,
+        poiId: poiId,
+        dayIndex: dayIndex,
+        startTime: startTime,
+        endTime: endTime,
+        allDay: allDay,
       }),
     })
     if (!resp.ok) throw new Error('Failed to schedule POI')
     const data = await resp.json()
-    return normalizeItinerary(data)
+    return data
   } catch (e) {
     console.error('schedulePOI error', e)
     return null
@@ -218,12 +349,50 @@ export async function deletePOIFromItinerary(chatId: string, poiId: string): Pro
   try {
     const resp = await fetch(`${API_BASE_URL}/itinerary/${chatId}/poi/${poiId}`, {
       method: 'DELETE',
+      headers: { ...getAuthHeaders() },
     })
     if (!resp.ok) throw new Error('Failed to delete POI')
     const data = await resp.json()
-    return normalizeItinerary(data)
+    return data
   } catch (e) {
     console.error('deletePOIFromItinerary error', e)
+    return null
+  }
+}
+
+export type RecomputeMode = 'full' | 'partial' | 'single_day'
+
+export interface RecomputeOptions {
+  pacing?: string
+  mealsRequired?: number
+}
+
+export async function recomputeItinerary(
+  chatId: string,
+  mode: RecomputeMode,
+  dayIndex?: number,
+  options?: RecomputeOptions
+): Promise<CreatedItinerary | null> {
+  try {
+    const resp = await fetch(`${API_BASE_URL}/itinerary/${chatId}/recompute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({
+        mode,
+        day_index: dayIndex,
+        options: options
+          ? {
+              pacing: options.pacing,
+              meals_required: options.mealsRequired,
+            }
+          : {},
+      }),
+    })
+    if (!resp.ok) throw new Error('Failed to recompute itinerary')
+    const data = await resp.json()
+    return data
+  } catch (e) {
+    console.error('recomputeItinerary error', e)
     return null
   }
 }
@@ -247,7 +416,7 @@ export async function updateItineraryMeta(
     // Save updated itinerary by persisting to backend
     const resp = await fetch(`${API_BASE_URL}/itinerary/${chatId}/update-meta`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(metaUpdates),
     })
 
@@ -258,7 +427,7 @@ export async function updateItineraryMeta(
     }
 
     const data = await resp.json()
-    return normalizeItinerary(data)
+    return data
   } catch (e) {
     console.error('updateItineraryMeta error', e)
     return null
@@ -378,135 +547,6 @@ export interface Location {
   country_iso2: string
   parent_id: string | null
   admin_level: number
-}
-
-// Auth functions (placeholder - backend not implemented yet)
-export interface LoginPayload {
-  email: string
-  password: string
-}
-
-export interface SignupPayload {
-  name: string
-  email: string
-  password: string
-}
-
-export interface AuthResponse {
-  success: boolean
-  user?: {
-    id: string
-    email: string
-    name: string
-  }
-  token?: string
-  message?: string
-}
-
-export async function login(payload: LoginPayload): Promise<AuthResponse> {
-  try {
-    // TODO: Replace with actual backend endpoint when available
-    // const resp = await fetch(`${API_BASE_URL}/auth/login`, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(payload),
-    // })
-    // if (!resp.ok) throw new Error('Login failed')
-    // return await resp.json()
-
-    // Temporary mock response
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
-    // Store mock token
-    const mockToken = btoa(JSON.stringify({ email: payload.email, timestamp: Date.now() }))
-    localStorage.setItem('fika:auth:token', mockToken)
-    localStorage.setItem(
-      'fika:auth:user',
-      JSON.stringify({
-        id: 'mock-user-id',
-        email: payload.email,
-        name: payload.email.split('@')[0],
-      })
-    )
-
-    return {
-      success: true,
-      user: {
-        id: 'mock-user-id',
-        email: payload.email,
-        name: payload.email.split('@')[0],
-      },
-      token: mockToken,
-    }
-  } catch (e) {
-    console.error('login error', e)
-    return {
-      success: false,
-      message: 'Login failed. Please check your credentials.',
-    }
-  }
-}
-
-export async function signup(payload: SignupPayload): Promise<AuthResponse> {
-  try {
-    // TODO: Replace with actual backend endpoint when available
-    // const resp = await fetch(`${API_BASE_URL}/auth/signup`, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(payload),
-    // })
-    // if (!resp.ok) throw new Error('Signup failed')
-    // return await resp.json()
-
-    // Temporary mock response
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
-    // Store mock token
-    const mockToken = btoa(JSON.stringify({ email: payload.email, timestamp: Date.now() }))
-    localStorage.setItem('fika:auth:token', mockToken)
-    localStorage.setItem(
-      'fika:auth:user',
-      JSON.stringify({
-        id: 'mock-user-id',
-        email: payload.email,
-        name: payload.name,
-      })
-    )
-
-    return {
-      success: true,
-      user: {
-        id: 'mock-user-id',
-        email: payload.email,
-        name: payload.name,
-      },
-      token: mockToken,
-    }
-  } catch (e) {
-    console.error('signup error', e)
-    return {
-      success: false,
-      message: 'Signup failed. Please try again.',
-    }
-  }
-}
-
-export async function logout(): Promise<void> {
-  localStorage.removeItem('fika:auth:token')
-  localStorage.removeItem('fika:auth:user')
-}
-
-export function getCurrentUser(): { id: string; email: string; name: string } | null {
-  try {
-    const userStr = localStorage.getItem('fika:auth:user')
-    return userStr ? JSON.parse(userStr) : null
-  } catch {
-    return null
-  }
-}
-
-export function isAuthenticated(): boolean {
-  return !!localStorage.getItem('fika:auth:token')
 }
 
 export async function searchLocations(query: string): Promise<Location[]> {

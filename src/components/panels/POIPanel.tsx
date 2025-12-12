@@ -43,7 +43,7 @@ export default function POIPanel({
     }
   }
 
-  const parsedHours = poi.open_hours ? parseOpenHours(poi.open_hours) : null
+  const parsedHours = poi.openHours ? parseOpenHours(poi.openHours) : null
 
   useEffect(() => {
     const handleScroll = () => {

@@ -1,13 +1,14 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { navigationRoutes } from '@/configs'
 import type { NavigationViewType } from '@/configs/routes'
+import type { User as UserType } from '@/services/api'
 import { User } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 // Export constant for bottom nav height - single source of truth
 export const BOTTOM_NAV_HEIGHT = 64 // 16 * 4 = 64px (h-16)
 
-export function BottomNav({ user }: { user: any }) {
+export function BottomNav({ user }: { user: UserType | null }) {
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -53,10 +54,12 @@ export function BottomNav({ user }: { user: any }) {
             onClick={handleUserClick}
             className='flex h-full flex-1 flex-col items-center justify-center gap-1 transition-colors'
           >
-            {user.avatar ? (
+            {user?.avatar ? (
               <Avatar className='h-6 w-6 rounded-full'>
-                <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback className='text-xs'>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
+                <AvatarImage src={user.avatar} alt={user.name || 'User'} />
+                <AvatarFallback className='text-xs'>
+                  {(user.name || user.email || 'U').charAt(0).toUpperCase()}
+                </AvatarFallback>
               </Avatar>
             ) : (
               <User className={`h-6 w-6 ${getCurrentView() === 'settings' ? '' : 'text-muted-foreground'}`} />

@@ -1,6 +1,7 @@
 import { BOTTOM_NAV_HEIGHT } from '@/components/bottom-nav'
 import { AddPOIToItineraryForm } from '@/components/forms/add-poi-to-itinerary-form'
 import { Button } from '@/components/ui/button'
+import { FallbackImage } from '@/components/ui/fallback-image'
 import { Input } from '@/components/ui/input'
 import {
   Pagination,
@@ -24,7 +25,7 @@ interface SearchPanelProps {
   size?: 'full' | 'half'
 }
 
-const TABS = ['all', 'attractions', 'restaurants', 'hotels'] as const
+const TABS = ['all', 'attraction', 'restaurant', 'hotel'] as const
 type Tab = (typeof TABS)[number]
 const ITEMS_PER_PAGE = 12
 const LOCATION_SEARCH_MIN_LENGTH = 3
@@ -262,7 +263,7 @@ export default function SearchPanel({ onPOISelect, size = 'half' }: SearchPanelP
             <div className='group relative flex-1 border-r'>
               {destination ? (
                 <div
-                  className='flex h-[52px] cursor-pointer items-center justify-between px-4'
+                  className='flex h-[52px] cursor-pointer items-center justify-between px-6'
                   onClick={handleDestinationClick}
                 >
                   <span className='text-sm'>{destination.split(',')[0]}</span>
@@ -305,10 +306,10 @@ export default function SearchPanel({ onPOISelect, size = 'half' }: SearchPanelP
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 disabled={loading}
-                className='h-[52px] flex-1 border-0 px-4 shadow-none focus-visible:ring-0'
+                className='h-[52px] flex-1 border-0 px-6 shadow-none focus-visible:ring-0'
                 style={{ height: '52px' }}
               />
-              <div className='pr-4'>
+              <div className='pr-6'>
                 <Button type='submit' variant='ghost' size='icon' disabled={loading} className='h-8 w-8 flex-shrink-0'>
                   <Search className='h-4 w-4' />
                 </Button>
@@ -330,13 +331,15 @@ export default function SearchPanel({ onPOISelect, size = 'half' }: SearchPanelP
 
         {/* Tabs */}
         <ButtonGroup className='w-full place-self-center'>
-          {TABS.map((tab) => (
+          {TABS.map((tab, _) => (
             <Button
               key={tab}
               variant={activeTab === tab ? 'secondary' : 'outline'}
               size='sm'
               onClick={() => handleTabChange(tab)}
-              className='flex-1 rounded-none border-y-0 py-4 whitespace-nowrap capitalize shadow-none first:border-l-0 last:border-r-0'
+              className={`flex-1 rounded-none border-y-0 py-4 whitespace-nowrap capitalize shadow-none 
+                first:border-l-0 last:border-r-0
+                ${activeTab ? 'border-r' : ''}`}
               disabled={loading}
             >
               {tab}
@@ -390,19 +393,11 @@ export default function SearchPanel({ onPOISelect, size = 'half' }: SearchPanelP
                   className='relative overflow-hidden rounded-xl bg-gray-200'
                   style={{ aspectRatio: size === 'full' ? '3/2' : '1/1' }}
                 >
-                  {poi.images && poi.images[0] ? (
-                    <img
-                      referrerPolicy='no-referrer'
-                      src={`https://picsum.photos/seed/${poi.name}/1200/900`}
-                      // src={`${poi.images[0]}=s1500`}
-                      alt={poi.name}
-                      className='h-full w-full object-cover'
-                    />
-                  ) : (
-                    <div className='flex h-full w-full items-center justify-center bg-gray-300'>
-                      <span className='text-muted-foreground text-sm'>No image</span>
-                    </div>
-                  )}
+                  <FallbackImage
+                    src={poi.images?.[0] ? `${poi.images[0]}=s1500` : undefined}
+                    alt={poi.name}
+                    className='h-full w-full object-cover'
+                  />
                   <div className='absolute top-4 right-4'>
                     <Button
                       onClick={(e) => {

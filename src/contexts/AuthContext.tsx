@@ -1,31 +1,85 @@
 import type { ReactNode } from 'react'
-import { createContext, useContext, useState } from 'react'
-
-interface User {
-  name: string
-  username: string
-  email: string
-  password: string
-  avatar: string
-}
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import {
+  login as apiLogin,
+  logout as apiLogout,
+  signup as apiSignup,
+  getAuthToken,
+  getMe,
+  type LoginPayload,
+  type SignupPayload,
+  type User,
+} from '../services/api'
 
 interface AuthContextType {
   user: User | null
-  setUser: (user: User | null) => void
+  isLoading: boolean
+  isAuthenticated: boolean
+  login: (payload: LoginPayload) => Promise<void>
+  signup: (payload: SignupPayload) => Promise<void>
+  logout: () => Promise<void>
+  refreshUser: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>({
-    name: 'Traveller',
-    username: 'traveller',
-    email: 'traveller@example.com',
-    password: 'password',
-    avatar: 'https://i.pinimg.com/736x/35/e2/78/35e2788fd9c56df3d3c51287549d5c0a.jpg',
-  })
+  const [user, setUser] = useState<User | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
-  return <AuthContext.Provider value={{ user, setUser }}>{children}</AuthContext.Provider>
+  const refreshUser = useCallback(async () => {
+    const token = getAuthToken()
+    if (!token) {
+      setUser(null)
+      setIsLoading(false)
+      return
+    }
+    try {
+      const userData = await getMe()
+      setUser(userData)
+    } catch {
+      setUser(null)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    refreshUser()
+  }, [refreshUser])
+
+  const login = useCallback(async (payload: LoginPayload) => {
+    const response = await apiLogin(payload)
+    setUser(response.user)
+  }, [])
+
+  const signup = useCallback(async (payload: SignupPayload) => {
+    const response = await apiSignup(payload)
+    setUser(response.user)
+  }, [])
+
+  const logout = useCallback(async () => {
+    await apiLogout()
+    setUser(null)
+  }, [])
+
+  const isAuthenticated = !!user
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoading,
+        isAuthenticated,
+        login,
+        signup,
+        logout,
+        refreshUser,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
 export const useAuth = () => {

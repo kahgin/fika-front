@@ -42,7 +42,7 @@ export function SearchableSelect<T>({
   const showBorder = isLoading || (inputValue.length >= minLength && hasResults)
 
   const inputClassName =
-    variant === 'search-panel' ? 'h-[52px] rounded-none border-0 px-4 shadow-none focus-visible:ring-0' : ''
+    variant === 'search-panel' ? 'h-[52px] rounded-none border-0 px-6 shadow-none focus-visible:ring-0' : ''
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>

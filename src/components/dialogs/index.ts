@@ -1,5 +1,6 @@
 export { BudgetDialog } from './budget-dialog'
 export { DietaryDialog } from './dietary-dialog'
+export { EditHotelsPoisDialog } from './edit-hotels-pois-dialog'
 export { OptionSelectDialog } from './option-select-dialog'
 export { PacingDialog } from './pacing-dialog'
 export { ScheduleDialog } from './schedule-dialog'

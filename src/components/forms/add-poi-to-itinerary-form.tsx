@@ -29,7 +29,7 @@ async function fetchItinerariesFromStorageOrAPI(): Promise<ItinerarySummary[]> {
       if (raw) {
         const data = JSON.parse(raw)
         summaries.push({
-          id: data.itin_id || String(lastId),
+          id: data.itinId || String(lastId),
           title: (data?.meta?.title ? data.meta.title : `${data.meta.destination} Trip`) || 'Trip',
           dates:
             typeof data?.meta?.dates === 'object' && data?.meta?.dates?.type === 'specific'
@@ -48,7 +48,7 @@ async function fetchItinerariesFromStorageOrAPI(): Promise<ItinerarySummary[]> {
     if (Array.isArray(res)) {
       res.forEach((it: any) => {
         summaries.push({
-          id: String(it.id || it.itin_id),
+          id: String(it.id || it.itinId),
           title: (it.meta?.title ? it.meta.title : `${it.meta.destination} Trip`) || 'Trip',
           dates:
             typeof it?.meta?.dates === 'object' && it?.meta?.dates?.type === 'specific'
@@ -85,7 +85,7 @@ export function AddPOIToItineraryForm({ open, onOpenChange, poi, onSuccess }: Ad
     setAdding(true)
     try {
       const { addPOIToItinerary, getItinerary } = await import('@/services/api')
-      await addPOIToItinerary(itineraryId, { poi_id: poi.id })
+      await addPOIToItinerary(itineraryId, { poiId: poi.id })
 
       const lastId = localStorage.getItem('fika:lastChatId')
       if (lastId === itineraryId) {

@@ -4,6 +4,7 @@ import SignupForm from '@/components/forms/signup-form'
 import { Button } from '@/components/ui/button'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { useAuth } from '@/contexts/AuthContext'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { formatDateRange } from '@/lib/date-range'
 import { deleteItinerary, listItineraries, type CreatedItinerary } from '@/services/api'
@@ -14,6 +15,7 @@ import { useNavigate } from 'react-router-dom'
 export default function ItineraryPage() {
   const navigate = useNavigate()
   const isMobile = useIsMobile()
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
   const [chats, setChats] = useState<CreatedItinerary[]>([])
   const [loading, setLoading] = useState(true)
   const [showLogin, setShowLogin] = useState(false)
@@ -23,16 +25,36 @@ export default function ItineraryPage() {
     const loadItineraries = async () => {
       try {
         setLoading(true)
-        const items = await listItineraries()
-        if (items && Array.isArray(items)) {
-          setChats(items)
-          items.forEach((item) => {
-            try {
-              localStorage.setItem(`fika:chat:${item.itin_id}`, JSON.stringify(item))
-            } catch {}
-          })
+
+        if (isAuthenticated) {
+          // Authenticated: load from backend API
+          const items = await listItineraries()
+          if (items && Array.isArray(items)) {
+            setChats(items)
+            // Cache in localStorage for offline access
+            items.forEach((item) => {
+              try {
+                localStorage.setItem(`fika:chat:${item.itinId}`, JSON.stringify(item))
+              } catch {}
+            })
+          } else {
+            setChats([])
+          }
         } else {
-          setChats([])
+          // Anonymous: load from localStorage only
+          const localChats: CreatedItinerary[] = []
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i)
+            if (key?.startsWith('fika:chat:')) {
+              try {
+                const item = JSON.parse(localStorage.getItem(key) || '{}')
+                if (item.itinId) {
+                  localChats.push(item)
+                }
+              } catch {}
+            }
+          }
+          setChats(localChats)
         }
       } catch (e) {
         console.error('Failed to load itineraries', e)
@@ -41,8 +63,12 @@ export default function ItineraryPage() {
         setLoading(false)
       }
     }
-    loadItineraries()
-  }, [])
+
+    // Wait for auth state to be determined before loading
+    if (!authLoading) {
+      loadItineraries()
+    }
+  }, [isAuthenticated, authLoading])
 
   const handleOpen = (chatId: string) => {
     localStorage.setItem('fika:lastChatId', chatId)
@@ -54,10 +80,16 @@ export default function ItineraryPage() {
   }
 
   const handleDelete = async (chatId: string) => {
-    const ok = await deleteItinerary(chatId)
-    if (ok) {
+    if (isAuthenticated) {
+      const ok = await deleteItinerary(chatId)
+      if (ok) {
+        localStorage.removeItem(`fika:chat:${chatId}`)
+        setChats((prev) => prev.filter((c) => c.itinId !== chatId))
+      }
+    } else {
+      // Anonymous: just remove from localStorage
       localStorage.removeItem(`fika:chat:${chatId}`)
-      setChats((prev) => prev.filter((c) => c.itin_id !== chatId))
+      setChats((prev) => prev.filter((c) => c.itinId !== chatId))
     }
   }
 
@@ -67,7 +99,7 @@ export default function ItineraryPage() {
         <h6>Itineraries</h6>
       </div>
       <div className='p-6' style={isMobile ? { paddingBottom: `${BOTTOM_NAV_HEIGHT + 24}px` } : undefined}>
-        {loading ? (
+        {loading || authLoading ? (
           <div className='text-muted-foreground text-sm'>Loading itineraries...</div>
         ) : chats.length === 0 ? (
           <Empty>
@@ -77,27 +109,31 @@ export default function ItineraryPage() {
               </EmptyMedia>
               <EmptyTitle>No Itineraries Found</EmptyTitle>
               <EmptyDescription>
-                You haven&apos;t created any itineraries yet.
+                {isAuthenticated
+                  ? "You haven't created any itineraries yet."
+                  : 'Sign in to save and sync your itineraries across devices.'}
                 <br />
                 Get started by creating one.
               </EmptyDescription>
             </EmptyHeader>
             <div className='flex gap-2'>
               <Button onClick={handleCreateItinerary}>Create Itinerary</Button>
-              <Button variant='outline' onClick={() => setShowLogin(true)}>
-                Login
-              </Button>
+              {!isAuthenticated && (
+                <Button variant='outline' onClick={() => setShowLogin(true)}>
+                  Sign in
+                </Button>
+              )}
             </div>
           </Empty>
         ) : (
           <div className='space-y-2'>
             {chats.map((c) => (
-              <div key={c.itin_id} className='flex items-center justify-between rounded-lg border p-3'>
+              <div key={c.itinId} className='flex items-center justify-between rounded-lg border p-3'>
                 <div>
                   <div className='font-medium'>{c.meta?.title}</div>
                   <div className='text-muted-foreground text-sm'>
                     {c?.meta?.dates?.type === 'specific'
-                      ? formatDateRange(c?.meta?.dates?.start_date, c?.meta?.dates?.end_date)
+                      ? formatDateRange(c?.meta?.dates?.startDate, c?.meta?.dates?.endDate)
                       : c?.meta?.dates?.days
                         ? `${c?.meta?.dates?.days} days`
                         : ''}
@@ -106,7 +142,7 @@ export default function ItineraryPage() {
                 <div className='flex gap-2'>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button size='icon' onClick={() => handleOpen(c.itin_id)}>
+                      <Button size='icon' onClick={() => handleOpen(c.itinId)}>
                         <SquareArrowOutUpRight className='size-4.5' />
                       </Button>
                     </TooltipTrigger>
@@ -114,7 +150,7 @@ export default function ItineraryPage() {
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button size='icon' variant='outline' onClick={() => handleDelete(c.itin_id)}>
+                      <Button size='icon' variant='outline' onClick={() => handleDelete(c.itinId)}>
                         <Trash className='size-4.5' />
                       </Button>
                     </TooltipTrigger>

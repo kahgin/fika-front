@@ -41,7 +41,8 @@ export function DualPanelLayout({
   }
 
   return (
-    <div className={'hidden h-full lg:flex ' + className}>
+    // Dual-panel layout: visible on md (>=768px) to match useIsMobile breakpoint
+    <div className={'hidden h-full md:flex ' + className}>
       <div className={leftClasses.join(' ')}>{left}</div>
       {rightVisible && <div className={rightClasses.join(' ')}>{right}</div>}
     </div>

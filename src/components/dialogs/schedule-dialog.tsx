@@ -10,7 +10,7 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import type { DateRange } from 'react-day-picker'
 
 type ScheduleMode = 'single-day' | 'multi-day'
-export type TimeType = 'specific' | 'all_day' | 'any_time'
+export type TimeType = 'specific' | 'allDay' | 'anyTime'
 
 interface ScheduleDialogProps {
   open: boolean
@@ -25,6 +25,8 @@ interface ScheduleDialogProps {
   // For flexible-day selection, allow dimming day indices separately for check-in and check-out (1-based)
   disabledCheckInDayIndices?: number[]
   disabledCheckOutDayIndices?: number[]
+  // Starting day number for flexible mode (e.g., if destination starts at Day 3, this is 3)
+  startDayNumber?: number
   defaultMonth?: Date
 
   // Single-day mode
@@ -71,6 +73,7 @@ export function ScheduleDialog({
   disabledDates,
   disabledCheckInDayIndices,
   disabledCheckOutDayIndices,
+  startDayNumber = 1,
   defaultMonth,
   dateRange,
   onDateRangeChange,
@@ -82,7 +85,7 @@ export function ScheduleDialog({
   onCheckInDayChange,
   checkOutDay,
   onCheckOutDayChange,
-  timeType = 'any_time',
+  timeType = 'anyTime',
   onTimeTypeChange,
   startTime = '',
   onStartTimeChange,
@@ -153,16 +156,19 @@ export function ScheduleDialog({
                       <SelectValue placeholder='Select day' />
                     </SelectTrigger>
                     <SelectContent className='rounded-xl'>
-                      {availableDates?.map((_, idx) => (
-                        <SelectItem
-                          key={idx}
-                          value={String(idx + 1)}
-                          className='rounded-lg'
-                          disabled={disabledCheckInDayIndices?.includes(idx + 1)}
-                        >
-                          Day {idx + 1}
-                        </SelectItem>
-                      ))}
+                      {availableDates?.map((_, idx) => {
+                        const dayNum = startDayNumber + idx
+                        return (
+                          <SelectItem
+                            key={idx}
+                            value={String(dayNum)}
+                            className='rounded-lg'
+                            disabled={disabledCheckInDayIndices?.includes(dayNum)}
+                          >
+                            Day {dayNum}
+                          </SelectItem>
+                        )
+                      })}
                     </SelectContent>
                   </Select>
                 </div>
@@ -172,9 +178,9 @@ export function ScheduleDialog({
               {/* Time Selection */}
               <Tabs value={timeType} onValueChange={(v) => onTimeTypeChange?.(v as TimeType)} className='items-center'>
                 <TabsList>
-                  <TabsTrigger value='any_time'>Any time</TabsTrigger>
+                  <TabsTrigger value='anyTime'>Any time</TabsTrigger>
                   <TabsTrigger value='specific'>Time</TabsTrigger>
-                  <TabsTrigger value='all_day'>All day</TabsTrigger>
+                  <TabsTrigger value='allDay'>All day</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value='specific' className='space-y-4'>
@@ -200,8 +206,8 @@ export function ScheduleDialog({
                   </div>
                 </TabsContent>
 
-                <TabsContent value='any_time' />
-                <TabsContent value='all_day' />
+                <TabsContent value='anyTime' />
+                <TabsContent value='allDay' />
               </Tabs>
             </>
           )}
@@ -235,16 +241,19 @@ export function ScheduleDialog({
                         <SelectValue placeholder='Select day' />
                       </SelectTrigger>
                       <SelectContent className='rounded-xl'>
-                        {availableDates?.map((_, idx) => (
-                          <SelectItem
-                            key={idx}
-                            value={String(idx + 1)}
-                            className='rounded-lg'
-                            disabled={disabledCheckInDayIndices?.includes(idx + 1)}
-                          >
-                            Day {idx + 1}
-                          </SelectItem>
-                        ))}
+                        {availableDates?.map((_, idx) => {
+                          const dayNum = startDayNumber + idx
+                          return (
+                            <SelectItem
+                              key={idx}
+                              value={String(dayNum)}
+                              className='rounded-lg'
+                              disabled={disabledCheckInDayIndices?.includes(dayNum)}
+                            >
+                              Day {dayNum}
+                            </SelectItem>
+                          )
+                        })}
                       </SelectContent>
                     </Select>
                   </div>
@@ -259,16 +268,19 @@ export function ScheduleDialog({
                         <SelectValue placeholder='Select day' />
                       </SelectTrigger>
                       <SelectContent className='rounded-xl'>
-                        {availableDates?.map((_, idx) => (
-                          <SelectItem
-                            key={idx}
-                            value={String(idx + 1)}
-                            className='rounded-lg'
-                            disabled={disabledCheckOutDayIndices?.includes(idx + 1)}
-                          >
-                            Day {idx + 1}
-                          </SelectItem>
-                        ))}
+                        {availableDates?.map((_, idx) => {
+                          const dayNum = startDayNumber + idx
+                          return (
+                            <SelectItem
+                              key={idx}
+                              value={String(dayNum)}
+                              className='rounded-lg'
+                              disabled={disabledCheckOutDayIndices?.includes(dayNum)}
+                            >
+                              Day {dayNum}
+                            </SelectItem>
+                          )
+                        })}
                       </SelectContent>
                     </Select>
                   </div>

@@ -1,3 +1,5 @@
+import LoginForm from '@/components/forms/login-form'
+import SignupForm from '@/components/forms/signup-form'
 import Logo from '@/components/logo'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -22,15 +24,20 @@ import {
 } from '@/components/ui/sidebar'
 import { navigationRoutes } from '@/configs'
 import type { NavigationViewType } from '@/configs/routes'
-import { BadgeCheck, LogOut } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
+import type { User } from '@/services/api'
+import { BadgeCheck, LogIn, LogOut, User as UserIcon, UserPlus } from 'lucide-react'
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
-export function AppSidebar({ user }: { user: any }) {
+export function AppSidebar({ user }: { user: User | null }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { state, isMobile } = useSidebar()
+  const { logout, isAuthenticated } = useAuth()
   const [isLogoHovered, setIsLogoHovered] = useState(false)
+  const [showLoginDialog, setShowLoginDialog] = useState(false)
+  const [showSignupDialog, setShowSignupDialog] = useState(false)
 
   const getCurrentView = (): NavigationViewType | string => {
     const path = location.pathname.slice(1) || 'chat'
@@ -92,56 +99,121 @@ export function AppSidebar({ user }: { user: any }) {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <SidebarMenuButton size='lg'>
-                  <Avatar>
-                    <AvatarImage src={user.avatar} alt={user.name} />
-                    <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  <div className='grid flex-1 text-left text-sm leading-tight'>
-                    <span className='truncate font-medium'>{user.name}</span>
-                    <span className='truncate text-xs'>{user.email}</span>
-                  </div>
-                </SidebarMenuButton>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                className='ml-2 w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg'
-                side={isMobile ? 'bottom' : 'top'}
-                align='end'
-                sideOffset={8}
-              >
-                <DropdownMenuLabel className='p-0 font-normal'>
-                  <div className='flex items-center gap-2 px-1 py-1.5 text-left text-sm'>
+            {isAuthenticated && user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <SidebarMenuButton size='lg'>
                     <Avatar>
-                      <AvatarImage src={user.avatar} alt={user.name} />
-                      <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
+                      <AvatarImage src={user.avatar || undefined} alt={user.name || 'User'} />
+                      <AvatarFallback>{(user.name || user.email || 'U').charAt(0).toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <div className='grid flex-1 text-left text-sm leading-tight'>
-                      <span className='truncate font-medium'>{user.name}</span>
+                      <span className='truncate font-medium'>{user.name || 'User'}</span>
                       <span className='truncate text-xs'>{user.email}</span>
                     </div>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate('/settings')}>
-                  <BadgeCheck />
-                  Account
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <LogOut />
-                  Log out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  </SidebarMenuButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  className='ml-2 w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg'
+                  side={isMobile ? 'bottom' : 'top'}
+                  align='end'
+                  sideOffset={8}
+                >
+                  <DropdownMenuLabel className='p-0 font-normal'>
+                    <div className='flex items-center gap-2 px-1 py-1.5 text-left text-sm'>
+                      <Avatar>
+                        <AvatarImage src={user.avatar || undefined} alt={user.name || 'User'} />
+                        <AvatarFallback>{(user.name || user.email || 'U').charAt(0).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div className='grid flex-1 text-left text-sm leading-tight'>
+                        <span className='truncate font-medium'>{user.name || 'User'}</span>
+                        <span className='truncate text-xs'>{user.email}</span>
+                      </div>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate('/settings')}>
+                    <BadgeCheck />
+                    Account
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => logout()}>
+                    <LogOut />
+                    Log out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <SidebarMenuButton size='lg'>
+                    <Avatar>
+                      <AvatarFallback>
+                        <UserIcon className='h-4 w-4' />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className='grid flex-1 text-left text-sm leading-tight'>
+                      <span className='truncate font-medium'>Guest</span>
+                      <span className='truncate text-xs text-muted-foreground'>Sign in to save trips</span>
+                    </div>
+                  </SidebarMenuButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  className='ml-2 w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg'
+                  side={isMobile ? 'bottom' : 'top'}
+                  align='end'
+                  sideOffset={8}
+                >
+                  <DropdownMenuLabel className='p-0 font-normal'>
+                    <div className='flex items-center gap-2 px-1 py-1.5 text-left text-sm'>
+                      <Avatar>
+                        <AvatarFallback>
+                          <UserIcon className='h-4 w-4' />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className='grid flex-1 text-left text-sm leading-tight'>
+                        <span className='truncate font-medium'>Guest</span>
+                        <span className='truncate text-xs text-muted-foreground'>Not signed in</span>
+                      </div>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setShowLoginDialog(true)}>
+                    <LogIn />
+                    Sign in
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowSignupDialog(true)}>
+                    <UserPlus />
+                    Create account
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
+
+      {/* Auth Dialogs */}
+      <LoginForm
+        open={showLoginDialog}
+        onOpenChange={setShowLoginDialog}
+        onSwitchToSignup={() => {
+          setShowLoginDialog(false)
+          setShowSignupDialog(true)
+        }}
+      />
+      <SignupForm
+        open={showSignupDialog}
+        onOpenChange={setShowSignupDialog}
+        onSwitchToLogin={() => {
+          setShowSignupDialog(false)
+          setShowLoginDialog(true)
+        }}
+      />
     </Sidebar>
   )
 }
 
-export function SidebarLayout({ children, user }: { children: React.ReactNode; user: any }) {
+export function SidebarLayout({ children, user }: { children: React.ReactNode; user: User | null }) {
   return (
     <>
       <AppSidebar user={user} />

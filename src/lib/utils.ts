@@ -5,6 +5,14 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/**
+ * Strip the day suffix from a POI ID
+ * e.g., "abc123_day0" -> "abc123"
+ */
+export function stripDaySuffix(poiId: string): string {
+  return poiId.split('_day')[0]
+}
+
 interface ParsedOpenHours {
   status: 'open' | 'closed'
   currentStatus: string

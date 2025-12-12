@@ -6,7 +6,7 @@ export default function CreateItineraryPage() {
       <div className='flex h-12 items-center border-b px-6'>
         <h6>Create Itinerary</h6>
       </div>
-      <div className='flex-1 overflow-auto'>
+      <div className='flex-1 overflow-hidden'>
         <CreateItineraryForm />
       </div>
     </div>
