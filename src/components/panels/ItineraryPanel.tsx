@@ -1245,8 +1245,6 @@ export default function ItineraryPanel({
       <EditHotelsPoisDialog
         open={showEditDialog}
         onOpenChange={setShowEditDialog}
-        onRegenerate={handleRecomputeFull}
-        isRecomputing={isRecomputing}
       />
     </div>
   )

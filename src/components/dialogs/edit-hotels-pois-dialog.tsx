@@ -11,15 +11,11 @@ import {
 interface EditHotelsPoisDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onRegenerate: () => void
-  isRecomputing?: boolean
 }
 
 export function EditHotelsPoisDialog({
   open,
   onOpenChange,
-  onRegenerate,
-  isRecomputing = false,
 }: EditHotelsPoisDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -36,10 +32,6 @@ export function EditHotelsPoisDialog({
           <Button variant='default' onClick={() => onOpenChange(false)}>
             Close
           </Button>
-          {/* <Button onClick={onRegenerate} disabled={isRecomputing} className='gap-2'>
-            <RefreshCw className={isRecomputing ? 'animate-spin' : ''} />
-            Regenerate Itinerary
-          </Button> */}
         </DialogFooter>
       </DialogContent>
     </Dialog>
