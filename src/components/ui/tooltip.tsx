@@ -3,20 +3,44 @@ import * as React from 'react'
 
 import { cn } from '@/lib/utils'
 
+const TooltipContext = React.createContext<{ toggle: () => void } | null>(null)
+
 function TooltipProvider({ delayDuration = 0, ...props }: React.ComponentProps<typeof TooltipPrimitive.Provider>) {
   return <TooltipPrimitive.Provider data-slot='tooltip-provider' delayDuration={delayDuration} {...props} />
 }
 
 function Tooltip({ ...props }: React.ComponentProps<typeof TooltipPrimitive.Root>) {
+  const [open, setOpen] = React.useState(props.defaultOpen ?? false)
+
+  // Sync with controlled open prop if provided
+  const isOpen = props.open ?? open
+  const onOpenChange = props.onOpenChange ?? setOpen
+
+  const toggle = React.useCallback(() => {
+    onOpenChange(!isOpen)
+  }, [isOpen, onOpenChange])
+
   return (
-    <TooltipProvider>
-      <TooltipPrimitive.Root data-slot='tooltip' {...props} />
-    </TooltipProvider>
+    <TooltipContext.Provider value={{ toggle }}>
+      <TooltipProvider>
+        <TooltipPrimitive.Root data-slot='tooltip' {...props} open={isOpen} onOpenChange={onOpenChange} />
+      </TooltipProvider>
+    </TooltipContext.Provider>
   )
 }
 
-function TooltipTrigger({ ...props }: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
-  return <TooltipPrimitive.Trigger data-slot='tooltip-trigger' {...props} />
+function TooltipTrigger({
+  onClick,
+  ...props
+}: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
+  const context = React.useContext(TooltipContext)
+
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    context?.toggle()
+    onClick?.(e)
+  }
+
+  return <TooltipPrimitive.Trigger data-slot='tooltip-trigger' onClick={handleClick} {...props} />
 }
 
 function TooltipContent({

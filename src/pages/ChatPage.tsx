@@ -175,7 +175,7 @@ export default function ChatPage() {
         <div className='z-10 flex h-12 flex-shrink-0 items-center justify-between border-b bg-white px-4'>
           <h6 className='flex-1 truncate'>{itinerary?.meta?.title || 'Itinerary'}</h6>
           {showRightPanel && (
-            <Tabs value={leftPanel} onValueChange={(value) => handleTabChange('left', value as PanelType)}>
+            <Tabs value={leftPanel} onValueChange={(value) => handleTabChange('left', value as PanelType)} hidden>
               <TabsList className='h-8'>
                 <TabsTrigger value='chat' className='px-2' disabled hidden={rightPanel === 'chat'}>
                   <MessageCircle className='h-4 w-4' />
@@ -221,7 +221,7 @@ export default function ChatPage() {
     ) : (
       <div className='flex h-full flex-col'>
         <div className='z-10 flex h-12 flex-shrink-0 items-center justify-end border-b bg-white px-4'>
-          <Tabs value={rightPanel} onValueChange={(value) => handleTabChange('right', value as PanelType)}>
+          <Tabs value={rightPanel} onValueChange={(value) => handleTabChange('right', value as PanelType)} hidden>
             <TabsList className='h-8'>
               <TabsTrigger value='chat' className='px-2' disabled hidden={leftPanel === 'chat'}>
                 <MessageCircle className='h-4 w-4' />
@@ -299,7 +299,7 @@ export default function ChatPage() {
           <h6 className='flex-1'>{itinerary?.meta?.title || 'Itinerary'}</h6>
           <Tabs value={mobileTab} onValueChange={(value) => handleMobileTabChange(value as PanelType)}>
             <TabsList className='h-8'>
-              <TabsTrigger value='chat' className='px-2' disabled>
+              <TabsTrigger value='chat' className='px-2' disabled hidden>
                 <MessageCircle className='h-4 w-4' />
               </TabsTrigger>
               <TabsTrigger value='itinerary' className='px-2'>
