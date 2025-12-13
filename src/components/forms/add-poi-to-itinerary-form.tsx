@@ -1,6 +1,12 @@
 import LoginForm from '@/components/forms/login-form'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  cacheItinerary,
+  dispatchItineraryUpdate,
+  getCachedItinerary,
+  getLastItineraryId,
+} from '@/lib/itinerary-storage'
 import type { POI } from '@/services/api'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -19,45 +25,40 @@ type ItinerarySummary = {
   dates?: string
 }
 
+function formatItineraryDates(meta: any): string | undefined {
+  if (typeof meta?.dates === 'object' && meta?.dates?.type === 'specific') {
+    return `${meta?.dates?.startDate || ''} — ${meta?.dates?.endDate || ''}`
+  }
+  if (meta?.dates?.days) {
+    return `${meta?.dates?.days} days`
+  }
+  return undefined
+}
+
+function toItinerarySummary(data: any): ItinerarySummary {
+  return {
+    id: data.itinId || String(data.id),
+    title: (data?.meta?.title ? data.meta.title : `${data.meta?.destination} Trip`) || 'Trip',
+    dates: formatItineraryDates(data?.meta),
+  }
+}
+
 async function fetchItinerariesFromStorageOrAPI(): Promise<ItinerarySummary[]> {
   const summaries: ItinerarySummary[] = []
 
-  const lastId = localStorage.getItem('fika:lastChatId')
+  const lastId = getLastItineraryId()
   if (lastId) {
-    try {
-      const raw = localStorage.getItem(`fika:chat:${lastId}`)
-      if (raw) {
-        const data = JSON.parse(raw)
-        summaries.push({
-          id: data.itinId || String(lastId),
-          title: (data?.meta?.title ? data.meta.title : `${data.meta.destination} Trip`) || 'Trip',
-          dates:
-            typeof data?.meta?.dates === 'object' && data?.meta?.dates?.type === 'specific'
-              ? `${data?.meta?.dates?.startDate || ''} — ${data?.meta?.dates?.endDate || ''}`
-              : data?.meta?.dates?.days
-                ? `${data?.meta?.dates?.days} days`
-                : undefined,
-        })
-      }
-    } catch {}
+    const cached = getCachedItinerary(lastId)
+    if (cached) {
+      summaries.push(toItinerarySummary(cached))
+    }
   }
 
   try {
     const { listItineraries } = await import('@/services/api')
     const res = await listItineraries()
     if (Array.isArray(res)) {
-      res.forEach((it: any) => {
-        summaries.push({
-          id: String(it.id || it.itinId),
-          title: (it.meta?.title ? it.meta.title : `${it.meta.destination} Trip`) || 'Trip',
-          dates:
-            typeof it?.meta?.dates === 'object' && it?.meta?.dates?.type === 'specific'
-              ? `${it?.meta?.dates?.startDate || ''} — ${it?.meta?.dates?.endDate || ''}`
-              : it?.meta?.dates?.days
-                ? `${it?.meta?.dates?.days} days`
-                : undefined,
-        })
-      })
+      res.forEach((it: any) => summaries.push(toItinerarySummary(it)))
     }
   } catch {}
 
@@ -87,16 +88,12 @@ export function AddPOIToItineraryForm({ open, onOpenChange, poi, onSuccess }: Ad
       const { addPOIToItinerary, getItinerary } = await import('@/services/api')
       await addPOIToItinerary(itineraryId, { poiId: poi.id })
 
-      const lastId = localStorage.getItem('fika:lastChatId')
+      const lastId = getLastItineraryId()
       if (lastId === itineraryId) {
         const latest = await getItinerary(itineraryId)
         if (latest) {
-          localStorage.setItem(`fika:chat:${itineraryId}`, JSON.stringify(latest))
-          window.dispatchEvent(
-            new CustomEvent('itinerary-updated', {
-              detail: { itineraryId, data: latest },
-            })
-          )
+          cacheItinerary(latest)
+          dispatchItineraryUpdate(latest)
         }
       }
 

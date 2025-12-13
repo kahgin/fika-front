@@ -4,10 +4,17 @@ import ItinMapPanel from '@/components/panels/ItinMapPanel'
 import ItineraryPanel from '@/components/panels/ItineraryPanel'
 import POIPanel from '@/components/panels/POIPanel'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  cacheItinerary,
+  clearItineraryRefs,
+  dispatchItineraryUpdate,
+  getCachedItinerary,
+  getLastItineraryId,
+} from '@/lib/itinerary-storage'
 import { stripDaySuffix } from '@/lib/utils'
 import { fetchPOIById, getAuthToken, getItinerary, type CreatedItinerary, type POI } from '@/services/api'
 import { Map, MapPin, MessageCircle } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 
 type PanelType = 'chat' | 'itinerary' | 'map'
@@ -23,7 +30,7 @@ export default function ChatPage() {
   const [mobileTab, setMobileTab] = useState<PanelType>(initialTab || 'itinerary')
 
   useEffect(() => {
-    const lastId = localStorage.getItem('fika:lastChatId')
+    const lastId = getLastItineraryId()
     if (!lastId) {
       setItinerary(null)
       return
@@ -31,60 +38,50 @@ export default function ChatPage() {
 
     // For anonymous users, try localStorage first
     if (!getAuthToken()) {
-      const cached = localStorage.getItem(`fika:chat:${lastId}`)
+      const cached = getCachedItinerary(lastId)
       if (cached) {
-        try {
-          setItinerary(JSON.parse(cached))
-          return
-        } catch {}
+        setItinerary(cached)
+        return
+      } else {
+        clearItineraryRefs(lastId)
+        setItinerary(null)
+        return
       }
     }
 
-    // Load from API (authenticated users or if no cache)
+    // Load from API (authenticated users)
     getItinerary(lastId)
       .then((data) => {
         if (data) {
           setItinerary(data)
-          try {
-            localStorage.setItem(`fika:chat:${lastId}`, JSON.stringify(data))
-          } catch {}
+          cacheItinerary(data)
         } else {
-          // API returned null, check local cache as fallback
-          const cached = localStorage.getItem(`fika:chat:${lastId}`)
-          if (cached) {
-            try {
-              setItinerary(JSON.parse(cached))
-              return
-            } catch {}
-          }
+          clearItineraryRefs(lastId)
           setItinerary(null)
-          localStorage.removeItem(`fika:chat:${lastId}`)
-          localStorage.removeItem('fika:lastChatId')
         }
       })
       .catch(() => {
-        // API failed, try local cache as fallback
-        const cached = localStorage.getItem(`fika:chat:${lastId}`)
-        if (cached) {
-          try {
-            setItinerary(JSON.parse(cached))
-            return
-          } catch {}
-        }
+        clearItineraryRefs(lastId)
         setItinerary(null)
-        localStorage.removeItem(`fika:chat:${lastId}`)
-        localStorage.removeItem('fika:lastChatId')
       })
 
-    const handleItineraryUpdate = (event: CustomEvent) => {
+    const handleItineraryUpdateEvent = (event: CustomEvent) => {
       const { itineraryId, data } = event.detail
       if (itineraryId === lastId) {
         setItinerary(data)
       }
     }
 
-    window.addEventListener('itinerary-updated', handleItineraryUpdate as EventListener)
-    return () => window.removeEventListener('itinerary-updated', handleItineraryUpdate as EventListener)
+    window.addEventListener('itinerary-updated', handleItineraryUpdateEvent as EventListener)
+    return () => window.removeEventListener('itinerary-updated', handleItineraryUpdateEvent as EventListener)
+  }, [])
+
+  const handleItineraryUpdate = useCallback((data: CreatedItinerary) => {
+    setItinerary(data)
+    if (data?.itinId) {
+      cacheItinerary(data)
+      dispatchItineraryUpdate(data)
+    }
   }, [])
 
   const handleOpenPOI = async (poi: { id: string; name: string }) => {
@@ -162,7 +159,7 @@ export default function ChatPage() {
           className='h-full'
           data={itinerary}
           onOpenDetails={handleOpenPOI}
-          onItineraryUpdate={setItinerary}
+          onItineraryUpdate={handleItineraryUpdate}
         />
       )
     }
@@ -270,7 +267,7 @@ export default function ChatPage() {
             className='h-full'
             data={itinerary}
             onOpenDetails={handleOpenPOI}
-            onItineraryUpdate={setItinerary}
+            onItineraryUpdate={handleItineraryUpdate}
           />
         )
       } else {

@@ -364,7 +364,7 @@ export default function SearchPanel({ onPOISelect, size = 'half' }: SearchPanelP
       {/* POI Grid */}
       <div
         className='flex-1 overflow-y-auto p-6'
-        style={isMobile ? { paddingBottom: `${BOTTOM_NAV_HEIGHT + 16}px` } : undefined}
+        style={isMobile ? { paddingBottom: `${BOTTOM_NAV_HEIGHT*2 + 16}px` } : undefined}
       >
         {loading ? (
           <div className='flex h-full flex-col items-center justify-center gap-3'>

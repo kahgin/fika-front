@@ -5,7 +5,7 @@ import type { User as UserType } from '@/services/api'
 import { User } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
-// Export constant for bottom nav height - single source of truth
+// Export constant for bottom nav height
 export const BOTTOM_NAV_HEIGHT = 64 // 16 * 4 = 64px (h-16)
 
 export function BottomNav({ user }: { user: UserType | null }) {

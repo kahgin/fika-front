@@ -3,7 +3,18 @@ import { Button } from '@/components/ui/button'
 import { ImageGrid } from '@/components/ui/image-grid'
 import { parseOpenHours } from '@/lib/utils'
 import type { POI } from '@/services/api'
-import { ArrowLeftToLine, ArrowRightToLine, Clock, ExternalLink, MapPin, Phone, Plus, Star, X } from 'lucide-react'
+import {
+  ArrowLeftToLine,
+  ArrowRightToLine,
+  Check,
+  Clock,
+  ExternalLink,
+  MapPin,
+  Phone,
+  Plus,
+  Star,
+  X,
+} from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 interface POIPanelProps {
@@ -13,6 +24,38 @@ interface POIPanelProps {
   onToggleFullWidth?: () => void
   showAddToTrip?: boolean
   showToggleFullWidth?: boolean
+}
+
+// Feature card component for displaying boolean features
+interface FeatureCardProps {
+  title: string
+  features: { label: string; available: boolean | undefined }[]
+}
+
+function FeatureCard({ title, features }: FeatureCardProps) {
+  const hasAnyData = features.some((f) => f.available !== undefined)
+
+  if (!hasAnyData) return null
+
+  return (
+    <div className='flex-shrink-0 snap-start rounded-lg border bg-card p-4 min-w-[200px] sm:min-w-0'>
+      <div className='mb-3 flex items-center gap-2'>
+        <h4 className='font-medium text-sm'>{title}</h4>
+      </div>
+      <div className='space-y-2'>
+        {features.map((feature) => (
+          <div key={feature.label} className='flex items-center gap-2 text-sm'>
+            {feature.available ? (
+              <Check className='size-4 text-black-600' />
+            ) : feature.available === false ? (
+              <X className='size-4 text-muted-foreground/50' />
+            ) : null}
+            <span className={feature.available ? 'text-foreground' : 'text-muted-foreground/50'}>{feature.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 export default function POIPanel({
@@ -44,6 +87,17 @@ export default function POIPanel({
   }
 
   const parsedHours = poi.openHours ? parseOpenHours(poi.openHours) : null
+
+  // Check if any feature data exists
+  const hasFriendlinessData = poi.kidsFriendly !== undefined || poi.petsFriendly !== undefined
+  const hasDietaryData =
+    poi.halalFood !== undefined || poi.veganOptions !== undefined || poi.vegetarianOptions !== undefined
+  const hasAccessibilityData =
+    poi.wheelchairAccessibleEntrance !== undefined ||
+    poi.wheelchairAccessibleSeating !== undefined ||
+    poi.wheelchairAccessibleToilet !== undefined ||
+    poi.wheelchairAccessibleCarPark !== undefined
+  const hasAnyFeatureData = hasFriendlinessData || hasDietaryData || hasAccessibilityData
 
   useEffect(() => {
     const handleScroll = () => {
@@ -171,7 +225,7 @@ export default function POIPanel({
             <section ref={overviewRef}>
               {poi.description && <p className='mb-6 border-b pb-6 text-sm leading-relaxed'>{poi.description}</p>}
 
-              <div className='grid grid-cols-1 gap-6 sm:grid-cols-2'>
+              <div className='grid grid-cols-1 gap-6 sm:grid-cols-2 pb-6'>
                 {(poi.address || poi.website || poi.phone) && (
                   <div className='space-y-6'>
                     {poi.address && (
@@ -245,6 +299,43 @@ export default function POIPanel({
                   </div>
                 )}
               </div>
+              {/* Feature Cards - Scrollable on mobile */}
+              {hasAnyFeatureData && (
+                <div className='-mx-6 px-6'>
+                  <div className='flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide sm:grid sm:grid-cols-3 sm:overflow-visible'>
+                    {hasFriendlinessData && (
+                      <FeatureCard
+                        title='Friendliness'
+                        features={[
+                          { label: 'Kids friendly', available: poi.kidsFriendly },
+                          { label: 'Pets friendly', available: poi.petsFriendly },
+                        ]}
+                      />
+                    )}
+                    {hasDietaryData && (
+                      <FeatureCard
+                        title='Dietary Options'
+                        features={[
+                          { label: 'Halal food', available: poi.halalFood },
+                          { label: 'Vegetarian options', available: poi.vegetarianOptions },
+                          { label: 'Vegan options', available: poi.veganOptions },
+                        ]}
+                      />
+                    )}
+                    {hasAccessibilityData && (
+                      <FeatureCard
+                        title='Accessibility'
+                        features={[
+                          { label: 'Entrance', available: poi.wheelchairAccessibleEntrance },
+                          { label: 'Seating', available: poi.wheelchairAccessibleSeating },
+                          { label: 'Toilet', available: poi.wheelchairAccessibleToilet },
+                          { label: 'Car park', available: poi.wheelchairAccessibleCarPark },
+                        ]}
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
             </section>
 
             <section ref={locationRef}>

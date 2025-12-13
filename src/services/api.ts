@@ -50,6 +50,15 @@ export interface POI {
   phone?: string
   openHours?: any
   priceLevel?: string
+  kidsFriendly?: boolean
+  petsFriendly?: boolean
+  halalFood?: boolean
+  veganOptions?: boolean
+  vegetarianOptions?: boolean
+  wheelchairAccessibleEntrance?: boolean
+  wheelchairAccessibleSeating?: boolean
+  wheelchairAccessibleToilet?: boolean
+  wheelchairAccessibleCarPark?: boolean
 }
 
 interface ApiResponse<T> {
@@ -204,16 +213,40 @@ export async function updateProfile(updates: { name?: string; avatar?: string })
   }
 }
 
-export async function changePassword(currentPassword: string, newPassword: string): Promise<boolean> {
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string
+): Promise<{ success: boolean; error?: string }> {
   try {
     const resp = await fetch(`${API_BASE_URL}/auth/change-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({ currentPassword, newPassword }),
     })
-    return resp.ok
+    if (!resp.ok) {
+      const errorData = await resp.json().catch(() => ({ detail: 'Failed to change password' }))
+      return { success: false, error: errorData.detail || 'Failed to change password' }
+    }
+    return { success: true }
   } catch (e) {
     console.error('changePassword error', e)
+    return { success: false, error: 'Failed to change password' }
+  }
+}
+
+export async function deleteAccount(): Promise<boolean> {
+  try {
+    const resp = await fetch(`${API_BASE_URL}/auth/me`, {
+      method: 'DELETE',
+      headers: { ...getAuthHeaders() },
+    })
+    if (resp.ok) {
+      clearAuthToken()
+      return true
+    }
+    return false
+  } catch (e) {
+    console.error('deleteAccount error', e)
     return false
   }
 }
@@ -299,13 +332,26 @@ export async function addPOIToItinerary(chatId: string, payload: AddPOIPayload):
 export async function reorderItineraryStops(
   chatId: string,
   dayIndex: number,
-  poiIds: string[]
+  poiIds: string[],
+  options?: {
+    scope?: 'single_day' | 'entire_trip'
+    moves?: Record<string, number>
+    targetPositions?: Record<string, number>
+    recalculateTimes?: boolean
+  }
 ): Promise<CreatedItinerary | null> {
   try {
     const resp = await fetch(`${API_BASE_URL}/itinerary/${chatId}/reorder`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-      body: JSON.stringify({ dayIndex: dayIndex, poiIds: poiIds }),
+      body: JSON.stringify({
+        dayIndex: dayIndex,
+        poiIds: poiIds,
+        scope: options?.scope || 'single_day',
+        moves: options?.moves,
+        targetPositions: options?.targetPositions,
+        recalculateTimes: options?.recalculateTimes ?? true,
+      }),
     })
     if (!resp.ok) throw new Error('Failed to reorder stops')
     const data = await resp.json()
@@ -322,7 +368,9 @@ export async function schedulePOI(
   dayIndex: number,
   startTime?: string,
   endTime?: string,
-  allDay?: boolean
+  allDay?: boolean,
+  targetPosition?: number,
+  recalculateTimes?: boolean
 ): Promise<CreatedItinerary | null> {
   try {
     const resp = await fetch(`${API_BASE_URL}/itinerary/${chatId}/schedule-poi`, {
@@ -334,6 +382,8 @@ export async function schedulePOI(
         startTime: startTime,
         endTime: endTime,
         allDay: allDay,
+        targetPosition: targetPosition,
+        recalculateTimes: recalculateTimes ?? true,
       }),
     })
     if (!resp.ok) throw new Error('Failed to schedule POI')

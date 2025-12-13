@@ -22,10 +22,8 @@ interface ScheduleDialogProps {
   isSpecificDates?: boolean
   availableDates?: Date[]
   disabledDates?: (date: Date) => boolean
-  // For flexible-day selection, allow dimming day indices separately for check-in and check-out (1-based)
   disabledCheckInDayIndices?: number[]
   disabledCheckOutDayIndices?: number[]
-  // Starting day number for flexible mode (e.g., if destination starts at Day 3, this is 3)
   startDayNumber?: number
   defaultMonth?: Date
 
@@ -35,7 +33,7 @@ interface ScheduleDialogProps {
   selectedDay?: string
   onDayChange?: (day: string) => void
 
-  // Multi-day mode (for hotels)
+  // Multi-day mode
   // Specific dates: range selection
   dateRange?: DateRange
   onDateRangeChange?: (range: DateRange | undefined) => void
@@ -114,10 +112,10 @@ export function ScheduleDialog({
   }
 
   const handleRangeSelect = (range: DateRange | undefined) => {
-    // Auto-extend to next day when only one date is clicked
+    // Auto-extend to 2 day when only one date is clicked
     if (range?.from && !range.to) {
       const next = new Date(range.from)
-      next.setDate(next.getDate() + 1)
+      next.setDate(next.getDate() + 2)
       const adjusted: DateRange = { from: range.from, to: next }
       onDateRangeChange?.(adjusted)
       return

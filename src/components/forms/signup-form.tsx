@@ -39,7 +39,6 @@ export default function SignupForm({ open, onOpenChange, onSwitchToLogin }: Sign
       await signup({ email, password, name })
       toast.success('Account created successfully!')
       onOpenChange(false)
-      // Refresh page after signup
       window.location.reload()
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Signup failed. Please try again.'

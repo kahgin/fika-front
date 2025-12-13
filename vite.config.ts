@@ -9,12 +9,12 @@ export default defineConfig({
   server: {
     port: 3000,
     host: '0.0.0.0',
-    allowedHosts: ['fika.koreacentral.cloudapp.azure.com', '4.218.15.39', 'localhost', '127.0.0.1'],
+    allowedHosts: ['koreacentral.cloudapp.azure.com', '4.218.15.39', 'localhost', '127.0.0.1'],
   },
   preview: {
     port: 3000,
     host: '0.0.0.0',
-    allowedHosts: ['fika.koreacentral.cloudapp.azure.com', '4.218.15.39', 'localhost', '127.0.0.1'],
+    allowedHosts: ['koreacentral.cloudapp.azure.com', '4.218.15.39', 'localhost', '127.0.0.1'],
   },
   resolve: {
     alias: {

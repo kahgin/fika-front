@@ -5,8 +5,15 @@ import { Button } from '@/components/ui/button'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useAuth } from '@/contexts/AuthContext'
+import { useAuthDialogs } from '@/hooks/use-auth-dialogs'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { formatDateRange } from '@/lib/date-range'
+import {
+  clearItineraryRefs,
+  getAllCachedItineraries,
+  setLastItineraryId,
+  syncItinerariesWithBackend,
+} from '@/lib/itinerary-storage'
 import { deleteItinerary, listItineraries, type CreatedItinerary } from '@/services/api'
 import { Map, SquareArrowOutUpRight, Trash } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -18,8 +25,7 @@ export default function ItineraryPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth()
   const [chats, setChats] = useState<CreatedItinerary[]>([])
   const [loading, setLoading] = useState(true)
-  const [showLogin, setShowLogin] = useState(false)
-  const [showSignup, setShowSignup] = useState(false)
+  const { showLogin, setShowLogin, showSignup, setShowSignup, switchToSignup, switchToLogin } = useAuthDialogs()
 
   useEffect(() => {
     const loadItineraries = async () => {
@@ -27,34 +33,15 @@ export default function ItineraryPage() {
         setLoading(true)
 
         if (isAuthenticated) {
-          // Authenticated: load from backend API
           const items = await listItineraries()
           if (items && Array.isArray(items)) {
             setChats(items)
-            // Cache in localStorage for offline access
-            items.forEach((item) => {
-              try {
-                localStorage.setItem(`fika:chat:${item.itinId}`, JSON.stringify(item))
-              } catch {}
-            })
+            syncItinerariesWithBackend(items)
           } else {
             setChats([])
           }
         } else {
-          // Anonymous: load from localStorage only
-          const localChats: CreatedItinerary[] = []
-          for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i)
-            if (key?.startsWith('fika:chat:')) {
-              try {
-                const item = JSON.parse(localStorage.getItem(key) || '{}')
-                if (item.itinId) {
-                  localChats.push(item)
-                }
-              } catch {}
-            }
-          }
-          setChats(localChats)
+          setChats(getAllCachedItineraries())
         }
       } catch (e) {
         console.error('Failed to load itineraries', e)
@@ -64,14 +51,13 @@ export default function ItineraryPage() {
       }
     }
 
-    // Wait for auth state to be determined before loading
     if (!authLoading) {
       loadItineraries()
     }
   }, [isAuthenticated, authLoading])
 
   const handleOpen = (chatId: string) => {
-    localStorage.setItem('fika:lastChatId', chatId)
+    setLastItineraryId(chatId)
     navigate('/chat')
   }
 
@@ -83,12 +69,11 @@ export default function ItineraryPage() {
     if (isAuthenticated) {
       const ok = await deleteItinerary(chatId)
       if (ok) {
-        localStorage.removeItem(`fika:chat:${chatId}`)
+        clearItineraryRefs(chatId)
         setChats((prev) => prev.filter((c) => c.itinId !== chatId))
       }
     } else {
-      // Anonymous: just remove from localStorage
-      localStorage.removeItem(`fika:chat:${chatId}`)
+      clearItineraryRefs(chatId)
       setChats((prev) => prev.filter((c) => c.itinId !== chatId))
     }
   }
@@ -111,7 +96,7 @@ export default function ItineraryPage() {
               <EmptyDescription>
                 {isAuthenticated
                   ? "You haven't created any itineraries yet."
-                  : 'Sign in to save and sync your itineraries across devices.'}
+                  : 'Log in to save and sync your itineraries across devices.'}
                 <br />
                 Get started by creating one.
               </EmptyDescription>
@@ -163,22 +148,8 @@ export default function ItineraryPage() {
         )}
       </div>
 
-      <LoginForm
-        open={showLogin}
-        onOpenChange={setShowLogin}
-        onSwitchToSignup={() => {
-          setShowLogin(false)
-          setShowSignup(true)
-        }}
-      />
-      <SignupForm
-        open={showSignup}
-        onOpenChange={setShowSignup}
-        onSwitchToLogin={() => {
-          setShowSignup(false)
-          setShowLogin(true)
-        }}
-      />
+      <LoginForm open={showLogin} onOpenChange={setShowLogin} onSwitchToSignup={switchToSignup} />
+      <SignupForm open={showSignup} onOpenChange={setShowSignup} onSwitchToLogin={switchToLogin} />
     </>
   )
 }

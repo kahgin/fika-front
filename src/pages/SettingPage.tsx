@@ -3,21 +3,39 @@ import LoginForm from '@/components/forms/login-form'
 import SignupForm from '@/components/forms/signup-form'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/password-input'
 import { useAuth } from '@/contexts/AuthContext'
+import { useAuthDialogs } from '@/hooks/use-auth-dialogs'
 import { useIsMobile } from '@/hooks/use-mobile'
-import { changePassword, updateProfile } from '@/services/api'
+import { changePassword, deleteAccount, updateProfile } from '@/services/api'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
 export default function SettingsPage() {
-  const { user, refreshUser, isAuthenticated, isLoading } = useAuth()
+  const { user, refreshUser, isAuthenticated, isLoading, logout } = useAuth()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showPasswordModal, setShowPasswordModal] = useState(false)
-  const [showLoginDialog, setShowLoginDialog] = useState(false)
-  const [showSignupDialog, setShowSignupDialog] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
   const isMobile = useIsMobile()
+  const {
+    showLogin: showLoginDialog,
+    setShowLogin: setShowLoginDialog,
+    showSignup: showSignupDialog,
+    setShowSignup: setShowSignupDialog,
+    switchToSignup,
+    switchToLogin,
+  } = useAuthDialogs()
 
   const [formValues, setFormValues] = useState({
     name: user?.name || '',
@@ -61,32 +79,62 @@ export default function SettingsPage() {
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!passwordForm.currentPassword) {
+      toast.error('Please enter your current password')
+      return
+    }
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      toast.error('Passwords do not match')
+      toast.error('New passwords do not match')
       return
     }
     if (passwordForm.newPassword.length < 8) {
-      toast.error('Password must be at least 8 characters')
+      toast.error('New password must be at least 8 characters')
       return
     }
+    if (passwordForm.currentPassword === passwordForm.newPassword) {
+      toast.error('New password must be different from current password')
+      return
+    }
+
+    setIsChangingPassword(true)
     try {
-      const success = await changePassword(passwordForm.currentPassword, passwordForm.newPassword)
-      if (success) {
+      const result = await changePassword(passwordForm.currentPassword, passwordForm.newPassword)
+      if (result.success) {
         toast.success('Password updated successfully')
         setShowPasswordModal(false)
         setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
       } else {
-        toast.error('Failed to update password')
+        toast.error(result.error || 'Failed to update password')
       }
     } catch {
       toast.error('Failed to update password')
+    } finally {
+      setIsChangingPassword(false)
     }
   }
 
   const handleDeleteAccount = async () => {
-    // TODO: Implement delete account API
-    toast.error('Account deletion not yet implemented')
-    setShowDeleteConfirm(false)
+    if (deleteConfirmText.toLowerCase() !== 'delete account') {
+      toast.error('Please type "delete account" to confirm')
+      return
+    }
+
+    setIsDeleting(true)
+    try {
+      const success = await deleteAccount()
+      if (success) {
+        toast.success('Account deleted successfully')
+        setShowDeleteConfirm(false)
+        logout()
+      } else {
+        toast.error('Failed to delete account')
+      }
+    } catch {
+      toast.error('Failed to delete account')
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   if (isLoading) {
@@ -100,29 +148,15 @@ export default function SettingsPage() {
   if (!isAuthenticated) {
     return (
       <div className='flex h-full flex-col items-center justify-center gap-4'>
-        <p className='text-muted-foreground'>Please sign in to view settings</p>
+        <p className='text-muted-foreground text-center'>Please sign in.</p>
         <div className='flex gap-2'>
           <Button variant='outline' onClick={() => setShowLoginDialog(true)}>
             Sign in
           </Button>
           <Button onClick={() => setShowSignupDialog(true)}>Create account</Button>
         </div>
-        <LoginForm
-          open={showLoginDialog}
-          onOpenChange={setShowLoginDialog}
-          onSwitchToSignup={() => {
-            setShowLoginDialog(false)
-            setShowSignupDialog(true)
-          }}
-        />
-        <SignupForm
-          open={showSignupDialog}
-          onOpenChange={setShowSignupDialog}
-          onSwitchToLogin={() => {
-            setShowSignupDialog(false)
-            setShowLoginDialog(true)
-          }}
-        />
+        <LoginForm open={showLoginDialog} onOpenChange={setShowLoginDialog} onSwitchToSignup={switchToSignup} />
+        <SignupForm open={showSignupDialog} onOpenChange={setShowSignupDialog} onSwitchToLogin={switchToLogin} />
       </div>
     )
   }
@@ -175,7 +209,7 @@ export default function SettingsPage() {
               <label className='mb-2 block text-sm font-medium'>Password</label>
               <div className='flex items-center gap-2'>
                 <Input type='password' value={`password`} className='select-none' readOnly />
-                <Button variant='outline' onClick={() => setShowPasswordModal(true)}>
+                <Button type='button' variant='outline' onClick={() => setShowPasswordModal(true)}>
                   Change
                 </Button>
               </div>
@@ -214,56 +248,88 @@ export default function SettingsPage() {
       </div>
 
       {/* Password Modal */}
-      <Dialog open={showPasswordModal} onOpenChange={setShowPasswordModal}>
+      <Dialog
+        open={showPasswordModal}
+        onOpenChange={(open) => {
+          setShowPasswordModal(open)
+          if (!open) {
+            setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Change Password</DialogTitle>
+            <DialogDescription>Enter your current password and choose a new password.</DialogDescription>
           </DialogHeader>
           <form className='space-y-4' onSubmit={handlePasswordChange}>
-            <Input
-              type='password'
+            <PasswordInput
               placeholder='Current password'
               value={passwordForm.currentPassword}
               onChange={(e) => setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
               required
             />
-            <Input
-              type='password'
-              placeholder='New password'
+            <PasswordInput
+              placeholder='New password (min 8 characters)'
               value={passwordForm.newPassword}
               onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
               required
+              minLength={8}
             />
-            <Input
-              type='password'
+            <PasswordInput
               placeholder='Confirm new password'
               value={passwordForm.confirmPassword}
               onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
               required
             />
             <DialogFooter>
-              <Button type='submit'>Update Password</Button>
+              <Button type='button' variant='outline' onClick={() => setShowPasswordModal(false)}>
+                Cancel
+              </Button>
+              <Button type='submit' disabled={isChangingPassword}>
+                {isChangingPassword ? 'Updating...' : 'Update Password'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
       {/* Delete Confirm Modal */}
-      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+      <Dialog
+        open={showDeleteConfirm}
+        onOpenChange={(open) => {
+          setShowDeleteConfirm(open)
+          if (!open) setDeleteConfirmText('')
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Account</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. This will permanently delete your account and remove all your data.
+            </DialogDescription>
           </DialogHeader>
-          <p>
-            Are you sure you want to delete your account? This action cannot be undone and will permanently remove all
-            your data.
-          </p>
+          <div className='space-y-4'>
+            <p className='text-sm text-muted-foreground'>
+              To confirm, type <span className='font-semibold text-foreground'>delete account</span> below:
+            </p>
+            <Input
+              type='text'
+              placeholder='Type "delete account" to confirm'
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+            />
+          </div>
           <DialogFooter>
             <Button variant='outline' onClick={() => setShowDeleteConfirm(false)}>
               Cancel
             </Button>
-            <Button className='bg-red-600 hover:bg-red-700' onClick={handleDeleteAccount}>
-              Delete Account
+            <Button
+              variant='destructive'
+              onClick={handleDeleteAccount}
+              disabled={deleteConfirmText.toLowerCase() !== 'delete account' || isDeleting}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete Account'}
             </Button>
           </DialogFooter>
         </DialogContent>

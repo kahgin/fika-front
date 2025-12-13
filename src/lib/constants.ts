@@ -1,3 +1,8 @@
+export const STORAGE_KEYS = {
+  LAST_CHAT_ID: 'fika:lastChatId',
+  CHAT_PREFIX: 'fika:chat:',
+} as const
+
 export const PACING_OPTIONS = [
   { value: 'relaxed', label: 'Relaxed' },
   { value: 'balanced', label: 'Balanced' },

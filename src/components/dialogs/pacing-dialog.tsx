@@ -1,11 +1,6 @@
 import { OptionSelectDialog } from '@/components/dialogs/option-select-dialog'
+import { PACING_OPTIONS } from '@/lib/constants'
 import React from 'react'
-
-const PACING_OPTIONS = [
-  { value: 'relaxed', label: 'Relaxed' },
-  { value: 'balanced', label: 'Balanced' },
-  { value: 'packed', label: 'Packed' },
-] as const
 
 interface PacingDialogProps {
   open: boolean

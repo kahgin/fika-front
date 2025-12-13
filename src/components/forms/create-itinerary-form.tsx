@@ -21,6 +21,7 @@ import {
   formatDateToISO,
   formatDayDisplay,
 } from '@/lib/date-range'
+import { cacheItinerary, setLastItineraryId } from '@/lib/itinerary-storage'
 import { createItinerary, searchLocations, searchPOIsByDestinationAndRole, type Location } from '@/services/api'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { format } from 'date-fns'
@@ -1437,8 +1438,8 @@ const CreateItineraryForm: React.FC = () => {
     const promise = createItinerary(payload as any)
       .then((data) => {
         if (data && data.itinId) {
-          localStorage.setItem('fika:lastChatId', data.itinId)
-          localStorage.setItem(`fika:chat:${data.itinId}`, JSON.stringify(data))
+          setLastItineraryId(data.itinId)
+          cacheItinerary(data)
 
           setTimeout(() => {
             navigate('/chat', { state: { initialTab: 'itinerary' } })
@@ -1675,10 +1676,10 @@ const CreateItineraryForm: React.FC = () => {
   const STICKY_NAV_HEIGHT = 64
 
   return (
-    <div className='flex h-full flex-col'>
+    <div className='flex h-full flex-col overflow-hidden'>
       {/* Scrollable content area */}
       <div
-        className='flex-1 overflow-auto p-6'
+        className='flex-1 overflow-y-auto p-6'
         style={{
           // Only add extra bottom padding on mobile where the nav is fixed
           paddingBottom: isMobile ? `${STICKY_NAV_HEIGHT + BOTTOM_NAV_HEIGHT + 16}px` : undefined,
@@ -1702,7 +1703,7 @@ const CreateItineraryForm: React.FC = () => {
                   {s}
                 </div>
                 <span className='hidden text-sm sm:inline'>
-                  {s === 1 ? 'Basics' : s === 2 ? 'Preferences' : 'Extras'}
+                  {s === 1 ? 'Basics' : s === 2 ? 'Interests' : 'Extras'}
                 </span>
               </div>
               {idx < 2 && <div className={`h-0.5 flex-1 rounded ${currentStep > s ? 'bg-black/70' : 'bg-gray-200'}`} />}

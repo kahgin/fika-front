@@ -179,7 +179,7 @@ export function AppSidebar({ user }: { user: User | null }) {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => setShowLoginDialog(true)}>
                     <LogIn />
-                    Sign in
+                    Log in
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setShowSignupDialog(true)}>
                     <UserPlus />

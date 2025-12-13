@@ -13,15 +13,12 @@ interface EditHotelsPoisDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
-export function EditHotelsPoisDialog({
-  open,
-  onOpenChange,
-}: EditHotelsPoisDialogProps) {
+export function EditHotelsPoisDialog({ open, onOpenChange }: EditHotelsPoisDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className='sm:max-w-md'>
         <DialogHeader>
-          <DialogTitle>Edit Hotels & Places</DialogTitle>
+          <DialogTitle>Coming soon</DialogTitle>
           <DialogDescription>
             Editing hotels and mandatory places is coming soon. To change hotels or must-visit places, try recreating
             your itinerary.
