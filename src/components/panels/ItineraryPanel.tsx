@@ -6,6 +6,7 @@ import { ButtonGroup } from '@/components/ui/button-group'
 import { Calendar } from '@/components/ui/calendar'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { EditableTitle } from '@/components/ui/editable-title'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -13,6 +14,7 @@ import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { formatDateRange } from '@/lib/date-range'
+import { cacheItinerary, dispatchItineraryUpdate } from '@/lib/itinerary-storage'
 import { POIIcon } from '@/lib/poi-icons'
 import { cn, stripDaySuffix } from '@/lib/utils'
 import {
@@ -29,9 +31,10 @@ import {
   DragOverlay,
   getFirstCollision,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
   pointerWithin,
   rectIntersection,
+  TouchSensor,
   useDroppable,
   useSensor,
   useSensors,
@@ -423,10 +426,44 @@ export default function ItineraryPanel({
   // Regenerate warning dialog
   const [showRegenerateWarning, setShowRegenerateWarning] = useState(false)
 
+  // Title editing state
+  const [isSavingTitle, setIsSavingTitle] = useState(false)
+
   // Button group scroll ref
   const buttonGroupRef = useRef<HTMLDivElement>(null)
 
   const itinId = data?.itinId || localStorage.getItem('fika:lastChatId') || ''
+
+  // Handle title update - calls backend API and syncs localStorage
+  const handleTitleUpdate = useCallback(
+    async (newTitle: string) => {
+      if (!itinId || isSavingTitle) return
+
+      setIsSavingTitle(true)
+      try {
+        const result = await updateItineraryMeta(itinId, { title: newTitle })
+        if (result) {
+          // Update localStorage cache
+          cacheItinerary(result)
+          // Dispatch event for other components (like ChatPage header)
+          dispatchItineraryUpdate(result)
+          // Notify parent component
+          if (onItineraryUpdate) {
+            onItineraryUpdate(result)
+          }
+          toast.success('Trip name updated')
+        } else {
+          toast.error('Failed to update trip name')
+        }
+      } catch (error) {
+        console.error('Failed to update title:', error)
+        toast.error('Failed to update trip name')
+      } finally {
+        setIsSavingTitle(false)
+      }
+    },
+    [itinId, isSavingTitle, onItineraryUpdate]
+  )
 
   useEffect(() => {
     if (data?.plan?.days) {
@@ -435,15 +472,16 @@ export default function ItineraryPanel({
   }, [data?.plan?.days])
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: isMobile
-        ? {
-          delay: 250,
-          tolerance: 5,
-        }
-        : {
-          distance: 8,
-        },
+    useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 8,
+      },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
@@ -1185,7 +1223,12 @@ export default function ItineraryPanel({
     <div className={`flex h-full flex-col ${className}`}>
       <div className='sticky top-0 z-10 border-b bg-white p-6'>
         <div className='mb-4'>
-          <h1 className='font-semibold'>{tripData.title}</h1>
+          <EditableTitle
+            value={tripData.title}
+            onSave={handleTitleUpdate}
+            placeholder='Untitled Trip'
+            disabled={isSavingTitle}
+          />
         </div>
 
         <div
@@ -1609,7 +1652,7 @@ export default function ItineraryPanel({
           </DialogHeader>
           <DialogFooter>
             <Button variant='outline' onClick={() => setShowRegenerateWarning(false)}>Cancel</Button>
-            <Button className='bg-amber-500 hover:bg-amber-600' onClick={handleRecomputeFull}>Continue</Button>
+            <Button variant='default' onClick={handleRecomputeFull}>Continue</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

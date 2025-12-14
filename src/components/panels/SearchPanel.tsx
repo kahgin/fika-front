@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/pagination'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { isAllowedDestination } from '@/lib/destination-utils'
 import { fetchPOIs, fetchPOIsByRole, searchLocations, searchPOIs, type Location, type POI } from '@/services/api'
 import { AlertCircle, CirclePlus, LoaderCircle, Search, Star, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -30,9 +31,6 @@ type Tab = (typeof TABS)[number]
 const ITEMS_PER_PAGE = 12
 const LOCATION_SEARCH_MIN_LENGTH = 3
 const LOCATION_SEARCH_DEBOUNCE_MS = 300
-
-// Allowed destinations
-const ALLOWED_DESTINATIONS = ['johor', 'singapore']
 
 export default function SearchPanel({ onPOISelect, size = 'half' }: SearchPanelProps) {
   const [pois, setPOIs] = useState<POI[]>([])
@@ -190,10 +188,8 @@ export default function SearchPanel({ onPOISelect, size = 'half' }: SearchPanelP
   }
 
   const handleDestinationSelect = (location: Location) => {
-    const cityName = location.label.split(',')[0].trim().toLowerCase()
-
-    // Validate destination
-    if (!ALLOWED_DESTINATIONS.includes(cityName)) {
+    // Validate destination using shared utility
+    if (!isAllowedDestination(location.label)) {
       toast.error('Only Johor and Singapore destinations are supported')
       return
     }

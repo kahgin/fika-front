@@ -1,6 +1,7 @@
 import LoginForm from '@/components/forms/login-form'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import formatDateRange from '@/lib/date-range'
 import {
   cacheItinerary,
   dispatchItineraryUpdate,
@@ -25,21 +26,13 @@ type ItinerarySummary = {
   dates?: string
 }
 
-function formatItineraryDates(meta: any): string | undefined {
-  if (typeof meta?.dates === 'object' && meta?.dates?.type === 'specific') {
-    return `${meta?.dates?.startDate || ''} — ${meta?.dates?.endDate || ''}`
-  }
-  if (meta?.dates?.days) {
-    return `${meta?.dates?.days} days`
-  }
-  return undefined
-}
-
 function toItinerarySummary(data: any): ItinerarySummary {
   return {
     id: data.itinId || String(data.id),
     title: (data?.meta?.title ? data.meta.title : `${data.meta?.destination} Trip`) || 'Trip',
-    dates: formatItineraryDates(data?.meta),
+    dates: data?.meta?.dates?.type === 'specific'
+      ? formatDateRange(data?.meta?.dates?.startDate, data?.meta?.dates?.endDate)
+      : data?.meta?.dates?.days,
   }
 }
 
@@ -60,7 +53,7 @@ async function fetchItinerariesFromStorageOrAPI(): Promise<ItinerarySummary[]> {
     if (Array.isArray(res)) {
       res.forEach((it: any) => summaries.push(toItinerarySummary(it)))
     }
-  } catch {}
+  } catch { }
 
   const map = new Map<string, ItinerarySummary>()
   for (const s of summaries) map.set(s.id, s)
@@ -163,7 +156,7 @@ export function AddPOIToItineraryForm({ open, onOpenChange, poi, onSuccess }: Ad
                   onClick={() => handleAddToItinerary(it.id)}
                   disabled={adding}
                 >
-                  <div className='w-full text-left'>
+                  <div className='w-full text-left space-y-1'>
                     <p className='font-medium'>{it.title}</p>
                     {it.dates && <p className='text-muted-foreground text-xs'>{it.dates}</p>}
                   </div>

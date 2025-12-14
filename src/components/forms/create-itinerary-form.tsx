@@ -21,6 +21,7 @@ import {
   formatDateToISO,
   formatDayDisplay,
 } from '@/lib/date-range'
+import { isAllowedDestination } from '@/lib/destination-utils'
 import { cacheItinerary, setLastItineraryId } from '@/lib/itinerary-storage'
 import { createItinerary, searchLocations, searchPOIsByDestinationAndRole, type Location } from '@/services/api'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -146,7 +147,7 @@ const CreateItineraryForm: React.FC = () => {
 
   // State
   const [currentStep, setCurrentStep] = useState(1)
-  const [dateMode, setDateMode] = useState<DateMode>('flexible')
+  const [dateMode, setDateMode] = useState<DateMode>('specific')
   const [showDateDialog, setShowDateDialog] = useState(false)
   const [showWhoDialog, setShowWhoDialog] = useState(false)
   const [showPacingDialog, setShowPacingDialog] = useState(false)
@@ -202,7 +203,7 @@ const CreateItineraryForm: React.FC = () => {
       destination: '',
       startDate: undefined,
       endDate: undefined,
-      flexibleDays: '1',
+      flexibleDays: '',
       flexibleMonth: '',
       adults: 2,
       children: 0,
@@ -243,11 +244,10 @@ const CreateItineraryForm: React.FC = () => {
     if (dateMode === 'specific' && startDate && endDate) {
       return formatDateRange(startDate, endDate)
     }
-    if (dateMode === 'flexible' && flexibleDays) {
+    if (dateMode === 'flexible' && flexibleDays && parseInt(flexibleDays) >= 1) {
       const label = MONTHS.find((m) => m.value === flexibleMonth)?.label
       return `${flexibleDays} days${label ? ` in ${label}` : ''}`
     }
-    return 'Select dates'
   }, [dateMode, startDate, endDate, flexibleDays, flexibleMonth])
 
   const whoDisplay = useMemo(() => {
@@ -259,7 +259,8 @@ const CreateItineraryForm: React.FC = () => {
     if (dateMode === 'specific' && startDate && endDate) {
       return calculateDaysBetween(startDate, endDate)
     }
-    return parseInt(flexibleDays || '1')
+    const days = parseInt(flexibleDays || '0')
+    return days >= 1 ? days : 0
   }, [dateMode, startDate, endDate, flexibleDays])
 
   const generateTitle = useCallback(
@@ -567,6 +568,11 @@ const CreateItineraryForm: React.FC = () => {
       return { valid: true, error: null }
     }
 
+    // Check if total days == 1 but multiple destinations
+    if (totalDays === 1 && destinations.length > 1) {
+      return { valid: false, error: 'Remove one destination for single-day trips, or increase trip days.' }
+    }
+
     // Check if all destinations have dates/days OR all are empty
     const hasAnyScheduled = destinations.some((dest) => {
       if (dateMode === 'specific') {
@@ -605,13 +611,16 @@ const CreateItineraryForm: React.FC = () => {
     }
 
     return { valid: true, error: null }
-  }, [destinations, dateMode, flexibleDays])
+  }, [destinations, dateMode, flexibleDays, totalDays])
 
   const canProceed = () => {
     if (currentStep === 1) {
       const v = form.getValues()
       const hasValidDestination = isValidDestination
-      const hasDates = dateMode === 'specific' ? !!v.startDate && !!v.endDate : !!v.flexibleDays
+      const hasDates =
+        dateMode === 'specific'
+          ? !!v.startDate && !!v.endDate
+          : !!v.flexibleDays && parseInt(v.flexibleDays) >= 1
 
       const destValidation = validateDestinations()
 
@@ -656,11 +665,8 @@ const CreateItineraryForm: React.FC = () => {
       return
     }
 
-    // Validate destination is Johor or Singapore
-    const cityName = location.label.split(',')[0].trim().toLowerCase()
-    const isValidDestination = cityName === 'johor' || cityName === 'singapore'
-
-    if (!isValidDestination) {
+    // Validate destination using shared utility
+    if (!isAllowedDestination(location.label)) {
       toast.error('Only Johor and Singapore destinations are supported')
       return
     }
@@ -1440,6 +1446,42 @@ const CreateItineraryForm: React.FC = () => {
         if (data && data.itinId) {
           setLastItineraryId(data.itinId)
           cacheItinerary(data)
+
+          // Clear form state from sessionStorage on success FIRST
+          sessionStorage.removeItem(FORM_STATE_KEY)
+
+          // Reset all state to initial values
+          setDestinations([])
+          setHotels([])
+          setMandatoryPOIs([])
+          setDateRange({ from: new Date(Date.now() + 86400000) })
+          setDateMode('flexible')
+          setCurrentStep(1)
+          setDestinationSearch('')
+          setHotelSearch('')
+          setPlacesSearch('')
+          setSelectedHotelDestination('')
+          setSelectedPlacesDestination('')
+
+          // Reset form to default values
+          form.reset({
+            title: '',
+            destination: '',
+            startDate: undefined,
+            endDate: undefined,
+            flexibleDays: '',
+            flexibleMonth: '',
+            adults: 2,
+            children: 0,
+            pets: 0,
+            isMuslim: false,
+            wheelchairAccessible: false,
+            kidFriendly: false,
+            petFriendly: false,
+            pacing: 'balanced',
+            dietaryRestrictions: 'none',
+            interests: [],
+          })
 
           setTimeout(() => {
             navigate('/chat', { state: { initialTab: 'itinerary' } })

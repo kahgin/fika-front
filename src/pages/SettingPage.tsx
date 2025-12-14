@@ -1,6 +1,5 @@
+import { AuthDialogs } from '@/components/dialogs/auth-dialogs'
 import { BOTTOM_NAV_HEIGHT } from '@/components/bottom-nav'
-import LoginForm from '@/components/forms/login-form'
-import SignupForm from '@/components/forms/signup-form'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import {
@@ -155,8 +154,7 @@ export default function SettingsPage() {
           </Button>
           <Button onClick={() => setShowSignupDialog(true)}>Create account</Button>
         </div>
-        <LoginForm open={showLoginDialog} onOpenChange={setShowLoginDialog} onSwitchToSignup={switchToSignup} />
-        <SignupForm open={showSignupDialog} onOpenChange={setShowSignupDialog} onSwitchToLogin={switchToLogin} />
+        <AuthDialogs dialogState={{ showLogin: showLoginDialog, setShowLogin: setShowLoginDialog, showSignup: showSignupDialog, setShowSignup: setShowSignupDialog, switchToSignup, switchToLogin, openLogin: () => setShowLoginDialog(true), openSignup: () => setShowSignupDialog(true) }} />
       </div>
     )
   }

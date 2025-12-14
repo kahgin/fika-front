@@ -324,7 +324,7 @@ export default function POIPanel({
                     )}
                     {hasAccessibilityData && (
                       <FeatureCard
-                        title='Accessibility'
+                        title='Wheelchair Accessibility'
                         features={[
                           { label: 'Entrance', available: poi.wheelchairAccessibleEntrance },
                           { label: 'Seating', available: poi.wheelchairAccessibleSeating },

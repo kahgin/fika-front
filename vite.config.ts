@@ -7,14 +7,14 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
-    port: 3000,
     host: '0.0.0.0',
-    allowedHosts: ['koreacentral.cloudapp.azure.com', '4.218.15.39', 'localhost', '127.0.0.1'],
-  },
-  preview: {
     port: 3000,
-    host: '0.0.0.0',
-    allowedHosts: ['koreacentral.cloudapp.azure.com', '4.218.15.39', 'localhost', '127.0.0.1'],
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+    },
   },
   resolve: {
     alias: {

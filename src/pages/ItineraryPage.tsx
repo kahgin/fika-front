@@ -1,6 +1,5 @@
+import { AuthDialogs } from '@/components/dialogs/auth-dialogs'
 import { BOTTOM_NAV_HEIGHT } from '@/components/bottom-nav'
-import LoginForm from '@/components/forms/login-form'
-import SignupForm from '@/components/forms/signup-form'
 import { Button } from '@/components/ui/button'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -66,15 +65,17 @@ export default function ItineraryPage() {
   }
 
   const handleDelete = async (chatId: string) => {
-    if (isAuthenticated) {
-      const ok = await deleteItinerary(chatId)
-      if (ok) {
+    // Always try to delete from backend (works for both authenticated and guest itineraries)
+    const ok = await deleteItinerary(chatId)
+    if (ok) {
+      clearItineraryRefs(chatId)
+      setChats((prev) => prev.filter((c) => c.itinId !== chatId))
+    } else {
+      // If backend delete failed, still clear local refs for guests
+      if (!isAuthenticated) {
         clearItineraryRefs(chatId)
         setChats((prev) => prev.filter((c) => c.itinId !== chatId))
       }
-    } else {
-      clearItineraryRefs(chatId)
-      setChats((prev) => prev.filter((c) => c.itinId !== chatId))
     }
   }
 
@@ -96,7 +97,7 @@ export default function ItineraryPage() {
               <EmptyDescription>
                 {isAuthenticated
                   ? "You haven't created any itineraries yet."
-                  : 'Log in to save and sync your itineraries across devices.'}
+                  : 'Sign in to save and sync your itineraries across devices.'}
                 <br />
                 Get started by creating one.
               </EmptyDescription>
@@ -148,8 +149,7 @@ export default function ItineraryPage() {
         )}
       </div>
 
-      <LoginForm open={showLogin} onOpenChange={setShowLogin} onSwitchToSignup={switchToSignup} />
-      <SignupForm open={showSignup} onOpenChange={setShowSignup} onSwitchToLogin={switchToLogin} />
+      <AuthDialogs dialogState={{ showLogin, setShowLogin, showSignup, setShowSignup, switchToSignup, switchToLogin, openLogin: () => setShowLogin(true), openSignup: () => setShowSignup(true) }} />
     </>
   )
 }

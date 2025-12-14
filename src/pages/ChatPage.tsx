@@ -1,4 +1,5 @@
 import { EmptyItinerary } from '@/components/empty-itinerary'
+import { MobileSlidePanel } from '@/components/mobile-slide-panel'
 import ChatPanel from '@/components/panels/ChatPanel'
 import ItinMapPanel from '@/components/panels/ItinMapPanel'
 import ItineraryPanel from '@/components/panels/ItineraryPanel'
@@ -296,7 +297,7 @@ export default function ChatPage() {
     return (
       <div className='relative flex h-full w-full flex-col lg:hidden'>
         <div className='z-20 flex h-12 flex-shrink-0 items-center justify-end border-b bg-white px-4'>
-          <h6 className='flex-1'>{itinerary?.meta?.title || 'Itinerary'}</h6>
+          <h6 className='flex-1 truncate'>{itinerary?.meta?.title || 'Itinerary'}</h6>
           <Tabs value={mobileTab} onValueChange={(value) => handleMobileTabChange(value as PanelType)}>
             <TabsList className='h-8'>
               <TabsTrigger value='chat' className='px-2' disabled hidden>
@@ -312,39 +313,16 @@ export default function ChatPage() {
           </Tabs>
         </div>
 
-        <div
-          className={
-            'fixed inset-0 z-40 transition-opacity duration-300 ' +
-            (selectedPoi ? 'pointer-events-auto bg-black/40 opacity-100' : 'pointer-events-none opacity-0')
-          }
-          aria-hidden='true'
-          onClick={() => setSelectedPoi(null)}
-        />
-
         <div className='min-h-0 flex-1 overflow-hidden'>{content}</div>
 
-        <div
-          className={
-            'fixed inset-0 z-50 flex h-screen flex-col transition-transform duration-300 ease-in-out ' +
-            (selectedPoi ? 'pointer-events-auto' : 'pointer-events-none')
-          }
-          style={{
-            transform: selectedPoi ? 'translateY(0%)' : 'translateY(100%)',
-          }}
+        <MobileSlidePanel
+          isOpen={Boolean(selectedPoi)}
+          onClose={() => setSelectedPoi(null)}
+          isLoading={loadingPoi}
+          loadingText='Loading POI details...'
         >
-          <div className='flex h-full flex-1 flex-col overflow-hidden border-t border-gray-200 bg-white shadow-2xl'>
-            {loadingPoi ? (
-              <div className='flex h-full items-center justify-center'>
-                <div className='space-y-3 text-center'>
-                  <div className='mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-gray-900'></div>
-                  <p className='text-muted-foreground text-sm'>Loading POI details...</p>
-                </div>
-              </div>
-            ) : (
-              selectedPoi && <POIPanel poi={selectedPoi} size='full' onClose={() => setSelectedPoi(null)} />
-            )}
-          </div>
-        </div>
+          {selectedPoi && <POIPanel poi={selectedPoi} size='full' onClose={() => setSelectedPoi(null)} />}
+        </MobileSlidePanel>
       </div>
     )
   }

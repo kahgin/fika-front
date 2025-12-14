@@ -95,18 +95,18 @@ export const WhenDialog: React.FC<WhenDialogProps> = ({
                 type='button'
                 variant='outline'
                 size='icon'
-                disabled={parseInt(flexibleDays || '1') <= MIN_TRIP_DAYS}
+                disabled={!flexibleDays || parseInt(flexibleDays) <= MIN_TRIP_DAYS}
                 onClick={() => onFlexibleDaysChange(String(Math.max(MIN_TRIP_DAYS, parseInt(flexibleDays || '1') - 1)))}
               >
                 <Minus />
               </Button>
-              <span className='w-12 text-center text-2xl font-semibold'>{flexibleDays}</span>
+              <span className='w-12 text-center text-2xl font-semibold'>{flexibleDays || '-'}</span>
               <Button
                 type='button'
                 variant='outline'
                 size='icon'
-                disabled={parseInt(flexibleDays || '1') >= MAX_TRIP_DAYS}
-                onClick={() => onFlexibleDaysChange(String(Math.min(MAX_TRIP_DAYS, parseInt(flexibleDays || '1') + 1)))}
+                disabled={parseInt(flexibleDays || '0') >= MAX_TRIP_DAYS}
+                onClick={() => onFlexibleDaysChange(String(Math.min(MAX_TRIP_DAYS, parseInt(flexibleDays || '0') + 1)))}
               >
                 <Plus />
               </Button>
