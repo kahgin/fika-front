@@ -55,31 +55,20 @@ export const WhenDialog: React.FC<WhenDialogProps> = ({
             <TabsTrigger value='specific'>Dates</TabsTrigger>
             <TabsTrigger value='flexible'>Flexible</TabsTrigger>
           </TabsList>
-          <TabsContent value='specific' className={isMobile ? 'my-4 space-y-4' : 'my-4 w-full space-y-4'}>
+          <TabsContent value='specific' className='my-4 space-y-4'>
             <Calendar
               mode='range'
               selected={dateRange}
               onSelect={(range) => {
-                if (range?.from) {
-                  if (range.to) {
-                    const numDays = calculateDaysBetween(range.from, range.to)
-                    if (numDays >= MIN_TRIP_DAYS && numDays <= MAX_TRIP_DAYS) {
-                      onDateRangeChange(range)
-                    }
-                  } else {
-                    // Auto-extend to next day on single click
-                    const next = new Date(range.from)
-                    next.setDate(next.getDate() + 1)
-                    const adjusted = { from: range.from, to: next }
-                    const numDays = calculateDaysBetween(adjusted.from!, adjusted.to!)
-                    if (numDays >= MIN_TRIP_DAYS && numDays <= MAX_TRIP_DAYS) {
-                      onDateRangeChange(adjusted)
-                    } else {
-                      onDateRangeChange(range)
-                    }
-                  }
-                } else {
+                if (!range?.from) {
                   onDateRangeChange(range)
+                  return
+                }
+                // Use same date for both if no end date (single day trip)
+                const to = range.to || range.from
+                const numDays = calculateDaysBetween(range.from, to)
+                if (numDays >= MIN_TRIP_DAYS && numDays <= MAX_TRIP_DAYS) {
+                  onDateRangeChange({ from: range.from, to })
                 }
               }}
               min={0}
@@ -95,18 +84,18 @@ export const WhenDialog: React.FC<WhenDialogProps> = ({
                 type='button'
                 variant='outline'
                 size='icon'
-                disabled={!flexibleDays || parseInt(flexibleDays) <= MIN_TRIP_DAYS}
-                onClick={() => onFlexibleDaysChange(String(Math.max(MIN_TRIP_DAYS, parseInt(flexibleDays || '1') - 1)))}
+                disabled={parseInt(flexibleDays || '1') <= MIN_TRIP_DAYS}
+                onClick={() => onFlexibleDaysChange(String(parseInt(flexibleDays || '1') - 1))}
               >
                 <Minus />
               </Button>
-              <span className='w-12 text-center text-2xl font-semibold'>{flexibleDays || '-'}</span>
+              <span className='w-12 text-center text-2xl font-semibold'>{flexibleDays || '1'}</span>
               <Button
                 type='button'
                 variant='outline'
                 size='icon'
-                disabled={parseInt(flexibleDays || '0') >= MAX_TRIP_DAYS}
-                onClick={() => onFlexibleDaysChange(String(Math.min(MAX_TRIP_DAYS, parseInt(flexibleDays || '0') + 1)))}
+                disabled={parseInt(flexibleDays || '1') >= MAX_TRIP_DAYS}
+                onClick={() => onFlexibleDaysChange(String(parseInt(flexibleDays || '1') + 1))}
               >
                 <Plus />
               </Button>

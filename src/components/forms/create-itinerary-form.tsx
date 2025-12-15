@@ -246,7 +246,8 @@ const CreateItineraryForm: React.FC = () => {
     }
     if (dateMode === 'flexible' && flexibleDays && parseInt(flexibleDays) >= 1) {
       const label = MONTHS.find((m) => m.value === flexibleMonth)?.label
-      return `${flexibleDays} days${label ? ` in ${label}` : ''}`
+      const dayLabel = flexibleDays === '1' ? 'day' : 'days'
+      return `${flexibleDays} ${dayLabel}${label ? ` in ${label}` : ''}`
     }
   }, [dateMode, startDate, endDate, flexibleDays, flexibleMonth])
 
@@ -498,6 +499,9 @@ const CreateItineraryForm: React.FC = () => {
       setMandatoryPOIs((prev) => prev.map((poi) => ({ ...poi, day: undefined })))
       setDestinations((prev) => prev.map((dest) => ({ ...dest, days: undefined, dates: undefined })))
     } else {
+      // Ensure flexibleDays has a value (default to '1' if empty)
+      const days = flexibleDays || '1'
+      form.setValue('flexibleDays', days)
       form.setValue('startDate', undefined)
       form.setValue('endDate', undefined)
 
@@ -974,18 +978,20 @@ const CreateItineraryForm: React.FC = () => {
       setScheduleHotelDialog({ open: false, hotel: null, index: -1 })
     } else {
       // Flexible mode
-      if (hotel.checkInDay === undefined || hotel.checkOutDay === undefined) {
+      // Single-day trips have no hotel nights; treat schedule as optional.
+      const inDay = totalDays === 1 ? 1 : hotel.checkInDay
+      const outDay = totalDays === 1 ? 1 : hotel.checkOutDay
+
+      if (totalDays !== 1 && (inDay === undefined || outDay === undefined)) {
         toast.error('Please select both check-in and check-out day')
         return
       }
 
-      const inDay = hotel.checkInDay
-      const outDay = hotel.checkOutDay
-
-      // Validate bounds
-      if (inDay < 1 || inDay > totalDays || outDay < 1 || outDay > totalDays) {
-        toast.error('Invalid day selection')
-        return
+      if (inDay !== undefined && outDay !== undefined) {
+        if (inDay < 1 || inDay > totalDays || outDay < 1 || outDay > totalDays) {
+          toast.error('Invalid day selection')
+          return
+        }
       }
 
       const updated = [...hotels]
@@ -1156,8 +1162,8 @@ const CreateItineraryForm: React.FC = () => {
           const destForPOI = destinations.find((dest) => dest.city.toLowerCase() === poi.destinationCity?.toLowerCase())
 
           if (destForPOI?.dates?.startDate && destForPOI?.dates?.endDate) {
-            const destStart = new Date(destForPOI.dates.startDate)
-            const destEnd = new Date(destForPOI.dates.endDate)
+            const destStart = new Date(destForPOI.dates.startDate + 'T00:00:00')
+            const destEnd = new Date(destForPOI.dates.endDate + 'T23:59:59')
 
             if (poi.date < destStart || poi.date > destEnd) {
               error =
@@ -1278,11 +1284,13 @@ const CreateItineraryForm: React.FC = () => {
           checkOutDate = hotelDest.dates.endDate
         }
       } else if (dateMode === 'flexible' && hotelDest?.days) {
-        if (checkInDay === undefined) {
-          checkInDay = 1 // First day of destination
-        }
-        if (checkOutDay === undefined) {
-          checkOutDay = hotelDest.days + 1 // Last day + 1 (checkout day)
+        if (totalDays > 1) {
+          if (checkInDay === undefined) {
+            checkInDay = 1
+          }
+          if (checkOutDay === undefined) {
+            checkOutDay = hotelDest.days
+          }
         }
       }
 
@@ -2245,6 +2253,7 @@ const CreateItineraryForm: React.FC = () => {
           disabledCheckInDayIndices={
             dateMode === 'flexible'
               ? (() => {
+                  if (totalDays <= 1) return []
                   const occupied = computeOccupiedFlexible(scheduleHotelDialog.index)
                   const indices = new Set<number>()
                   occupied.forEach((d) => indices.add(d))
@@ -2257,6 +2266,7 @@ const CreateItineraryForm: React.FC = () => {
           disabledCheckOutDayIndices={
             dateMode === 'flexible'
               ? (() => {
+                  if (totalDays <= 1) return []
                   const base = new Set<number>()
                   // cannot check-out on first trip day (no night before it)
                   base.add(1)
@@ -2410,7 +2420,12 @@ const CreateItineraryForm: React.FC = () => {
                   mode='range'
                   selected={destDateRange}
                   onSelect={(range) => {
-                    setDestDateRange(range)
+                    if (!range?.from) {
+                      setDestDateRange(range)
+                      return
+                    }
+                    // Use same date for both if no end date (single day)
+                    setDestDateRange({ from: range.from, to: range.to || range.from })
                   }}
                   numberOfMonths={isMobile ? 1 : 2}
                   className='p-0'

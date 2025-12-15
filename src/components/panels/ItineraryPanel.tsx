@@ -1057,11 +1057,10 @@ export default function ItineraryPanel({
     try {
       const result = await recomputeItinerary(itinId, 'full')
       toast.dismiss(toastId)
-      if (result) {
-        setDays(result.plan?.days || [])
-        if (onItineraryUpdate) {
-          onItineraryUpdate(result)
-        }
+      const newDays = result?.plan?.days
+      if (result && Array.isArray(newDays) && newDays.length > 0) {
+        setDays(newDays)
+        if (onItineraryUpdate) onItineraryUpdate(result)
         toast.success('Itinerary regenerated successfully')
       } else {
         toast.error('Failed to regenerate itinerary')
@@ -1081,11 +1080,10 @@ export default function ItineraryPanel({
     try {
       const result = await recomputeItinerary(itinId, 'partial')
       toast.dismiss(toastId)
-      if (result) {
-        setDays(result.plan?.days || [])
-        if (onItineraryUpdate) {
-          onItineraryUpdate(result)
-        }
+      const newDays = result?.plan?.days
+      if (result && Array.isArray(newDays) && newDays.length > 0) {
+        setDays(newDays)
+        if (onItineraryUpdate) onItineraryUpdate(result)
         toast.success('Itinerary optimized successfully')
       } else {
         toast.error('Failed to optimize itinerary')
@@ -1106,11 +1104,10 @@ export default function ItineraryPanel({
     try {
       const result = await recomputeItinerary(itinId, 'single_day', dayIndex)
       toast.dismiss(toastId)
-      if (result) {
-        setDays(result.plan?.days || [])
-        if (onItineraryUpdate) {
-          onItineraryUpdate(result)
-        }
+      const newDays = result?.plan?.days
+      if (result && Array.isArray(newDays) && newDays.length > 0 && newDays[dayIndex]) {
+        setDays(newDays)
+        if (onItineraryUpdate) onItineraryUpdate(result)
         toast.success(`Day ${dayIndex + 1} optimized successfully`)
       } else {
         toast.error(`Failed to optimize Day ${dayIndex + 1}`)

@@ -8,8 +8,10 @@ export function cn(...inputs: ClassValue[]) {
 /**
  * Strip the day suffix from a POI ID
  * e.g., "abc123_day0" -> "abc123"
+ * Returns empty string if poiId is undefined/null
  */
-export function stripDaySuffix(poiId: string): string {
+export function stripDaySuffix(poiId: string | undefined | null): string {
+  if (!poiId) return ''
   return poiId.split('_day')[0]
 }
 
