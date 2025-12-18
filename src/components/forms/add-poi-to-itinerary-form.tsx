@@ -30,9 +30,10 @@ function toItinerarySummary(data: any): ItinerarySummary {
   return {
     id: data.itinId || String(data.id),
     title: (data?.meta?.title ? data.meta.title : `${data.meta?.destination} Trip`) || 'Trip',
-    dates: data?.meta?.dates?.type === 'specific'
-      ? formatDateRange(data?.meta?.dates?.startDate, data?.meta?.dates?.endDate)
-      : data?.meta?.dates?.days,
+    dates:
+      data?.meta?.dates?.type === 'specific'
+        ? formatDateRange(data?.meta?.dates?.startDate, data?.meta?.dates?.endDate)
+        : data?.meta?.dates?.days,
   }
 }
 
@@ -53,7 +54,7 @@ async function fetchItinerariesFromStorageOrAPI(): Promise<ItinerarySummary[]> {
     if (Array.isArray(res)) {
       res.forEach((it: any) => summaries.push(toItinerarySummary(it)))
     }
-  } catch { }
+  } catch {}
 
   const map = new Map<string, ItinerarySummary>()
   for (const s of summaries) map.set(s.id, s)

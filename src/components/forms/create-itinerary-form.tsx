@@ -622,9 +622,7 @@ const CreateItineraryForm: React.FC = () => {
       const v = form.getValues()
       const hasValidDestination = isValidDestination
       const hasDates =
-        dateMode === 'specific'
-          ? !!v.startDate && !!v.endDate
-          : !!v.flexibleDays && parseInt(v.flexibleDays) >= 1
+        dateMode === 'specific' ? !!v.startDate && !!v.endDate : !!v.flexibleDays && parseInt(v.flexibleDays) >= 1
 
       const destValidation = validateDestinations()
 

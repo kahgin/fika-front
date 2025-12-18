@@ -95,7 +95,13 @@ export function EditableTitle({
         <Button variant='ghost' size='icon' className='h-8 w-8 flex-shrink-0' onClick={handleSave} disabled={isSaving}>
           <Check className='h-4 w-4' />
         </Button>
-        <Button variant='ghost' size='icon' className='h-8 w-8 flex-shrink-0' onClick={handleCancel} disabled={isSaving}>
+        <Button
+          variant='ghost'
+          size='icon'
+          className='h-8 w-8 flex-shrink-0'
+          onClick={handleCancel}
+          disabled={isSaving}
+        >
           <X className='h-4 w-4' />
         </Button>
       </div>

@@ -1,5 +1,5 @@
-import { AuthDialogs } from '@/components/dialogs/auth-dialogs'
 import { BOTTOM_NAV_HEIGHT } from '@/components/bottom-nav'
+import { AuthDialogs } from '@/components/dialogs/auth-dialogs'
 import { Button } from '@/components/ui/button'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -149,7 +149,18 @@ export default function ItineraryPage() {
         )}
       </div>
 
-      <AuthDialogs dialogState={{ showLogin, setShowLogin, showSignup, setShowSignup, switchToSignup, switchToLogin, openLogin: () => setShowLogin(true), openSignup: () => setShowSignup(true) }} />
+      <AuthDialogs
+        dialogState={{
+          showLogin,
+          setShowLogin,
+          showSignup,
+          setShowSignup,
+          switchToSignup,
+          switchToLogin,
+          openLogin: () => setShowLogin(true),
+          openSignup: () => setShowSignup(true),
+        }}
+      />
     </>
   )
 }

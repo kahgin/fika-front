@@ -12,7 +12,6 @@ import {
   getCachedItinerary,
   getLastItineraryId,
 } from '@/lib/itinerary-storage'
-import { stripDaySuffix } from '@/lib/utils'
 import { fetchPOIById, getAuthToken, getItinerary, type CreatedItinerary, type POI } from '@/services/api'
 import { Map, MapPin, MessageCircle } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
@@ -138,7 +137,7 @@ export default function ChatPage() {
       }
       const items = (itinerary?.plan?.days || []).flatMap((day: any) =>
         (day?.stops || []).map((i: any) => ({
-          id: stripDaySuffix(i.poiId),
+          id: i.poiId,
           name: i.name,
           role: i.role,
           arrival: i.arrival,
@@ -278,7 +277,7 @@ export default function ChatPage() {
       if (itinerary) {
         const items = (itinerary?.plan?.days || []).flatMap((day: any) =>
           (day?.stops || []).map((i: any) => ({
-            id: stripDaySuffix(i.poiId),
+            id: i.poiId,
             name: i.name,
             role: i.role,
             arrival: i.arrival,

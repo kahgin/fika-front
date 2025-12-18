@@ -29,10 +29,7 @@ function Tooltip({ ...props }: React.ComponentProps<typeof TooltipPrimitive.Root
   )
 }
 
-function TooltipTrigger({
-  onClick,
-  ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
+function TooltipTrigger({ onClick, ...props }: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
   const context = React.useContext(TooltipContext)
 
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {

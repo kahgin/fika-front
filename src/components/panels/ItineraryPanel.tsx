@@ -4,7 +4,14 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
 import { Calendar } from '@/components/ui/calendar'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { EditableTitle } from '@/components/ui/editable-title'
 import { Input } from '@/components/ui/input'
@@ -16,7 +23,7 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { formatDateRange } from '@/lib/date-range'
 import { cacheItinerary, dispatchItineraryUpdate } from '@/lib/itinerary-storage'
 import { POIIcon } from '@/lib/poi-icons'
-import { cn, stripDaySuffix } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import {
   deletePOIFromItinerary,
   recomputeItinerary,
@@ -57,7 +64,7 @@ import { Clock, MoreHorizontal, RefreshCw, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { DateRange } from 'react-day-picker'
 import { toast } from 'sonner'
-import { FallbackImage } from '../ui/fallback-image'
+import { FallbackImage } from '@/components/ui/fallback-image'
 
 interface Stop {
   poiId: string
@@ -70,6 +77,7 @@ interface Stop {
   depart?: string
   latitude?: number
   longitude?: number
+  hotelEventType?: string
 }
 
 interface Day {
@@ -154,15 +162,19 @@ function SortableStop({
       className={cn(
         'group relative flex items-center items-center rounded-xl border p-2 transition-colors hover:bg-gray-50',
         isDragging && 'opacity-50',
-        isAccommodation ? 'cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'
+        isAccommodation ? '' : 'cursor-grab active:cursor-grabbing'
       )}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={(e) => {
-        const target = e.target as HTMLElement
-        if (!target.closest('button') && !target.closest('[role="button"]') && onDetails) {
-          e.stopPropagation()
-          onDetails(stop)
+        if (stop.role === 'accommodation') {
+          toast('Changing hotel is not supported currently.');
+        } else {
+          const target = e.target as HTMLElement;
+          if (!target.closest('button') && !target.closest('[role="button"]') && onDetails) {
+            e.stopPropagation();
+            onDetails(stop);
+          }
         }
       }}
     >
@@ -175,9 +187,15 @@ function SortableStop({
         <div className='min-w-0 flex-1 space-y-1'>
           <div className='flex items-center gap-2 min-w-0'>
             <POIIcon role={stop.role} themes={stop.themes} className='size-3.5 flex-shrink-0' />
+            {(stop.role === 'accommodation' &&
+              <h6 className='font-normal text-muted-foreground'>
+                {
+                  stop.hotelEventType === 'checkin' ? 'Check in at' : stop.hotelEventType === 'checkout' ? 'Check out at' : stop.hotelEventType === 'stay' ? 'Stay at' : 'At'
+                }
+              </h6>) || null}
             <h6 className='font-medium truncate min-w-0'>{stop.name}</h6>
           </div>
-          {onScheduleClick && (
+          {onScheduleClick && stop.hotelEventType !== 'stay' && (
             <div
               className='hover:text-primary text-muted-foreground flex w-fit cursor-pointer items-center gap-2 text-sm'
               onClick={(e) => {
@@ -186,22 +204,18 @@ function SortableStop({
               }}
               role='button'
             >
-              {stop.role !== 'accommodation' && (
-                <>
-                  <Clock className='size-3' />
-                  <span>
-                    {stop.arrival
-                      ? `${formatTime12h(stop.arrival)} - ${formatTime12h(stop.depart || stop.arrival)}`
-                      : 'Set time'}
-                  </span>
-                </>
-              )}
+              <Clock className='size-3' />
+              <span>
+                {stop.arrival
+                  ? `${formatTime12h(stop.arrival)} - ${formatTime12h(stop.depart || stop.arrival)}`
+                  : 'Set time'}
+              </span>
             </div>
           )}
         </div>
       </div>
       <div className='flex items-center gap-2 flex-shrink-0 '>
-        {onDelete && isHovered && (
+        {onDelete && isHovered && stop.role !== "accommodation" && (
           <Button
             variant='ghost'
             size='sm'
@@ -491,10 +505,10 @@ export default function ItineraryPanel({
   // Track last over ID for smoother collision detection
   const lastOverId = useRef<UniqueIdentifier | null>(null)
   const recentlyMovedToNewContainer = useRef(false)
-  
+
   // Ref to track the original day index when drag started (before handleDragOver moves the item)
   const dragStartDayIndexRef = useRef<number | null>(null)
-  
+
   // Ref to track latest days state for use in async handlers (updated synchronously in setDays callbacks)
   const daysRef = useRef<Day[]>(days)
   useEffect(() => {
@@ -521,7 +535,7 @@ export default function ItineraryPanel({
       // Find which day contains this POI
       for (let dayIndex = 0; dayIndex < currentDays.length; dayIndex++) {
         const day = currentDays[dayIndex]
-        if (day.stops.some(s => s.poiId === poiId)) {
+        if (day.stops.some((s) => s.poiId === poiId)) {
           return dayIndex
         }
       }
@@ -534,22 +548,16 @@ export default function ItineraryPanel({
     (args) => {
       // Start by finding any intersecting droppable with pointer
       const pointerIntersections = pointerWithin(args)
-      const intersections = pointerIntersections.length > 0
-        ? pointerIntersections
-        : rectIntersection(args)
+      const intersections = pointerIntersections.length > 0 ? pointerIntersections : rectIntersection(args)
 
       // Filter out the active/dragged item from intersections
-      const filteredIntersections = intersections.filter(
-        (entry) => entry.id !== activeId
-      )
+      const filteredIntersections = intersections.filter((entry) => entry.id !== activeId)
 
       let overId = getFirstCollision(filteredIntersections, 'id')
-      
+
       // If no valid intersection found (excluding active item), try rect intersection
       if (overId == null) {
-        const rectIntersections = rectIntersection(args).filter(
-          (entry) => entry.id !== activeId
-        )
+        const rectIntersections = rectIntersection(args).filter((entry) => entry.id !== activeId)
         overId = getFirstCollision(rectIntersections, 'id')
       }
 
@@ -561,19 +569,17 @@ export default function ItineraryPanel({
 
           if (dayStops.length > 0) {
             // Get all stop IDs for this day using stable format (exclude the active item)
-            const stopIds = dayStops
-              .map((stop) => `stop_${stop.poiId}`)
-              .filter((id) => id !== activeId)
-            
+            const stopIds = dayStops.map((stop) => `stop_${stop.poiId}`).filter((id) => id !== activeId)
+
             if (stopIds.length > 0) {
               // Find closest stop within this day
               const closestInDay = closestCenter({
                 ...args,
-                droppableContainers: args.droppableContainers.filter(
-                  (container) => stopIds.includes(String(container.id))
+                droppableContainers: args.droppableContainers.filter((container) =>
+                  stopIds.includes(String(container.id))
                 ),
               })
-              
+
               if (closestInDay.length > 0) {
                 overId = closestInDay[0].id
               }
@@ -608,10 +614,10 @@ export default function ItineraryPanel({
     // Capture the original day index at drag start (before handleDragOver moves anything)
     const originalDayIndex = event.active.data.current?.dayIndex
     dragStartDayIndexRef.current = originalDayIndex ?? null
-    console.log('[DnD] handleDragStart:', { 
-      id: event.active.id, 
+    console.log('[DnD] handleDragStart:', {
+      id: event.active.id,
       dayIndex: originalDayIndex,
-      data: event.active.data.current 
+      data: event.active.data.current,
     })
   }
 
@@ -631,7 +637,7 @@ export default function ItineraryPanel({
     console.log('[DnD] handleDragOver:', { activeContainer, overContainer, activeId: active.id, overId })
 
     if (overContainer === null || activeContainer === null) return
-    
+
     // Same container - let dnd-kit handle within-container sorting
     if (overContainer === activeContainer) return
 
@@ -642,7 +648,7 @@ export default function ItineraryPanel({
 
       setDays((prevDays) => {
         // Check if idea is already in the target day
-        const existingInTarget = prevDays[targetDayIndex].stops.find(s => s.poiId === idea.id)
+        const existingInTarget = prevDays[targetDayIndex].stops.find((s) => s.poiId === idea.id)
         if (existingInTarget) {
           // Already in target day, no state change needed
           return prevDays
@@ -650,7 +656,7 @@ export default function ItineraryPanel({
 
         const newDays = prevDays.map((day) => ({
           ...day,
-          stops: day.stops.filter(s => s.poiId !== idea.id) // Remove if already added elsewhere
+          stops: day.stops.filter((s) => s.poiId !== idea.id), // Remove if already added elsewhere
         }))
 
         const targetDay = { ...newDays[targetDayIndex], stops: [...newDays[targetDayIndex].stops] }
@@ -664,11 +670,13 @@ export default function ItineraryPanel({
         } else if (overIdStr.startsWith('stop_')) {
           // Extract poiId from the over ID and find its current position
           const overPoiId = overIdStr.replace('stop_', '')
-          const overIndex = targetDay.stops.findIndex(s => s.poiId === overPoiId)
-          
+          const overIndex = targetDay.stops.findIndex((s) => s.poiId === overPoiId)
+
           if (overIndex >= 0) {
             // Check if dragging below the over item
-            const isBelowOverItem = over && active.rect.current.translated &&
+            const isBelowOverItem =
+              over &&
+              active.rect.current.translated &&
               active.rect.current.translated.top > over.rect.top + over.rect.height
 
             newIndex = overIndex + (isBelowOverItem ? 1 : 0)
@@ -691,7 +699,7 @@ export default function ItineraryPanel({
         targetDay.stops.splice(newIndex, 0, newStop)
         newDays[targetDayIndex] = targetDay
         recentlyMovedToNewContainer.current = true
-        
+
         // Update ref synchronously so handleDragEnd sees the new state
         daysRef.current = newDays
 
@@ -704,9 +712,9 @@ export default function ItineraryPanel({
     if (!activeData.isIdea && activeContainer >= 0 && overContainer >= 0) {
       setDays((prevDays) => {
         const activeStop = activeData.stop as Stop
-        
+
         // Check if stop is already in target container (handleDragOver already moved it)
-        const alreadyInTarget = prevDays[overContainer].stops.some(s => s.poiId === activeStop.poiId)
+        const alreadyInTarget = prevDays[overContainer].stops.some((s) => s.poiId === activeStop.poiId)
         if (alreadyInTarget && activeContainer !== overContainer) {
           // Already moved by a previous handleDragOver, no change needed
           return prevDays
@@ -714,12 +722,13 @@ export default function ItineraryPanel({
 
         const newDays = [...prevDays]
         const sourceDay = { ...newDays[activeContainer], stops: [...newDays[activeContainer].stops] }
-        const targetDay = activeContainer === overContainer 
-          ? sourceDay 
-          : { ...newDays[overContainer], stops: [...newDays[overContainer].stops] }
+        const targetDay =
+          activeContainer === overContainer
+            ? sourceDay
+            : { ...newDays[overContainer], stops: [...newDays[overContainer].stops] }
 
         // Find the stop in source
-        const activeIndex = sourceDay.stops.findIndex(s => s.poiId === activeStop.poiId)
+        const activeIndex = sourceDay.stops.findIndex((s) => s.poiId === activeStop.poiId)
         if (activeIndex === -1) return prevDays
 
         // Remove from source
@@ -733,10 +742,12 @@ export default function ItineraryPanel({
         } else if (overIdStr.startsWith('stop_')) {
           // Extract poiId from the over ID and find its current position
           const overPoiId = overIdStr.replace('stop_', '')
-          const overIndex = targetDay.stops.findIndex(s => s.poiId === overPoiId)
-          
+          const overIndex = targetDay.stops.findIndex((s) => s.poiId === overPoiId)
+
           if (overIndex >= 0) {
-            const isBelowOverItem = over && active.rect.current.translated &&
+            const isBelowOverItem =
+              over &&
+              active.rect.current.translated &&
               active.rect.current.translated.top > over.rect.top + over.rect.height
 
             newIndex = overIndex + (isBelowOverItem ? 1 : 0)
@@ -755,7 +766,7 @@ export default function ItineraryPanel({
           newDays[overContainer] = targetDay
         }
         recentlyMovedToNewContainer.current = true
-        
+
         // Update ref synchronously so handleDragEnd sees the new state
         daysRef.current = newDays
 
@@ -768,7 +779,7 @@ export default function ItineraryPanel({
     const { active, over } = event
     const originalDayIndex = dragStartDayIndexRef.current
     console.log('[DnD] handleDragEnd called', { activeId: active.id, overId: over?.id, originalDayIndex })
-    
+
     // Always reset state at the end
     setActiveId(null)
     dragStartDayIndexRef.current = null
@@ -786,7 +797,10 @@ export default function ItineraryPanel({
 
     // Use ref to get latest days state (updated synchronously by handleDragOver)
     const currentDays = daysRef.current
-    console.log('[DnD] handleDragEnd - currentDays from ref:', JSON.stringify(currentDays.map(d => d.stops.map(s => s.poiId))))
+    console.log(
+      '[DnD] handleDragEnd - currentDays from ref:',
+      JSON.stringify(currentDays.map((d) => d.stops.map((s) => s.poiId)))
+    )
 
     // Handle ideas - they were already visually moved in handleDragOver
     if (activeData.isIdea) {
@@ -798,7 +812,7 @@ export default function ItineraryPanel({
 
       // Find where the idea was inserted (use currentDays from ref)
       const targetDay = currentDays[targetDayIndex]
-      const targetIndex = targetDay.stops.findIndex(s => s.poiId === idea.id)
+      const targetIndex = targetDay.stops.findIndex((s) => s.poiId === idea.id)
 
       // Call backend to add the POI to the day at specific position
       if (itinId && targetIndex >= 0) {
@@ -847,12 +861,12 @@ export default function ItineraryPanel({
     const currentContainer = findContainer(active.id)
     const targetDayIndex = findContainer(over.id)
 
-    console.log('[DnD] Stop move:', { 
-      poiId: activeStop.poiId, 
-      sourceDayIndex, 
-      currentContainer, 
+    console.log('[DnD] Stop move:', {
+      poiId: activeStop.poiId,
+      sourceDayIndex,
+      currentContainer,
       targetDayIndex,
-      itinId 
+      itinId,
     })
 
     if (sourceDayIndex === null || sourceDayIndex === undefined || targetDayIndex === null || targetDayIndex < 0) {
@@ -874,18 +888,18 @@ export default function ItineraryPanel({
 
       const overPoiId = overIdStr.replace('stop_', '')
       const dayStops = currentDays[sourceDayIndex].stops
-      const activeIndex = dayStops.findIndex(s => s.poiId === activeStop.poiId)
+      const activeIndex = dayStops.findIndex((s) => s.poiId === activeStop.poiId)
 
-      const overIndex = dayStops.findIndex(s => s.poiId === overPoiId)
+      const overIndex = dayStops.findIndex((s) => s.poiId === overPoiId)
 
       if (activeIndex === -1 || overIndex === -1 || activeIndex === overIndex) return
 
       // Calculate new order
       const newStops = arrayMove(dayStops, activeIndex, overIndex)
-      const newPoiIds = newStops.map(s => s.poiId)
+      const newPoiIds = newStops.map((s) => s.poiId)
 
       // Update local state immediately for visual feedback
-      setDays(prevDays => {
+      setDays((prevDays) => {
         const newDays = [...prevDays]
         newDays[sourceDayIndex] = { ...newDays[sourceDayIndex], stops: newStops }
         return newDays
@@ -915,7 +929,7 @@ export default function ItineraryPanel({
       // Use currentDays (from ref) which has the updated state after handleDragOver
       console.log('[DnD] Cross-day move detected')
       const targetDay = currentDays[targetDayIndex]
-      const targetIndex = targetDay.stops.findIndex(s => s.poiId === activeStop.poiId)
+      const targetIndex = targetDay.stops.findIndex((s) => s.poiId === activeStop.poiId)
       console.log('[DnD] Cross-day: targetIndex in new day:', targetIndex)
 
       if (targetIndex < 0) {
@@ -945,7 +959,10 @@ export default function ItineraryPanel({
           })
           console.log('[DnD] reorderItineraryStops result:', result ? 'success' : 'null')
           if (result) {
-            console.log('[DnD] New days from API:', JSON.stringify(result.plan?.days?.map((d: any) => d.stops?.map((s: any) => s.poiId))))
+            console.log(
+              '[DnD] New days from API:',
+              JSON.stringify(result.plan?.days?.map((d: any) => d.stops?.map((s: any) => s.poiId)))
+            )
             setDays(result.plan?.days || [])
             if (onItineraryUpdate) {
               console.log('[DnD] Calling onItineraryUpdate')
@@ -1296,7 +1313,7 @@ export default function ItineraryPanel({
 
       <div
         className='flex-1 overflow-auto p-6'
-        style={isMobile ? { paddingBottom: `${BOTTOM_NAV_HEIGHT*1.5}px` } : undefined}
+        style={isMobile ? { paddingBottom: `${BOTTOM_NAV_HEIGHT * 1.5}px` } : undefined}
       >
         <DndContext
           sensors={sensors}
@@ -1377,7 +1394,7 @@ export default function ItineraryPanel({
                             stopIndex={stopIndex}
                             onDetails={
                               onOpenDetails
-                                ? () => onOpenDetails({ id: stripDaySuffix(stop.poiId), name: stop.name })
+                                ? () => onOpenDetails({ id: stop.poiId, name: stop.name })
                                 : undefined
                             }
                             onScheduleClick={(s) => handleScheduleClick(s, dayIndex)}
@@ -1648,8 +1665,12 @@ export default function ItineraryPanel({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant='outline' onClick={() => setShowRegenerateWarning(false)}>Cancel</Button>
-            <Button variant='default' onClick={handleRecomputeFull}>Continue</Button>
+            <Button variant='outline' onClick={() => setShowRegenerateWarning(false)}>
+              Cancel
+            </Button>
+            <Button variant='default' onClick={handleRecomputeFull}>
+              Continue
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

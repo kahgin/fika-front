@@ -37,7 +37,6 @@ function createInfoWindowContent(item: MapItem): string {
       </div>
       <div style="padding: 8px;">
         <h3 style="font-weight: 600; font-size: 14px; margin: 0; color: #111827;">${item.name}</h3>
-        ${item.arrival ? `<p style="color: #6b7280; font-size: 12px; font-weight: 400; margin: 4px 0 0 0;">${item.arrival}${item.depart ? ` - ${item.depart}` : ''}</p>` : ''}
       </div>
     </div>
   `
