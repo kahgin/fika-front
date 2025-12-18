@@ -40,12 +40,12 @@ export function AppSidebar({ user }: { user: User | null }) {
   const [showSignupDialog, setShowSignupDialog] = useState(false)
 
   const getCurrentView = (): NavigationViewType | string => {
-    const path = location.pathname.slice(1) || 'chat'
+    const path = location.pathname.slice(1) || 'itinerary'
     return path
   }
 
   const handleViewChange = (view: NavigationViewType, path: string) => {
-    navigate(view === 'chat' ? '/' : path)
+    navigate(view === 'itinerary' ? '/' : path)
   }
 
   return (

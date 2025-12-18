@@ -16,7 +16,7 @@ function AppContent() {
       <SidebarProvider defaultOpen={false}>
         <SidebarLayout user={user}>
           <Routes>
-            <Route path='/' element={<Navigate to='/chat' replace />} />
+            <Route path='/' element={<Navigate to='/itinerary' replace />} />
             {routes.map((route) => (
               <Route key={route.id} path={route.path} element={route.element} />
             ))}

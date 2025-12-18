@@ -1490,7 +1490,7 @@ const CreateItineraryForm: React.FC = () => {
           })
 
           setTimeout(() => {
-            navigate('/chat', { state: { initialTab: 'itinerary' } })
+            navigate('/itinerary', { state: { initialTab: 'itinerary' } })
           }, 1000)
 
           return data

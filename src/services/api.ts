@@ -271,9 +271,9 @@ export async function createItinerary(payload: CreateItineraryPayload): Promise<
   }
 }
 
-export async function getItinerary(chatId: string): Promise<CreatedItinerary | null> {
+export async function getItinerary(itineraryId: string): Promise<CreatedItinerary | null> {
   try {
-    const resp = await fetch(addCacheBuster(`${API_BASE_URL}/itinerary/${chatId}`), {
+    const resp = await fetch(addCacheBuster(`${API_BASE_URL}/itinerary/${itineraryId}`), {
       cache: 'no-store',
       headers: { ...noCacheHeaders, ...getAuthHeaders() },
     })
@@ -286,9 +286,9 @@ export async function getItinerary(chatId: string): Promise<CreatedItinerary | n
   }
 }
 
-export async function deleteItinerary(chatId: string): Promise<boolean> {
+export async function deleteItinerary(itineraryId: string): Promise<boolean> {
   try {
-    const resp = await fetch(addCacheBuster(`${API_BASE_URL}/itinerary/${chatId}`), {
+    const resp = await fetch(addCacheBuster(`${API_BASE_URL}/itinerary/${itineraryId}`), {
       method: 'DELETE',
       cache: 'no-store',
       headers: { ...noCacheHeaders, ...getAuthHeaders() },
@@ -315,9 +315,9 @@ export async function listItineraries(): Promise<CreatedItinerary[] | null> {
   }
 }
 
-export async function addPOIToItinerary(chatId: string, payload: AddPOIPayload): Promise<boolean> {
+export async function addPOIToItinerary(itineraryId: string, payload: AddPOIPayload): Promise<boolean> {
   try {
-    const resp = await fetch(`${API_BASE_URL}/itinerary/${chatId}/add-poi`, {
+    const resp = await fetch(`${API_BASE_URL}/itinerary/${itineraryId}/add-poi`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(payload),
@@ -330,7 +330,7 @@ export async function addPOIToItinerary(chatId: string, payload: AddPOIPayload):
 }
 
 export async function reorderItineraryStops(
-  chatId: string,
+  itineraryId: string,
   dayIndex: number,
   poiIds: string[],
   options?: {
@@ -341,7 +341,7 @@ export async function reorderItineraryStops(
   }
 ): Promise<CreatedItinerary | null> {
   try {
-    const resp = await fetch(`${API_BASE_URL}/itinerary/${chatId}/reorder`, {
+    const resp = await fetch(`${API_BASE_URL}/itinerary/${itineraryId}/reorder`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({
@@ -363,7 +363,7 @@ export async function reorderItineraryStops(
 }
 
 export async function schedulePOI(
-  chatId: string,
+  itineraryId: string,
   poiId: string,
   dayIndex: number,
   startTime?: string,
@@ -373,7 +373,7 @@ export async function schedulePOI(
   recalculateTimes?: boolean
 ): Promise<CreatedItinerary | null> {
   try {
-    const resp = await fetch(`${API_BASE_URL}/itinerary/${chatId}/schedule-poi`, {
+    const resp = await fetch(`${API_BASE_URL}/itinerary/${itineraryId}/schedule-poi`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({
@@ -395,9 +395,9 @@ export async function schedulePOI(
   }
 }
 
-export async function deletePOIFromItinerary(chatId: string, poiId: string): Promise<CreatedItinerary | null> {
+export async function deletePOIFromItinerary(itineraryId: string, poiId: string): Promise<CreatedItinerary | null> {
   try {
-    const resp = await fetch(`${API_BASE_URL}/itinerary/${chatId}/poi/${poiId}`, {
+    const resp = await fetch(`${API_BASE_URL}/itinerary/${itineraryId}/poi/${poiId}`, {
       method: 'DELETE',
       headers: { ...getAuthHeaders() },
     })
@@ -418,13 +418,13 @@ export interface RecomputeOptions {
 }
 
 export async function recomputeItinerary(
-  chatId: string,
+  itineraryId: string,
   mode: RecomputeMode,
   dayIndex?: number,
   options?: RecomputeOptions
 ): Promise<CreatedItinerary | null> {
   try {
-    const resp = await fetch(`${API_BASE_URL}/itinerary/${chatId}/recompute`, {
+    const resp = await fetch(`${API_BASE_URL}/itinerary/${itineraryId}/recompute`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({
@@ -448,11 +448,11 @@ export async function recomputeItinerary(
 }
 
 export async function updateItineraryMeta(
-  chatId: string,
+  itineraryId: string,
   metaUpdates: Record<string, any>
 ): Promise<CreatedItinerary | null> {
   try {
-    const currentItinerary = await getItinerary(chatId)
+    const currentItinerary = await getItinerary(itineraryId)
     if (!currentItinerary) throw new Error('Failed to load current itinerary')
 
     const updatedItinerary = {
@@ -464,7 +464,7 @@ export async function updateItineraryMeta(
     }
 
     // Save updated itinerary by persisting to backend
-    const resp = await fetch(`${API_BASE_URL}/itinerary/${chatId}/update-meta`, {
+    const resp = await fetch(`${API_BASE_URL}/itinerary/${itineraryId}/update-meta`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(metaUpdates),

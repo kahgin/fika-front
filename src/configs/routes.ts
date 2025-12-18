@@ -1,17 +1,17 @@
-import { MessageCircle, Scroll, Search, SquarePlus } from 'lucide-react'
+import { Map, Scroll, Search, SquarePlus } from 'lucide-react'
 
 // Navigation routes
 export const navigationRoutes = [
   {
-    id: 'chat',
-    path: '/chat',
-    label: 'Chat',
-    icon: MessageCircle,
-  },
-  {
     id: 'itinerary',
     path: '/itinerary',
     label: 'Itinerary',
+    icon: Map,
+  },
+  {
+    id: 'storage',
+    path: '/storage',
+    label: 'Storage',
     icon: Scroll,
   },
   {

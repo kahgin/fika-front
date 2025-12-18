@@ -446,7 +446,7 @@ export default function ItineraryPanel({
   // Button group scroll ref
   const buttonGroupRef = useRef<HTMLDivElement>(null)
 
-  const itinId = data?.itinId || localStorage.getItem('fika:lastChatId') || ''
+  const itinId = data?.itinId || localStorage.getItem('fika:lastItineraryId') || ''
 
   // Handle title update - calls backend API and syncs localStorage
   const handleTitleUpdate = useCallback(
@@ -459,7 +459,7 @@ export default function ItineraryPanel({
         if (result) {
           // Update localStorage cache
           cacheItinerary(result)
-          // Dispatch event for other components (like ChatPage header)
+          // Dispatch event for other components
           dispatchItineraryUpdate(result)
           // Notify parent component
           if (onItineraryUpdate) {

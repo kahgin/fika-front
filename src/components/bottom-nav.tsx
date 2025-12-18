@@ -13,12 +13,12 @@ export function BottomNav({ user }: { user: UserType | null }) {
   const location = useLocation()
 
   const getCurrentView = (): NavigationViewType | string => {
-    const path = location.pathname.slice(1) || 'chat'
+    const path = location.pathname.slice(1) || 'itinerary'
     return path
   }
 
   const handleViewChange = (view: NavigationViewType, path: string) => {
-    navigate(view === 'chat' ? '/' : path)
+    navigate(view === 'itinerary' ? '/' : path)
   }
 
   const handleUserClick = () => {
