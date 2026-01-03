@@ -2413,7 +2413,7 @@ const CreateItineraryForm: React.FC = () => {
             </DialogHeader>
 
             {dateMode === 'specific' ? (
-              <div className='space-y-4'>
+              <div className='flex flex-col items-center'>
                 <Calendar
                   mode='range'
                   selected={destDateRange}

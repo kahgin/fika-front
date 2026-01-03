@@ -4,9 +4,9 @@ export const STORAGE_KEYS = {
 } as const
 
 export const PACING_OPTIONS = [
-  { value: 'relaxed', label: 'Relaxed' },
-  { value: 'balanced', label: 'Balanced' },
-  { value: 'packed', label: 'Packed' },
+  { value: 'packed', label: 'Packed', time: '9am — 12am' },
+  { value: 'balanced', label: 'Balanced', time: '10am — 10pm' },
+  { value: 'relaxed', label: 'Relaxed', time: '10am — 8pm' },
 ] as const
 
 export const DIETARY_OPTIONS = [

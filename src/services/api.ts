@@ -410,6 +410,26 @@ export async function deletePOIFromItinerary(itineraryId: string, poiId: string)
   }
 }
 
+export async function togglePOILock(
+  itineraryId: string,
+  poiId: string,
+  isLocked: boolean
+): Promise<CreatedItinerary | null> {
+  try {
+    const resp = await fetch(`${API_BASE_URL}/itinerary/${itineraryId}/poi/${poiId}/lock`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({ isLocked }),
+    })
+    if (!resp.ok) throw new Error('Failed to toggle POI lock')
+    const data = await resp.json()
+    return data
+  } catch (e) {
+    console.error('togglePOILock error', e)
+    return null
+  }
+}
+
 export type RecomputeMode = 'full' | 'partial' | 'single_day'
 
 export interface RecomputeOptions {

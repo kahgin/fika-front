@@ -30,6 +30,7 @@ import {
   reorderItineraryStops,
   schedulePOI,
   updateItineraryMeta,
+  togglePOILock,
 } from '@/services/api'
 import {
   closestCenter,
@@ -60,7 +61,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { format, startOfMonth } from 'date-fns'
-import { Clock, MoreHorizontal, RefreshCw, Trash2 } from 'lucide-react'
+import { Clock, Lock, LockOpen, MoreHorizontal, RefreshCw, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { DateRange } from 'react-day-picker'
 import { toast } from 'sonner'
@@ -73,11 +74,11 @@ interface Stop {
   images?: string[] | null
   themes?: string[] | null
   arrival?: string
-  startService?: string
   depart?: string
   latitude?: number
   longitude?: number
   hotelEventType?: string
+  isLocked?: boolean
 }
 
 interface Day {
@@ -121,6 +122,7 @@ function SortableStop({
   onDetails,
   onScheduleClick,
   onDelete,
+  onToggleLock,
 }: {
   stop: Stop
   dayIndex: number
@@ -128,6 +130,7 @@ function SortableStop({
   onDetails?: (stop: Stop) => void
   onScheduleClick?: (stop: Stop) => void
   onDelete?: (stop: Stop) => void
+  onToggleLock?: (stop: Stop) => void
 }) {
   // Use stable ID based only on poiId - dayIndex/stopIndex stored in data for reference
   const sortableId = `stop_${stop.poiId}`
@@ -210,11 +213,30 @@ function SortableStop({
                   ? `${formatTime12h(stop.arrival)} - ${formatTime12h(stop.depart || stop.arrival)}`
                   : 'Set time'}
               </span>
+              {stop.isLocked && <Lock className='size-3 text-primary' />}
             </div>
           )}
         </div>
       </div>
       <div className='flex items-center gap-2 flex-shrink-0 '>
+        {/* Lock button - shows when time is set and user hovers */}
+        {onToggleLock && isHovered && stop.role !== "accommodation" && stop.arrival && stop.depart && (
+          <Button
+            variant='ghost'
+            size='sm'
+            className={cn(
+              'h-8 cursor-pointer px-2',
+              stop.isLocked ? 'text-primary hover:text-primary/80' : 'text-muted-foreground hover:text-black'
+            )}
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleLock(stop)
+            }}
+            title={stop.isLocked ? 'Unlock time (allow optimization to change)' : 'Lock time (keep during optimization)'}
+          >
+            {stop.isLocked ? <Lock className='size-4' /> : <LockOpen className='size-4' />}
+          </Button>
+        )}
         {onDelete && isHovered && stop.role !== "accommodation" && (
           <Button
             variant='ghost'
@@ -1061,6 +1083,45 @@ export default function ItineraryPanel({
     }
   }
 
+  // Toggle lock on a POI's scheduled time
+  const handleToggleLock = async (stop: Stop) => {
+    if (!itinId) return
+
+    const newLockState = !stop.isLocked
+    
+    // Optimistically update UI
+    setDays((prevDays) =>
+      prevDays.map((day) => ({
+        ...day,
+        stops: day.stops.map((s) =>
+          s.poiId === stop.poiId ? { ...s, isLocked: newLockState } : s
+        ),
+      }))
+    )
+
+    try {
+      const result = await togglePOILock(itinId, stop.poiId, newLockState)
+      if (result) {
+        setDays(result.plan?.days || [])
+        if (onItineraryUpdate) {
+          onItineraryUpdate(result)
+        }
+        toast.success(newLockState ? 'Time locked' : 'Time unlocked')
+      }
+    } catch {
+      // Revert on error
+      setDays((prevDays) =>
+        prevDays.map((day) => ({
+          ...day,
+          stops: day.stops.map((s) =>
+            s.poiId === stop.poiId ? { ...s, isLocked: !newLockState } : s
+          ),
+        }))
+      )
+      toast.error('Failed to update lock status')
+    }
+  }
+
   // Recompute handlers
   const handleRegenerateClick = () => {
     setShowRegenerateWarning(true)
@@ -1399,6 +1460,7 @@ export default function ItineraryPanel({
                             }
                             onScheduleClick={(s) => handleScheduleClick(s, dayIndex)}
                             onDelete={handleDelete}
+                            onToggleLock={handleToggleLock}
                           />
                         ))}
                       </div>

@@ -8,7 +8,6 @@ interface MapItem {
   role?: string
   themes?: string[]
   arrival?: string
-  startService?: string
   depart?: string
   latitude?: number
   longitude?: number
