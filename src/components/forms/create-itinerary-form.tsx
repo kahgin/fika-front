@@ -1045,6 +1045,18 @@ const CreateItineraryForm: React.FC = () => {
       }
     }
 
+    // Require date/day when timeType is 'specific' or 'allDay'
+    if (place.timeType === 'specific' || place.timeType === 'allDay') {
+      if (dateMode === 'specific' && !place.date) {
+        toast.error('Please select a date for this visit')
+        return
+      }
+      if (dateMode === 'flexible' && !place.day) {
+        toast.error('Please select a day for this visit')
+        return
+      }
+    }
+
     const updated = [...mandatoryPOIs]
     updated[index] = place
 

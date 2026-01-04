@@ -191,7 +191,7 @@ function SortableStop({
           <div className='flex items-center gap-2 min-w-0'>
             <POIIcon role={stop.role} themes={stop.themes} className='size-3.5 flex-shrink-0' />
             {(stop.role === 'accommodation' &&
-              <h6 className='font-normal text-muted-foreground'>
+              <h6 className='font-normal text-muted-foreground whitespace-nowrap'>
                 {
                   stop.hotelEventType === 'checkin' ? 'Check in at' : stop.hotelEventType === 'checkout' ? 'Check out at' : stop.hotelEventType === 'stay' ? 'Stay at' : 'At'
                 }
@@ -1320,7 +1320,7 @@ export default function ItineraryPanel({
               value='destination'
               variant='outline'
               className='rounded-full shadow-none flex-shrink-0'
-              onClick={() => toast('Changing trip destination is not allowed.')}
+              onClick={() => toast('Changing trip destinations is not available at the moment.')}
             >
               {tripData.destination}
             </Button>
@@ -1714,7 +1714,45 @@ export default function ItineraryPanel({
       />
 
       {/* Edit Hotels & POIs Dialog */}
-      <EditHotelsPoisDialog open={showEditDialog} onOpenChange={setShowEditDialog} />
+      <EditHotelsPoisDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        itineraryId={data?.itinId}
+        destinations={destinations.length > 0 ? destinations : [{ city: data?.meta?.destination || 'Singapore' }]}
+        initialHotels={(data?.meta?.hotels || []).map((h: any) => ({
+          poiId: h.poiId,
+          poiName: h.poiName,
+          latitude: h.latitude,
+          longitude: h.longitude,
+          destinationCity: h.destination,
+          themes: h.themes,
+          role: h.role,
+          openHours: h.openHours,
+          images: h.images,
+        }))}
+        initialMandatoryPOIs={(data?.meta?.mandatoryPois || []).map((p: any) => ({
+          poiId: p.poiId,
+          poiName: p.poiName,
+          latitude: p.latitude,
+          longitude: p.longitude,
+          destinationCity: p.poiDestination,
+          timeType: p.timeType || 'anyTime',
+          day: p.day,
+          startTime: p.startTime,
+          endTime: p.endTime,
+          themes: p.themes,
+          role: p.role,
+          openHours: p.openHours,
+          images: p.images,
+        }))}
+        totalDays={days.length}
+        dateMode={data?.meta?.dates?.type === 'specific' ? 'specific' : 'flexible'}
+        startDate={data?.meta?.dates?.startDate ? new Date(data.meta.dates.startDate) : undefined}
+        endDate={data?.meta?.dates?.endDate ? new Date(data.meta.dates.endDate) : undefined}
+        onSave={(updatedItinerary) => {
+          onItineraryUpdate?.(updatedItinerary)
+        }}
+      />
 
       {/* Regenerate Warning Dialog */}
       <Dialog open={showRegenerateWarning} onOpenChange={setShowRegenerateWarning}>

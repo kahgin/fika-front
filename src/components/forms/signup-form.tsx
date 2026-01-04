@@ -57,7 +57,7 @@ export default function SignupForm({ open, onOpenChange, onSwitchToLogin }: Sign
         <form onSubmit={handleSubmit}>
           <div className='flex flex-col gap-4'>
             <div className='grid gap-2'>
-              <Label htmlFor='name'>Name</Label>
+              <Label htmlFor='name'>Display Name</Label>
               <Input
                 id='name'
                 type='text'

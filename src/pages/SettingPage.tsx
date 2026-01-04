@@ -186,7 +186,7 @@ export default function SettingsPage() {
             <div className='flex items-center gap-4'>
               <Avatar className='h-12 w-12'>
                 <AvatarImage src={user?.avatar || undefined} alt={user?.name || 'User'} />
-                <AvatarFallback className='text-xs'>
+                <AvatarFallback>
                   {(user?.name || user?.email || 'U').charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
@@ -197,7 +197,7 @@ export default function SettingsPage() {
 
             {/* Name Field */}
             <div>
-              <label className='mb-2 block text-sm font-medium'>Full Name</label>
+              <label className='mb-2 block text-sm font-medium'>Display Name</label>
               <Input name='name' type='text' value={formValues.name} onChange={handleChange} />
             </div>
 
@@ -207,11 +207,6 @@ export default function SettingsPage() {
               <Input name='email' type='email' value={formValues.email} onChange={handleChange} />
             </div>
 
-            {/* Username Field */}
-            <div>
-              <label className='mb-2 block text-sm font-medium'>Username</label>
-              <Input name='username' type='username' value={`@${user?.username}`} readOnly />
-            </div>
 
             {/* Password */}
             <div>
