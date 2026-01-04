@@ -1,8 +1,10 @@
 # Fika Web
 
-Web app for Fika — an AI-powered travel itinerary planner.
+<img width="1910" height="915" alt="screenshot" src="https://github.com/user-attachments/assets/e1b21a44-a041-4d15-a2de-d86d52693353" />
 
-> [!WARNING]
+Web app for Fika — an personalised travel itinerary planner.
+
+> [!NOTE]
 > Pair this with [Fika Core](https://github.com/kahgin/fika-core) to enable the backend API.
 
 ## Getting Started
