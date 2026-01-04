@@ -9,13 +9,10 @@ Web app for Fika — an personalised travel itinerary planner.
 
 ## Getting Started
 
-> [!NOTE]
-> Install [bun](https://bun.sh/) before proceeding.
-
 ### 1. Install dependencies
 
 ```bash
-bun i
+npm install
 ```
 
 ### 2. Set up environment
@@ -29,5 +26,5 @@ Fill in your Google Maps API key in `.env`.
 ### 3. Start the local server
 
 ```bash
-bun run dev
+npm run dev
 ```
